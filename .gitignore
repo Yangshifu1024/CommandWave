@@ -13,6 +13,7 @@ src-tauri/gen/schemas/
 
 # Local tool state
 .zcode/
+.wavestudio/
 
 # OS
 .DS_Store

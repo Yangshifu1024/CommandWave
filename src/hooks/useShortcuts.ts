@@ -1,8 +1,7 @@
 import { useEffect } from "react";
 
+import { isMac } from "../layout/TitleBar";
 import { useAppStore } from "../store/appStore";
-
-const isMac = /Mac/.test(navigator.platform);
 
 /**
  * Global keyboard shortcuts, registered with capture so they win over xterm

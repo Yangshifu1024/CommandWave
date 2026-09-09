@@ -20,6 +20,16 @@ pub fn run() {
         ])
         .setup(|app| {
             menu::setup(app.handle())?;
+            // Frameless window on Windows/Linux (custom title bar in the
+            // webview); macOS keeps native chrome with an overlaid title.
+            #[cfg(not(target_os = "macos"))]
+            {
+                use tauri::Manager;
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_decorations(false);
+                    let _ = window.show();
+                }
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

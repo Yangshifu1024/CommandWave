@@ -93,6 +93,42 @@ The frontend also runs in a plain browser (`pnpm dev` →
 | Search                          | ⌘F           | Ctrl+F          |
 | Settings                        | ⌘,           | Ctrl+,          |
 
+## Shell integration (tab titles track your cwd)
+
+Tab titles show the current directory's last segment (`CommandWave`) and
+update as you `cd`. This relies on the shell reporting its working directory
+via OSC 7 (or ConEmu-style OSC 9;9). If your shell doesn't report it, titles
+fall back to the program-set window title, then the profile's starting
+directory. Enable it with a prompt hook:
+
+PowerShell (add to your `$PROFILE`):
+
+```powershell
+function prompt {
+  $loc = $executionContext.SessionState.Path.CurrentLocation
+  if ($Host.UI.SupportsVirtualTerminal) {
+    $path = $loc.ProviderPath -replace "\\", "/"
+    if ($path -notmatch "^/") { $path = "/$path" }  # C:/... -> /C:/...
+    Write-Host -NoNewline "`e]7;file://$env:COMPUTERNAME$path`a"
+  }
+  "PS $loc> "
+}
+```
+
+bash (add to `~/.bashrc`):
+
+```bash
+__cw_cwd() { printf '\e]7;file://%s%s\a' "$HOSTNAME" "$PWD"; }
+PROMPT_COMMAND="__cw_cwd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+```
+
+zsh (add to `~/.zshrc`):
+
+```zsh
+__cw_cwd() { print -Pn "\e]7;file://%m$(pwd)\a" }
+precmd_functions=(__cw_cwd $precmd_functions)
+```
+
 ## Packaging
 
 ```bash

@@ -11,6 +11,7 @@ import {
   useSettingsStore,
 } from "../store/settingsStore";
 import { useAppStore } from "../store/appStore";
+import { parseOscCwd } from "./paneTitle";
 import { getTheme } from "./themes";
 import { terminalManager } from "./manager";
 import { onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, spawnPty } from "./ipc";
@@ -117,6 +118,21 @@ export function TerminalPane({ paneId, cwd, shell }: TerminalPaneProps) {
 
     term.onTitleChange((title) => {
       useAppStore.getState().onPaneTitle(paneId, title);
+    });
+
+    // Shell integration: OSC 7 ("file://host/path") and ConEmu-style OSC 9;9
+    // both report the shell's working directory; use them for tab titles.
+    term.parser.registerOscHandler(7, (data) => {
+      const cwd = parseOscCwd(data);
+      if (cwd) useAppStore.getState().onPaneCwd(paneId, cwd);
+      return false;
+    });
+    term.parser.registerOscHandler(9, (data) => {
+      if (data.startsWith("9;")) {
+        const cwd = parseOscCwd(data.slice(2));
+        if (cwd) useAppStore.getState().onPaneCwd(paneId, cwd);
+      }
+      return false;
     });
 
     try {

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import { SplitTree } from "./layout/SplitTree";
 import { TabStrip } from "./layout/TabStrip";
+import { TitleBar, dispatchMenuAction } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { useAppStore } from "./store/appStore";
@@ -28,6 +29,13 @@ export default function App() {
     if (!settingsLoaded) return;
     const ui = useSettingsStore.getState().settings.ui;
     useAppStore.setState({ tabBarPosition: ui.tabBarPosition, sidebarWidth: ui.sidebarWidth });
+    // The initial tab predates the async settings load; backfill its spawn
+    // cwd so the title shows the profile directory instead of "Shell".
+    const prof =
+      useSettingsStore.getState().settings.profiles.find(
+        (p) => p.id === useSettingsStore.getState().settings.defaultProfileId,
+      ) ?? useSettingsStore.getState().settings.profiles[0];
+    useAppStore.getState().setInitialSpawnCwd(prof?.cwd ?? null);
   }, [settingsLoaded]);
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -43,14 +51,14 @@ export default function App() {
   const themeName = profile?.themeName ?? appearanceDefaults.themeName;
   useEffect(() => {
     const rootStyle = document.documentElement.style;
-    rootStyle.setProperty("--bg", getTheme(themeName).background ?? "#1a1d23");
-    if (isDarkTheme(themeName)) {
-      rootStyle.setProperty("--fg", "#e8eaed");
-      rootStyle.setProperty("--fg-dim", "#9aa0a8");
-    } else {
-      rootStyle.setProperty("--fg", "#1f2328");
-      rootStyle.setProperty("--fg-dim", "#5c6370");
-    }
+    const theme = getTheme(themeName);
+    rootStyle.setProperty("--bg", theme.background ?? "#1a1d23");
+    // Foreground follows the theme so light terminals get light chrome;
+    // --fg-dim is derived in CSS (color-mix) from these two.
+    rootStyle.setProperty(
+      "--fg",
+      theme.foreground ?? (isDarkTheme(themeName) ? "#e8eaed" : "#1f2328"),
+    );
   }, [themeName]);
 
   useEffect(() => {
@@ -62,44 +70,10 @@ export default function App() {
     };
   }, []);
 
-  // Native menu bar commands.
+  // Native menu bar commands (macOS) — the custom title bar menu calls
+  // dispatchMenuAction directly, so both paths share one dispatcher.
   useEffect(() => {
-    const promise = onMenuAction((action) => {
-      const s = useAppStore.getState();
-      const tab = s.tabs.find((t) => t.id === s.activeTabId);
-      switch (action) {
-        case "open-settings":
-          s.openSettings();
-          break;
-        case "toggle-vertical-tabs":
-          s.toggleTabBar();
-          break;
-        case "new-tab":
-          s.newTab();
-          break;
-        case "close-pane":
-          if (tab) s.closePane(tab.id, tab.activePaneId);
-          break;
-        case "close-tab":
-          if (tab) s.closeTab(tab.id);
-          break;
-        case "split-right":
-          if (tab) s.splitPane(tab.activePaneId, "h");
-          break;
-        case "split-down":
-          if (tab) s.splitPane(tab.activePaneId, "v");
-          break;
-        case "prev-pane":
-          s.cyclePane(-1);
-          break;
-        case "next-pane":
-          s.cyclePane(1);
-          break;
-        case "open-search":
-          s.openSearch();
-          break;
-      }
-    });
+    const promise = onMenuAction((action) => dispatchMenuAction(action));
     return () => {
       promise.then((unlisten) => unlisten());
     };
@@ -114,23 +88,26 @@ export default function App() {
   }, [activeTabId, activePaneId]);
   useEffect(() => {
     document.title = activeTab ? `${activeTab.title} — CommandWave` : "CommandWave";
-  }, [activeTab?.title]);
+  }, [activeTab?.id, activeTab?.title]);
 
   return (
     <div className="app">
-      {tabBarPosition === "left" && <TabStrip side="left" />}
-      <div className="main">
-        {tabBarPosition === "top" && <TabStrip side="top" />}
-        <div className="content">
-          {tabs.map((tab) => (
-            <div
-              key={tab.id}
-              className={`tab-layer${tab.id === activeTabId ? " tab-layer-active" : ""}`}
-            >
-              <SplitTree tab={tab} active={tab.id === activeTabId} />
-            </div>
-          ))}
-          <SearchBar />
+      <TitleBar />
+      <div className="app-body">
+        {tabBarPosition === "left" && <TabStrip side="left" />}
+        <div className="main">
+          {tabBarPosition === "top" && <TabStrip side="top" />}
+          <div className="content">
+            {tabs.map((tab) => (
+              <div
+                key={tab.id}
+                className={`tab-layer${tab.id === activeTabId ? " tab-layer-active" : ""}`}
+              >
+                <SplitTree tab={tab} active={tab.id === activeTabId} />
+              </div>
+            ))}
+            <SearchBar />
+          </div>
         </div>
       </div>
       {settingsOpen && <SettingsDialog />}

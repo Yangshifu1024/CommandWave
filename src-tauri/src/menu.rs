@@ -1,11 +1,20 @@
+#[cfg(target_os = "macos")]
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     AppHandle, Emitter, Manager, Wry,
 };
 
+#[cfg(not(target_os = "macos"))]
+use tauri::{AppHandle, Wry};
+
 /// Build the native application menu (iTerm2-style) and route menu events to
 /// the focused webview as `cw-menu` events. Explicit accelerators here also
 /// prevent macOS' default menu from intercepting keys like Cmd+W.
+///
+/// macOS keeps this native menu (system convention); Windows and Linux use
+/// the custom in-window title bar menu instead, so no native menu is
+/// attached there (see `TitleBar.tsx`).
+#[cfg(target_os = "macos")]
 pub fn setup(app: &AppHandle<Wry>) -> tauri::Result<()> {
     let app_submenu = Submenu::with_id(app, "cw-app", "CommandWave", true)?;
     app_submenu.append(&PredefinedMenuItem::about(
@@ -133,5 +142,12 @@ pub fn setup(app: &AppHandle<Wry>) -> tauri::Result<()> {
             let _ = app.emit("cw-menu", id);
         }
     });
+    Ok(())
+}
+
+/// No native menu on Windows/Linux: the custom title bar menu (TitleBar.tsx)
+/// owns these commands in-window.
+#[cfg(not(target_os = "macos"))]
+pub fn setup(_app: &AppHandle<Wry>) -> tauri::Result<()> {
     Ok(())
 }

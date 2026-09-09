@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { create } from "zustand";
 
 import { terminalManager } from "../terminal/manager";
+import { computeTabTitle, type PaneTitleMeta } from "../terminal/paneTitle";
 import { useSettingsStore } from "./settingsStore";
 import {
   collectPaneIds,
@@ -20,6 +21,8 @@ export interface Tab {
   title: string;
   root: PaneNode;
   activePaneId: string;
+  /** Per-pane title inputs; tabs render the active pane's chain. */
+  paneMeta: Record<string, PaneTitleMeta>;
 }
 
 let seq = 0;
@@ -27,13 +30,14 @@ function genId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${++seq}`;
 }
 
-function makeTab(): Tab {
+function makeTab(spawnCwd: string | null = null): Tab {
   const paneId = genId("pane");
   return {
     id: genId("tab"),
-    title: "Shell",
+    title: computeTabTitle({ spawnCwd, cwd: null, oscTitle: null }),
     root: paneLeaf(paneId),
     activePaneId: paneId,
+    paneMeta: { [paneId]: { spawnCwd, cwd: null, oscTitle: null } },
   };
 }
 
@@ -75,6 +79,8 @@ interface AppStore {
   cyclePane: (offset: 1 | -1) => void;
   setSplitSizes: (tabId: string, path: number[], sizes: number[]) => void;
   onPaneTitle: (paneId: string, title: string) => void;
+  onPaneCwd: (paneId: string, cwd: string) => void;
+  setInitialSpawnCwd: (spawnCwd: string | null) => void;
   closePaneByPtyId: (ptyId: number, exitCode: number) => void;
 }
 
@@ -91,7 +97,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   searchOpen: false,
 
   newTab: () => {
-    const tab = makeTab();
+    const profile = useSettingsStore.getState().settings.profiles.find(
+      (p) => p.id === useSettingsStore.getState().settings.defaultProfileId,
+    );
+    const tab = makeTab(profile?.cwd ?? null);
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
   },
 
@@ -173,10 +182,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
       tabs: s.tabs.map((tab) => {
         if (!containsPane(tab.root, paneId)) return tab;
         const newPaneId = genId("pane");
+        const profile = useSettingsStore.getState().settings.profiles.find(
+          (p) => p.id === useSettingsStore.getState().settings.defaultProfileId,
+        );
         return {
           ...tab,
           root: splitPaneNode(tab.root, paneId, dir, newPaneId),
           activePaneId: newPaneId,
+          title: computeTabTitle(tab.paneMeta[newPaneId]),
+          paneMeta: {
+            ...tab.paneMeta,
+            [newPaneId]: {
+              spawnCwd: profile?.cwd ?? null,
+              cwd: null,
+              oscTitle: null,
+            },
+          },
         };
       }),
     }));
@@ -194,17 +215,28 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!res.node) return;
     const newActive = res.focusPaneId ?? collectPaneIds(res.node)[0];
     set({
-      tabs: tabs.map((t) =>
-        t.id === tabId ? { ...t, root: res.node!, activePaneId: newActive } : t,
-      ),
+      tabs: tabs.map((t) => {
+        if (t.id !== tabId) return t;
+        // Drop the closed pane's title metadata (paneMeta pruning).
+        const paneMeta = { ...t.paneMeta };
+        delete paneMeta[paneId];
+        return {
+          ...t,
+          root: res.node!,
+          activePaneId: newActive,
+          title: computeTabTitle(paneMeta[newActive]),
+          paneMeta,
+        };
+      }),
     });
   },
 
   selectPane: (tabId, paneId) => {
     set((s) => ({
-      tabs: s.tabs.map((t) =>
-        t.id === tabId && containsPane(t.root, paneId) ? { ...t, activePaneId: paneId } : t,
-      ),
+      tabs: s.tabs.map((t) => {
+        if (t.id !== tabId || !containsPane(t.root, paneId)) return t;
+        return { ...t, activePaneId: paneId, title: computeTabTitle(t.paneMeta[paneId]) };
+      }),
     }));
   },
 
@@ -214,7 +246,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!tab) return;
     const paneId = nextPaneId(tab.root, tab.activePaneId, offset);
     set({
-      tabs: tabs.map((t) => (t.id === tab.id ? { ...t, activePaneId: paneId } : t)),
+      tabs: tabs.map((t) =>
+        t.id === tab.id
+          ? { ...t, activePaneId: paneId, title: computeTabTitle(t.paneMeta[paneId]) }
+          : t,
+      ),
     });
   },
 
@@ -231,9 +267,44 @@ export const useAppStore = create<AppStore>((set, get) => ({
   onPaneTitle: (paneId, title) => {
     if (!title) return;
     set((s) => ({
-      tabs: s.tabs.map((t) =>
-        t.id === s.activeTabId && t.activePaneId === paneId ? { ...t, title } : t,
-      ),
+      tabs: s.tabs.map((tab) => {
+        if (!(paneId in tab.paneMeta)) return tab;
+        const paneMeta = { ...tab.paneMeta, [paneId]: { ...tab.paneMeta[paneId], oscTitle: title } };
+        return {
+          ...tab,
+          paneMeta,
+          title: tab.activePaneId === paneId ? computeTabTitle(paneMeta[paneId]) : tab.title,
+        };
+      }),
+    }));
+  },
+
+  onPaneCwd: (paneId, cwd) => {
+    if (!cwd) return;
+    set((s) => ({
+      tabs: s.tabs.map((tab) => {
+        if (!(paneId in tab.paneMeta)) return tab;
+        const paneMeta = { ...tab.paneMeta, [paneId]: { ...tab.paneMeta[paneId], cwd } };
+        return {
+          ...tab,
+          paneMeta,
+          title: tab.activePaneId === paneId ? computeTabTitle(paneMeta[paneId]) : tab.title,
+        };
+      }),
+    }));
+  },
+
+  // Settings load is async; the pre-existing initial tab needs its spawn cwd
+  // (and title) backfilled once the profile is known.
+  setInitialSpawnCwd: (spawnCwd) => {
+    set((s) => ({
+      tabs: s.tabs.map((tab) => {
+        const paneId = tab.activePaneId;
+        const meta = tab.paneMeta[paneId];
+        if (!meta || meta.spawnCwd !== null) return tab;
+        const paneMeta = { ...tab.paneMeta, [paneId]: { ...meta, spawnCwd } };
+        return { ...tab, title: computeTabTitle(paneMeta[paneId]), paneMeta };
+      }),
     }));
   },
 

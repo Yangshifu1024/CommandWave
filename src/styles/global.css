@@ -4,7 +4,9 @@
   --bg-panel: color-mix(in srgb, var(--bg), #000 9%);
   --bg-raised: color-mix(in srgb, var(--bg), var(--fg) 7%);
   --fg: #e8eaed;
-  --fg-dim: #9aa0a8;
+  /* Dim text: 30% bg blend keeps ~3:1+ contrast on both light and dark
+     panels (a 45% blend dropped light themes below 2:1). */
+  --fg-dim: color-mix(in srgb, var(--fg), var(--bg) 30%);
   --border: color-mix(in srgb, var(--bg), var(--fg) 22%);
   --accent: #4f9cf9;
   --danger: #e06c75;
@@ -34,6 +36,7 @@ body {
 
 .app {
   display: flex;
+  flex-direction: column;
   height: 100%;
 }
 
@@ -58,6 +61,149 @@ body {
 
 .tab-layer-active {
   visibility: visible;
+}
+
+/* Row 2: sidebar + tab strip + terminal content, below the title bar. */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------- Custom title bar ---------- */
+
+.titlebar {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 36px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.titlebar-mac {
+  padding-left: 76px; /* keep clear of the macOS traffic lights */
+}
+
+.titlebar-traffic-space {
+  flex-shrink: 0;
+}
+
+.titlebar-menus {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.titlebar-menu {
+  position: relative;
+  display: flex;
+}
+
+.titlebar-menu-label {
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.titlebar-menu-label:hover,
+.titlebar-menu-label.open {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.titlebar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 200;
+  min-width: 220px;
+  padding: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.titlebar-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.titlebar-menu-item:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.titlebar-menu-item-key {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.titlebar-menu-item:hover .titlebar-menu-item-key {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.titlebar-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+.titlebar-drag {
+  flex: 1;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.titlebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+}
+
+.titlebar-btn svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.titlebar-btn:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.titlebar-btn.titlebar-close:hover {
+  background: #e81123;
+  color: #fff;
 }
 
 /* ---------- Terminal ---------- */
