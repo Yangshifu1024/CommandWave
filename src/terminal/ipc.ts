@@ -1,0 +1,126 @@
+import { Channel, invoke } from "@tauri-apps/api/core";
+
+import { normalizeChunk } from "./manager";
+
+export const isTauri =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+export interface PtySpawnOptions {
+  rows: number;
+  cols: number;
+  cwd: string | null;
+  shell: string | null;
+}
+
+interface PtyCreated {
+  ptyId: number;
+}
+
+interface PtyHandle {
+  ptyId: number;
+}
+
+type OutputSink = (data: Uint8Array | string) => void;
+
+/**
+ * Single IPC boundary between the UI and the PTY backend. Outside the Tauri
+ * webview (plain browser dev) a tiny echo shell is mocked so the whole UI
+ * stays usable for layout work.
+ */
+export async function spawnPty(
+  options: PtySpawnOptions,
+  onOutput: OutputSink,
+): Promise<PtyHandle> {
+  if (isTauri) {
+    const channel = new Channel<unknown>((raw) => onOutput(normalizeChunk(raw)));
+    return invoke<PtyCreated>("pty_create", { options, onOutput: channel });
+  }
+  return mockSpawn(onOutput);
+}
+
+export function ptyWrite(ptyId: number, data: string): void {
+  if (isTauri) {
+    invoke("pty_write", { ptyId, data }).catch(() => {});
+  } else {
+    mockWrite(ptyId, data);
+  }
+}
+
+export function ptyResize(ptyId: number, rows: number, cols: number): void {
+  if (isTauri) {
+    invoke("pty_resize", { ptyId, rows, cols }).catch(() => {});
+  }
+}
+
+export function ptyClose(ptyId: number): void {
+  if (isTauri) {
+    invoke("pty_close", { ptyId }).catch(() => {});
+  } else {
+    mockSessions.delete(ptyId);
+  }
+}
+
+/** Subscribes to backend PTY exit events; noop outside Tauri. */
+export async function onPtyExit(
+  handler: (ptyId: number, exitCode: number) => void,
+): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  const unlisten = await listen<{ ptyId: number; exitCode: number }>(
+    "pty-exit",
+    ({ payload }) => handler(payload.ptyId, payload.exitCode),
+  );
+  return unlisten;
+}
+
+/** Open a URL with the system handler (opener plugin in Tauri). */
+export async function openExternal(url: string): Promise<void> {
+  if (!isTauri) {
+    window.open(url, "_blank", "noopener");
+    return;
+  }
+  try {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url);
+  } catch {
+    // ignore malformed URLs
+  }
+}
+
+/** Native menu bar commands (settings, splits, tabs…). */
+export async function onMenuAction(
+  handler: (action: string) => void,
+): Promise<() => void> {
+  if (!isTauri) return () => {};
+  const { listen } = await import("@tauri-apps/api/event");
+  const unlisten = await listen<string>("cw-menu", ({ payload }) =>
+    handler(payload),
+  );
+  return unlisten;
+}
+
+// ---------- browser mock ----------
+
+const mockSessions = new Map<number, OutputSink>();
+let nextMockId = 1;
+
+function mockSpawn(onOutput: OutputSink): Promise<PtyHandle> {
+  const ptyId = nextMockId++;
+  mockSessions.set(ptyId, onOutput);
+  setTimeout(() => {
+    onOutput(
+      "\x1b[36mCommandWave mock shell\x1b[0m — backend unavailable in browser dev mode\r\n> ",
+    );
+  }, 30);
+  return Promise.resolve({ ptyId });
+}
+
+function mockWrite(ptyId: number, data: string): void {
+  const sink = mockSessions.get(ptyId);
+  if (!sink) return;
+  if (data === "\r") {
+    sink("\r\nmock> ");
+  } else if (data >= " " || data === "\t") {
+    sink(data);
+  }
+}

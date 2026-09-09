@@ -1,0 +1,249 @@
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { create } from "zustand";
+
+import { terminalManager } from "../terminal/manager";
+import { useSettingsStore } from "./settingsStore";
+import {
+  collectPaneIds,
+  containsPane,
+  nextPaneId,
+  paneLeaf,
+  removePaneNode,
+  splitPaneNode,
+  type PaneNode,
+  type SplitDir,
+} from "../layout/paneTree";
+
+export interface Tab {
+  id: string;
+  title: string;
+  root: PaneNode;
+  activePaneId: string;
+}
+
+let seq = 0;
+function genId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${++seq}`;
+}
+
+function makeTab(): Tab {
+  const paneId = genId("pane");
+  return {
+    id: genId("tab"),
+    title: "Shell",
+    root: paneLeaf(paneId),
+    activePaneId: paneId,
+  };
+}
+
+/** Replace the node at `path` (indexes into nested splits). */
+function updateAt(node: PaneNode, path: number[], fn: (n: PaneNode) => PaneNode): PaneNode {
+  if (path.length === 0) return fn(node);
+  if (node.type !== "split") return node;
+  const [head, ...rest] = path;
+  return {
+    ...node,
+    children: node.children.map((c, i) => (i === head ? updateAt(c, rest, fn) : c)),
+  };
+}
+
+interface AppStore {
+  tabs: Tab[];
+  activeTabId: string;
+  tabBarPosition: "top" | "left";
+  sidebarWidth: number;
+  settingsOpen: boolean;
+  searchOpen: boolean;
+
+  newTab: () => void;
+  closeTab: (tabId: string) => void;
+  selectTab: (tabId: string) => void;
+  selectTabIndex: (index: number) => void;
+  cycleTab: (offset: 1 | -1) => void;
+  moveTab: (from: number, to: number) => void;
+  toggleTabBar: () => void;
+  setSidebarWidth: (width: number) => void;
+  openSettings: () => void;
+  closeSettings: () => void;
+  openSearch: () => void;
+  closeSearch: () => void;
+
+  splitPane: (paneId: string, dir: SplitDir) => void;
+  closePane: (tabId: string, paneId: string) => void;
+  selectPane: (tabId: string, paneId: string) => void;
+  cyclePane: (offset: 1 | -1) => void;
+  setSplitSizes: (tabId: string, path: number[], sizes: number[]) => void;
+  onPaneTitle: (paneId: string, title: string) => void;
+  closePaneByPtyId: (ptyId: number, exitCode: number) => void;
+}
+
+const initialTab = makeTab();
+
+let sidebarPersistTimer: ReturnType<typeof setTimeout> | undefined;
+
+export const useAppStore = create<AppStore>((set, get) => ({
+  tabs: [initialTab],
+  activeTabId: initialTab.id,
+  tabBarPosition: "top",
+  sidebarWidth: 180,
+  settingsOpen: false,
+  searchOpen: false,
+
+  newTab: () => {
+    const tab = makeTab();
+    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
+  },
+
+  closeTab: (tabId) => {
+    const { tabs, activeTabId } = get();
+    const index = tabs.findIndex((t) => t.id === tabId);
+    if (index === -1) return;
+    const remaining = tabs.filter((t) => t.id !== tabId);
+    if (remaining.length === 0) {
+      // Last tab: close the window (PTY cleanup happens via pane unmounts,
+      // but this tab is being removed from state first, so release here).
+      const tab = tabs[index];
+      for (const paneId of collectPaneIds(tab.root)) {
+        const entry = terminalManager.get(paneId);
+        if (entry?.ptyId != null) invoke("pty_close", { ptyId: entry.ptyId }).catch(() => {});
+      }
+      getCurrentWindow().close();
+      return;
+    }
+    const nextActive =
+      activeTabId === tabId ? remaining[Math.min(index, remaining.length - 1)].id : activeTabId;
+    set({ tabs: remaining, activeTabId: nextActive });
+  },
+
+  selectTab: (tabId) => {
+    if (get().tabs.some((t) => t.id === tabId)) set({ activeTabId: tabId });
+  },
+
+  selectTabIndex: (index) => {
+    const { tabs } = get();
+    if (index >= 0 && index < tabs.length) set({ activeTabId: tabs[index].id });
+  },
+
+  cycleTab: (offset) => {
+    const { tabs, activeTabId } = get();
+    const idx = tabs.findIndex((t) => t.id === activeTabId);
+    const next = (idx + offset + tabs.length) % tabs.length;
+    set({ activeTabId: tabs[next].id });
+  },
+
+  moveTab: (from, to) => {
+    if (from === to) return;
+    set((s) => {
+      const tabs = [...s.tabs];
+      const [moved] = tabs.splice(from, 1);
+      if (!moved) return {};
+      tabs.splice(to, 0, moved);
+      return { tabs };
+    });
+  },
+
+  toggleTabBar: () => {
+    const pos = get().tabBarPosition === "top" ? "left" : "top";
+    set({ tabBarPosition: pos });
+    useSettingsStore.getState().update((draft) => {
+      draft.ui.tabBarPosition = pos;
+    });
+  },
+
+  setSidebarWidth: (width) => {
+    const clamped = Math.min(480, Math.max(140, width));
+    set({ sidebarWidth: clamped });
+    // Debounce persistence: this fires on every mousemove while dragging.
+    clearTimeout(sidebarPersistTimer);
+    sidebarPersistTimer = setTimeout(() => {
+      useSettingsStore.getState().update((draft) => {
+        draft.ui.sidebarWidth = clamped;
+      });
+    }, 250);
+  },
+
+  openSettings: () => set({ settingsOpen: true }),
+  closeSettings: () => set({ settingsOpen: false }),
+  openSearch: () => set({ searchOpen: true }),
+  closeSearch: () => set({ searchOpen: false }),
+
+  splitPane: (paneId, dir) => {
+    set((s) => ({
+      tabs: s.tabs.map((tab) => {
+        if (!containsPane(tab.root, paneId)) return tab;
+        const newPaneId = genId("pane");
+        return {
+          ...tab,
+          root: splitPaneNode(tab.root, paneId, dir, newPaneId),
+          activePaneId: newPaneId,
+        };
+      }),
+    }));
+  },
+
+  closePane: (tabId, paneId) => {
+    const { tabs } = get();
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab || !containsPane(tab.root, paneId)) return;
+    if (tab.root.type === "pane" && tab.root.id === paneId) {
+      get().closeTab(tabId);
+      return;
+    }
+    const res = removePaneNode(tab.root, paneId);
+    if (!res.node) return;
+    const newActive = res.focusPaneId ?? collectPaneIds(res.node)[0];
+    set({
+      tabs: tabs.map((t) =>
+        t.id === tabId ? { ...t, root: res.node!, activePaneId: newActive } : t,
+      ),
+    });
+  },
+
+  selectPane: (tabId, paneId) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === tabId && containsPane(t.root, paneId) ? { ...t, activePaneId: paneId } : t,
+      ),
+    }));
+  },
+
+  cyclePane: (offset) => {
+    const { tabs, activeTabId } = get();
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+    const paneId = nextPaneId(tab.root, tab.activePaneId, offset);
+    set({
+      tabs: tabs.map((t) => (t.id === tab.id ? { ...t, activePaneId: paneId } : t)),
+    });
+  },
+
+  setSplitSizes: (tabId, path, sizes) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === tabId
+          ? { ...t, root: updateAt(t.root, path, (n) => ({ ...n, sizes })) }
+          : t,
+      ),
+    }));
+  },
+
+  onPaneTitle: (paneId, title) => {
+    if (!title) return;
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === s.activeTabId && t.activePaneId === paneId ? { ...t, title } : t,
+      ),
+    }));
+  },
+
+  closePaneByPtyId: (ptyId, exitCode) => {
+    const entry = terminalManager.findByPty(ptyId);
+    if (!entry) return;
+    const { tabs } = get();
+    const tab = tabs.find((t) => containsPane(t.root, entry.paneId));
+    if (!tab) return;
+    // Clean exits close their pane automatically; failures stay visible.
+    if (exitCode === 0) get().closePane(tab.id, entry.paneId);
+  },
+}));

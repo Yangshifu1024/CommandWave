@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local tool state
+.zcode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated
+*.tsbuildinfo

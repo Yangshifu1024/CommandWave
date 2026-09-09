@@ -1,0 +1,111 @@
+import type { FitAddon } from "@xterm/addon-fit";
+import type { SearchAddon } from "@xterm/addon-search";
+import type { Terminal } from "@xterm/xterm";
+
+export interface TerminalEntry {
+  paneId: string;
+  term: Terminal;
+  fit: FitAddon;
+  search: SearchAddon | null;
+  ptyId: number | null;
+  /** true while the terminal's element lives in the visible layout */
+  attached: boolean;
+  /** fit + propagate new size to the PTY */
+  doFit: () => void;
+}
+
+/**
+ * Owns every xterm.js instance for the window, keyed by pane id.
+ *
+ * Terminals are opened into an offscreen "pool" element and re-parented into
+ * the visible layout when their pane is shown. Moving the DOM node keeps the
+ * buffer, scrollback and rendered canvas alive across tab switches, while the
+ * PTY session runs in the backend regardless of visibility.
+ */
+class TerminalManager {
+  private entries = new Map<string, TerminalEntry>();
+  private pool: HTMLElement | null = null;
+
+  private ensurePool(): HTMLElement {
+    if (!this.pool) {
+      const pool = document.createElement("div");
+      pool.className = "terminal-pool";
+      pool.style.cssText =
+        "position:absolute;left:-10000px;top:0;width:2400px;height:1600px;overflow:hidden;opacity:0;pointer-events:none;";
+      document.body.appendChild(pool);
+      this.pool = pool;
+    }
+    return this.pool;
+  }
+
+  create(paneId: string, term: Terminal, fit: FitAddon): TerminalEntry {
+    const existing = this.entries.get(paneId);
+    if (existing) return existing;
+    term.open(this.ensurePool());
+    const entry: TerminalEntry = {
+      paneId,
+      term,
+      fit,
+      search: null,
+      ptyId: null,
+      attached: false,
+      doFit: () => {},
+    };
+    this.entries.set(paneId, entry);
+    return entry;
+  }
+
+  get(paneId: string): TerminalEntry | undefined {
+    return this.entries.get(paneId);
+  }
+
+  findByPty(ptyId: number): TerminalEntry | undefined {
+    for (const entry of this.entries.values()) {
+      if (entry.ptyId === ptyId) return entry;
+    }
+    return undefined;
+  }
+
+  /** Move the terminal's DOM element into the visible container. */
+  attach(paneId: string, container: HTMLElement): void {
+    const entry = this.entries.get(paneId);
+    if (!entry?.term.element) return;
+    container.appendChild(entry.term.element);
+    entry.attached = true;
+    entry.doFit();
+  }
+
+  /** Park the terminal back in the offscreen pool. */
+  detach(paneId: string): void {
+    const entry = this.entries.get(paneId);
+    if (!entry?.term.element) return;
+    this.ensurePool().appendChild(entry.term.element);
+    entry.attached = false;
+  }
+
+  isAttached(paneId: string): boolean {
+    return this.entries.get(paneId)?.attached ?? false;
+  }
+
+  dispose(paneId: string): void {
+    const entry = this.entries.get(paneId);
+    if (!entry) return;
+    this.entries.delete(paneId);
+    try {
+      entry.term.dispose();
+    } catch {
+      // already disposed
+    }
+  }
+}
+
+export const terminalManager = new TerminalManager();
+
+/** PTY output may arrive as a raw ArrayBuffer, typed array or plain string. */
+export function normalizeChunk(raw: unknown): Uint8Array | string {
+  if (raw instanceof ArrayBuffer) return new Uint8Array(raw);
+  if (raw instanceof Uint8Array) return raw;
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) return new Uint8Array(raw as number[]);
+  return new Uint8Array(0);
+}

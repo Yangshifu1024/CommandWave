@@ -1,0 +1,593 @@
+:root {
+  /* --bg / --fg / --fg-dim are set from the active terminal theme at runtime. */
+  --bg: #1a1d23;
+  --bg-panel: color-mix(in srgb, var(--bg), #000 9%);
+  --bg-raised: color-mix(in srgb, var(--bg), var(--fg) 7%);
+  --fg: #e8eaed;
+  --fg-dim: #9aa0a8;
+  --border: color-mix(in srgb, var(--bg), var(--fg) 22%);
+  --accent: #4f9cf9;
+  --danger: #e06c75;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.content {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.tab-layer {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+}
+
+.tab-layer-active {
+  visibility: visible;
+}
+
+/* ---------- Terminal ---------- */
+
+.terminal-pane {
+  position: absolute;
+  inset: 0;
+  padding: 4px 8px;
+}
+
+.xterm .xterm-screen {
+  user-select: text;
+}
+
+/* ---------- Tabs ---------- */
+
+.tabstrip {
+  display: flex;
+  background: var(--bg-panel);
+  border-color: var(--border);
+  flex-shrink: 0;
+}
+
+.tabstrip-h {
+  flex-direction: row;
+  align-items: center;
+  height: 36px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 6px;
+  gap: 2px;
+}
+
+.tabstrip-v {
+  flex-direction: column;
+  width: 180px;
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+
+.tabs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tabstrip-h .tabs {
+  flex-direction: row;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.tabstrip-v .tabs {
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 28px;
+  min-width: 90px;
+  max-width: 200px;
+  border-radius: 6px;
+  color: var(--fg-dim);
+  cursor: default;
+  flex-shrink: 0;
+}
+
+.tabstrip-h .tab {
+  margin: 4px 0;
+}
+
+.tabstrip-v .tab {
+  max-width: none;
+  margin: 2px 6px;
+  width: calc(100% - 12px);
+  min-width: 0;
+}
+
+.tab:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.tab.active {
+  background: var(--bg-raised);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.tabstrip-v .tab.active {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.tab-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tab-close {
+  display: none;
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close {
+  display: block;
+}
+
+.tab-close:hover {
+  background: var(--border);
+  color: var(--fg);
+}
+
+.tab-new {
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  font-size: 16px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.tabstrip-h .tab-new {
+  margin: 4px 0;
+}
+
+.tabstrip-v .tab-new {
+  margin: 4px 8px;
+  text-align: left;
+}
+
+.tab-new:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.tabstrip-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.tabstrip-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.tabstrip-v .tabstrip-actions {
+  padding: 6px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.tab-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  padding: 5px 7px;
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.tab-icon-btn:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.tab-icon {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Splits ---------- */
+
+.split {
+  display: flex;
+  position: absolute;
+  inset: 0;
+}
+
+.split-h {
+  flex-direction: row;
+}
+
+.split-v {
+  flex-direction: column;
+}
+
+.split-cell {
+  position: relative;
+  flex-basis: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane {
+  position: absolute;
+  inset: 0;
+}
+
+.pane-active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.pane-close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  display: none;
+  border: none;
+  background: var(--bg-raised);
+  color: var(--fg-dim);
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.pane:hover .pane-close {
+  display: block;
+}
+
+.pane-close:hover {
+  color: var(--fg);
+  background: var(--border);
+}
+
+.splitter {
+  position: absolute;
+  z-index: 2;
+  background: transparent;
+}
+
+.splitter-h {
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+}
+
+.splitter-v {
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: row-resize;
+}
+
+.splitter-h:hover,
+.splitter-v:hover {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* ---------- Settings dialog ---------- */
+
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.settings-dialog {
+  width: 640px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-close {
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.settings-close:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.settings-body {
+  overflow-y: auto;
+  padding: 6px 18px 18px;
+}
+
+.settings-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-child {
+  border-bottom: none;
+}
+
+.settings-section h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--fg-dim);
+}
+
+.theme-swatch:hover {
+  background: var(--bg-raised);
+}
+
+.theme-swatch.active {
+  border-color: var(--accent);
+  color: var(--fg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.theme-preview {
+  display: flex;
+  gap: 4px;
+  height: 34px;
+  border-radius: 5px;
+  padding: 5px;
+}
+
+.theme-preview i {
+  flex: 1;
+  border-radius: 2px;
+}
+
+.theme-name {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.field-narrow {
+  flex: 0 0 90px;
+}
+
+.field span,
+.field-label {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.field input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.segmented button {
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  padding: 5px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.segmented button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.field-error {
+  margin: 4px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* ---------- Search bar ---------- */
+
+.search-bar {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.search-bar input {
+  width: 180px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 5px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+}
+
+.search-bar input:focus {
+  border-color: var(--accent);
+}
+
+.search-bar button {
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  font-size: 12px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.search-bar button:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
+.search-bar .search-toggle.on {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--fg);
+}
