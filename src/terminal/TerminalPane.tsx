@@ -24,6 +24,7 @@ import { captureReplay, clearReplay } from "./instantReplay";
 import { detachedPane } from "./detachedWindow";
 import { decryptSecret, isUnlocked, resolveSecretRefs, secretRefs } from "./secrets";
 import { secretsList } from "./ipc";
+import { tmuxController } from "./tmuxController";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
 import { resolveTheme, withAlpha } from "./themes";
@@ -62,6 +63,8 @@ interface TerminalPaneProps {
   shell?: string | null;
   /** Profile the pane was spawned with (null = default). */
   profileId?: string | null;
+  /** tmux control mode: mirror this tmux pane instead of spawning a PTY. */
+  tmuxPaneId?: string | null;
 }
 
 /**
@@ -69,7 +72,7 @@ interface TerminalPaneProps {
  * feeds it. The xterm element is re-parented by the terminal manager, so
  * mounting/unmounting tracks the pane's lifetime, not tab visibility.
  */
-export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProps) {
+export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const entryRef = useRef<ReturnType<typeof terminalManager.create> | null>(null);
@@ -186,7 +189,9 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       } catch {
         return;
       }
-      if (entry.ptyId !== null) {
+      if (tmuxPaneId) {
+        tmuxController.resizePane(tmuxPaneId, term.cols, term.rows);
+      } else if (entry.ptyId !== null) {
         ptyResize(entry.ptyId, term.rows, term.cols);
       }
     };
@@ -335,6 +340,11 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     term.element?.addEventListener("mousedown", onMouseDown, true);
 
     term.onData((data) => {
+      // tmux-mirrored panes forward input as send-keys commands.
+      if (tmuxPaneId) {
+        tmuxController.handleInput(tmuxPaneId, data);
+        return;
+      }
       // Alt+1..3 accept an autocomplete suggestion (ESC-prefixed digit).
       if (/^\x1b[1-3]$/.test(data) && tryAutocompleteKey(data[1])) return;
       if (useAppStore.getState().broadcast) {
@@ -643,9 +653,10 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       // ignore first-fit failures
     }
 
-    // Detached pane window: take over the existing PTY stream instead of
-    // spawning a fresh shell; the originating window already gave it up.
-    if (detachedPane && detachedPane.paneId === paneId) {
+    if (tmuxPaneId) {
+      // tmux control mode: no local PTY; output arrives via the controller.
+      entry.tmuxPaneId = tmuxPaneId;
+    } else if (detachedPane && detachedPane.paneId === paneId) {
       entry.ptyId = detachedPane.ptyId;
       const sink: OutputSink = (data) => {
         term.write(data);

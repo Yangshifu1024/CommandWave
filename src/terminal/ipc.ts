@@ -10,6 +10,7 @@ export interface PtySpawnOptions {
   cols: number;
   cwd: string | null;
   shell: string | null;
+  args?: string[] | null;
   /** extra environment variables ("KEY=VALUE") */
   env: string[] | null;
   /** enable starship prompt auto-init for this pane */

@@ -75,7 +75,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | 功能 | 状态 | 说明 |
 |---|---|---|
 | ⌘点击文件路径 | ✅ | 识别路径（含 :line:col），用 settings.editorCommand（如 `code {file}`）打开 |
-| tmux 控制模式 | ⬜ | 暂缓：需完整实现 tmux 控制协议（%-expansion 解析 + pane 同步渲染），独立工程量级 |
+| tmux 控制模式 | ⚠️ | Shell 菜单 "Attach tmux Session…"（`tmux -CC new -A`）：解析 %output/%layout-change/%window-add|close/%window-renamed/%session-changed/%pane-mode-changed/%exit，tmux 布局树映射为 CommandWave 分屏（tmux-%N pane），输入经 send-keys 双向同步、尺寸经 resize-pane 同步，关标签即 kill-window。协议解析/布局解析/输入映射全部带单元测试。未做：tmux copy-mode/-pane 专用 UI、%begin 命令输出展示、滚动历史回传 |
 | Python API / 脚本化 | ⚠️ | 本地脚本 API：127.0.0.1 HTTP JSON（GET /panes、POST /write、POST /new-tab、GET /health），端口+token 写入 api.json 供 Python/curl 发现；非 iTerm2 式 in-process Python API |
 | CPU / 内存指示 | ✅ | 侧栏底部 CPU/RAM 百分比（sysinfo，3s 轮询） |
 | SSH 配置文件集成 | ✅ | 一键导入 ~/.ssh/config 生成 SSH profiles（Rust 解析器带测试） |

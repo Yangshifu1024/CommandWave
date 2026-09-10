@@ -31,6 +31,8 @@ export interface Tab {
   customTitle: string | null;
   /** locked tabs refuse to close */
   locked: boolean;
+  /** tmux control mode: window id (@N) this tab mirrors, else null */
+  tmuxWindowId?: string | null;
 }
 
 /** A pending right-click menu: screen position plus what was clicked. */
@@ -155,6 +157,10 @@ interface AppStore {
   detachPaneToWindow: (paneId: string) => void;
   /** True while the pane's unmount must not kill its PTY. */
   isDetaching: (paneId: string) => boolean;
+  /** tmux control mode: create/update a tab mirroring a tmux window. */
+  upsertTmuxWindow: (windowId: string, root: PaneNode) => void;
+  closeTmuxWindow: (tabId: string) => void;
+  removeTmuxTabs: () => void;
   setSplitSizes: (tabId: string, path: number[], sizes: number[]) => void;
   onPaneTitle: (paneId: string, title: string) => void;
   onPaneCwd: (paneId: string, cwd: string) => void;
@@ -199,6 +205,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (index === -1) return;
     // Locked tabs refuse to close (iTerm2-style tab lock).
     if (tabs[index].locked) return;
+    // tmux-mirrored tabs kill the server-side window as well.
+    if (tabs[index].tmuxWindowId) {
+      const winId = tabs[index].tmuxWindowId;
+      void import("../terminal/tmuxController").then((m) =>
+        m.tmuxController.killWindow(winId!),
+      );
+    }
     const remaining = tabs.filter((t) => t.id !== tabId);
     if (remaining.length === 0) {
       // Last tab: close the window (PTY cleanup happens via pane unmounts,
@@ -452,6 +465,63 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   isDetaching: (paneId) => detaching.has(paneId),
+
+  upsertTmuxWindow: (windowId, root) => {
+    const existing = get().tabs.find((t) => t.tmuxWindowId === windowId);
+    if (existing) {
+      set((s) => ({
+        tabs: s.tabs.map((t) => {
+          if (t.tmuxWindowId !== windowId) return t;
+          const paneMeta = { ...t.paneMeta };
+          for (const paneId of collectPaneIds(root)) {
+            paneMeta[paneId] ??= { spawnCwd: null, cwd: null, oscTitle: "tmux", profileId: null };
+          }
+          return { ...t, root, paneMeta, activePaneId: collectPaneIds(root)[0] };
+        }),
+      }));
+      return;
+    }
+    const paneIds = collectPaneIds(root);
+    const paneMeta: Tab["paneMeta"] = {};
+    for (const paneId of paneIds) {
+      paneMeta[paneId] = { spawnCwd: null, cwd: null, oscTitle: "tmux", profileId: null };
+    }
+    const tab: Tab = {
+      id: genId("tab"),
+      title: "tmux",
+      root,
+      activePaneId: paneIds[0],
+      paneMeta,
+      customTitle: null,
+      locked: false,
+      tmuxWindowId: windowId,
+    };
+    void import("../terminal/tmuxController").then((m) =>
+      m.tmuxController.registerWindow(windowId, tab.id),
+    );
+    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
+  },
+
+  closeTmuxWindow: (tabId) => {
+    const tab = get().tabs.find((t) => t.id === tabId);
+    if (tab?.tmuxWindowId) {
+      void import("../terminal/tmuxController").then((m) =>
+        m.tmuxController.killWindow(tab.tmuxWindowId!),
+      );
+    }
+    get().closeTab(tabId);
+  },
+
+  removeTmuxTabs: () => {
+    set((s) => {
+      const remaining = s.tabs.filter((t) => !t.tmuxWindowId);
+      const activeGone = !remaining.some((t) => t.id === s.activeTabId);
+      return {
+        tabs: remaining,
+        activeTabId: activeGone ? remaining[0]?.id ?? "" : s.activeTabId,
+      };
+    });
+  },
 
   setSplitSizes: (tabId, path, sizes) => {
     set((s) => ({

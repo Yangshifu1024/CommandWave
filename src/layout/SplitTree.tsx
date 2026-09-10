@@ -187,6 +187,7 @@ function PaneView({
         cwd={profile?.cwd ?? null}
         shell={profile?.shell ?? null}
         profileId={tab.paneMeta[paneId]?.profileId ?? null}
+        tmuxPaneId={tab.tmuxWindowId && paneId.startsWith("tmux-") ? `%${paneId.slice(5)}` : null}
       />
     </div>
   );

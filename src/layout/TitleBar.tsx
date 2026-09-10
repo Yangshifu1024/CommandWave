@@ -166,6 +166,11 @@ export function dispatchMenuAction(action: string): void {
     case "toggle-maximize-pane":
       s.toggleMaximizePane();
       break;
+    case "tmux-attach":
+      void import("../terminal/tmuxController").then((m) =>
+        m.tmuxController.attached ? m.tmuxController.detach() : m.tmuxController.attach(),
+      );
+      break;
     case "detach-pane":
       if (tab) s.detachPaneToWindow(tab.activePaneId);
       break;
@@ -291,6 +296,8 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { label: "Move Pane to New Window", action: "detach-pane" },
       { sep: true },
       { label: "Broadcast Input to All Panes", action: "toggle-broadcast" },
+      { sep: true },
+      { label: "Attach tmux Session…", action: "tmux-attach" },
     ],
   },
   {

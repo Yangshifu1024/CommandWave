@@ -26,6 +26,8 @@ export interface TerminalEntry {
   runningPrompt: IMarker | null;
   /** wall-clock ms when the running command started (C mark) */
   runningSince: number | null;
+  /** tmux control mode: mirrored tmux pane id ("%N"), else null */
+  tmuxPaneId: string | null;
   /** live Copy Mode state, null when the pane is not in Copy Mode */
   copyMode: CopyModeState | null;
   /** highlight decorations for Copy Mode (cursor line / selection) */
@@ -74,6 +76,7 @@ class TerminalManager {
       marks: [],
       runningPrompt: null,
       runningSince: null,
+      tmuxPaneId: null,
       copyMode: null,
       copyModeDecos: [],
     };

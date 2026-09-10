@@ -33,6 +33,7 @@ export const KEYBINDING_ACTIONS: {
   { action: "recent-commands", label: "Recent Commands", default: "CmdOrCtrl+;" },
   { action: "semantic-history", label: "Semantic History Search", default: "CmdOrCtrl+Alt+;" },
   { action: "instant-replay", label: "Instant Replay", default: "CmdOrCtrl+Alt+B" },
+  { action: "tmux-attach", label: "Attach tmux Session", default: "" },
   { action: "cycle-tab-prev", label: "Previous Tab", default: "Shift+CmdOrCtrl+[" },
   { action: "cycle-tab-next", label: "Next Tab", default: "Shift+CmdOrCtrl+]" },
   { action: "toggle-vertical-tabs", label: "Toggle Vertical Tabs", default: "Shift+CmdOrCtrl+B" },
