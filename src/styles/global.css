@@ -1267,3 +1267,86 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* ---------- Phase 4: expose, broadcast, rename ---------- */
+
+.expose-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 110;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expose-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  width: min(900px, 80vw);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.expose-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.expose-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.expose-title { font-size: 13px; color: var(--fg); font-weight: 600; }
+.expose-detail { font-size: 10px; color: var(--fg-dim); word-break: break-all; }
+.expose-tab { font-size: 10px; color: var(--accent); }
+
+.broadcast-banner {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  padding: 3px 12px;
+  font-size: 11px;
+  color: var(--fg);
+  background: color-mix(in srgb, #e06c75 25%, var(--bg-panel));
+  border: 1px solid #e06c75;
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.tab-rename {
+  width: 90px;
+  font-size: 11px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0 4px;
+  outline: none;
+}
+
+.tab-lock { font-size: 9px; margin-right: 3px; }
+
+.arrangement-name {
+  flex: 1;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.section-hint.error { color: #e06c75; }

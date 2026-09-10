@@ -27,6 +27,7 @@ export function TabStrip({ side }: TabStripProps) {
 
   const dragIndex = useRef<number | null>(null);
   const vertical = side === "left";
+  const renamingTabId = useAppStore((s) => s.renamingTabId);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -92,10 +93,37 @@ export function TabStrip({ side }: TabStripProps) {
               });
             }}
           >
-            <span className="tab-title">{tab.title}</span>
+            {renamingTabId === tab.id ? (
+              <input
+                className="tab-rename"
+                autoFocus
+                defaultValue={tab.customTitle ?? ""}
+                placeholder={tab.title}
+                onClick={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  useAppStore.getState().renameTab(tab.id, e.target.value);
+                  useAppStore.setState({ renamingTabId: null });
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    useAppStore.getState().renameTab(tab.id, e.currentTarget.value);
+                    useAppStore.setState({ renamingTabId: null });
+                  } else if (e.key === "Escape") {
+                    useAppStore.setState({ renamingTabId: null });
+                  }
+                  e.stopPropagation();
+                }}
+              />
+            ) : (
+              <span className="tab-title">
+                {tab.locked && <span className="tab-lock" title="Locked">🔒</span>}
+                {tab.customTitle ?? tab.title}
+              </span>
+            )}
             <button
               className="tab-close"
               aria-label="Close tab"
+              hidden={tab.locked}
               onClick={(e) => {
                 e.stopPropagation();
                 closeTab(tab.id);

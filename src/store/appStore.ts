@@ -15,6 +15,8 @@ import {
   type PaneNode,
   type SplitDir,
 } from "../layout/paneTree";
+import { navigatePane } from "../layout/paneNav";
+import { remapSnapshot } from "../layout/snapshot";
 
 export interface Tab {
   id: string;
@@ -23,6 +25,10 @@ export interface Tab {
   activePaneId: string;
   /** Per-pane title inputs; tabs render the active pane's chain. */
   paneMeta: Record<string, PaneTitleMeta>;
+  /** user-set title override (⌘I rename) */
+  customTitle: string | null;
+  /** locked tabs refuse to close */
+  locked: boolean;
 }
 
 /** A pending right-click menu: screen position plus what was clicked. */
@@ -48,6 +54,8 @@ function makeTab(profileId?: string | null): Tab {
     root: paneLeaf(paneId),
     activePaneId: paneId,
     paneMeta: { [paneId]: meta },
+    customTitle: null,
+    locked: false,
   };
 }
 
@@ -92,6 +100,14 @@ interface AppStore {
   /** Pane currently in Copy Mode (line-oriented keyboard navigation). */
   copyModePane: string | null;
   pasteConfirm: PasteConfirmState | null;
+  /** pane temporarily filling its tab (⌘⇧Enter) */
+  maximizedPaneId: string | null;
+  /** broadcast input to every pane */
+  broadcast: boolean;
+  /** Exposé overlay listing all panes */
+  exposeOpen: boolean;
+  /** tab being renamed inline (TabStrip) */
+  renamingTabId: string | null;
 
   newTab: (profileId?: string) => void;
   closeTab: (tabId: string) => void;
@@ -113,6 +129,17 @@ interface AppStore {
   closePane: (tabId: string, paneId: string) => void;
   selectPane: (tabId: string, paneId: string) => void;
   cyclePane: (offset: 1 | -1) => void;
+  /** ⌘⌥+arrow: focus the geometrically nearest pane in a direction */
+  navigatePaneDirection: (dir: "left" | "right" | "up" | "down") => void;
+  /** ⌘⇧Enter: temporarily fill the tab with the active pane */
+  toggleMaximizePane: () => void;
+  toggleBroadcast: () => void;
+  toggleExpose: () => void;
+  setExposeOpen: (open: boolean) => void;
+  renameTab: (tabId: string, title: string | null) => void;
+  toggleTabLock: (tabId: string) => void;
+  /** Replace all tabs with a remapped snapshot (session restore). */
+  restoreSession: (snapshot: import("../layout/snapshot").SessionSnapshot) => void;
   setSplitSizes: (tabId: string, path: number[], sizes: number[]) => void;
   onPaneTitle: (paneId: string, title: string) => void;
   onPaneCwd: (paneId: string, cwd: string) => void;
@@ -136,6 +163,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   contextMenu: null,
   copyModePane: null,
   pasteConfirm: null,
+  maximizedPaneId: null,
+  broadcast: false,
+  exposeOpen: false,
+  renamingTabId: null,
 
   newTab: (profileId?: string) => {
     const tab = makeTab(profileId ?? null);
@@ -146,6 +177,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const { tabs, activeTabId } = get();
     const index = tabs.findIndex((t) => t.id === tabId);
     if (index === -1) return;
+    // Locked tabs refuse to close (iTerm2-style tab lock).
+    if (tabs[index].locked) return;
     const remaining = tabs.filter((t) => t.id !== tabId);
     if (remaining.length === 0) {
       // Last tab: close the window (PTY cleanup happens via pane unmounts,
@@ -286,6 +319,59 @@ export const useAppStore = create<AppStore>((set, get) => ({
           : t,
       ),
     });
+  },
+
+  navigatePaneDirection: (dir) => {
+    const { tabs, activeTabId } = get();
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+    const target = navigatePane(tab.root, tab.activePaneId, dir);
+    if (target) get().selectPane(tab.id, target);
+  },
+
+  toggleMaximizePane: () => {
+    const { tabs, activeTabId, maximizedPaneId } = get();
+    const tab = tabs.find((t) => t.id === activeTabId);
+    if (!tab) return;
+    set({
+      maximizedPaneId:
+        maximizedPaneId === tab.activePaneId ? null : tab.activePaneId,
+    });
+  },
+
+  toggleBroadcast: () => set((s) => ({ broadcast: !s.broadcast })),
+  toggleExpose: () => set((s) => ({ exposeOpen: !s.exposeOpen })),
+  setExposeOpen: (open) => set({ exposeOpen: open }),
+
+  renameTab: (tabId, title) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === tabId
+          ? { ...t, customTitle: title && title.trim() ? title.trim() : null, title: title && title.trim() ? title.trim() : t.title }
+          : t,
+      ),
+    }));
+  },
+
+  toggleTabLock: (tabId) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, locked: !t.locked } : t)),
+    }));
+  },
+
+  restoreSession: (snapshot) => {
+    const remapped = remapSnapshot(snapshot, () => genId("pane"));
+    const tabs: Tab[] = remapped.tabs.map((tabSnap) => ({
+      id: genId("tab"),
+      title: tabSnap.customTitle ?? computeTabTitle(tabSnap.paneMeta[tabSnap.activePaneId]),
+      root: tabSnap.root,
+      activePaneId: tabSnap.activePaneId,
+      paneMeta: tabSnap.paneMeta,
+      customTitle: tabSnap.customTitle,
+      locked: tabSnap.locked,
+    }));
+    if (tabs.length === 0) return;
+    set({ tabs, activeTabId: tabs[0].id, maximizedPaneId: null });
   },
 
   setSplitSizes: (tabId, path, sizes) => {

@@ -59,6 +59,8 @@ pub struct UiSettings {
     pub sidebar_width: u16,
     /// Font size delta from the profile's size (⌘+/- zoom).
     pub font_size_delta: i32,
+    /// Restore the tab/pane layout from the previous run on launch.
+    pub restore_session_on_start: bool,
 }
 
 impl Default for UiSettings {
@@ -67,6 +69,7 @@ impl Default for UiSettings {
             tab_bar_position: "top".to_string(),
             sidebar_width: 180,
             font_size_delta: 0,
+            restore_session_on_start: true,
         }
     }
 }
@@ -134,6 +137,10 @@ pub struct Settings {
     pub triggers: Vec<Trigger>,
     pub auto_answers: Vec<AutoAnswer>,
     pub auto_log: AutoLogSettings,
+    /// Saved window arrangements: name → serialized session snapshot JSON.
+    pub arrangements: std::collections::HashMap<String, String>,
+    /// Last session snapshot, autosaved for restore-on-launch.
+    pub session: Option<String>,
     /// actionId -> accelerator overrides; missing entries use menu defaults.
     pub keybindings: std::collections::HashMap<String, String>,
 }
@@ -156,6 +163,8 @@ impl Default for Settings {
             }],
             auto_answers: vec![],
             auto_log: AutoLogSettings::default(),
+            arrangements: std::collections::HashMap::new(),
+            session: None,
             keybindings: std::collections::HashMap::new(),
         }
     }

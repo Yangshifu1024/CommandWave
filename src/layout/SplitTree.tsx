@@ -12,6 +12,12 @@ interface SplitTreeProps {
 }
 
 export function SplitTree({ tab, active }: SplitTreeProps) {
+  const maximizedPaneId = useAppStore((s) => (active ? s.maximizedPaneId : null));
+  // Maximized pane (⌘⇧Enter): render only that pane; the others stay alive
+  // in the terminal pool.
+  if (maximizedPaneId && tab.root.type !== "pane") {
+    return <PaneView tab={tab} paneId={maximizedPaneId} active={active} />;
+  }
   return <NodeView node={tab.root} tab={tab} active={active} path={[]} />;
 }
 

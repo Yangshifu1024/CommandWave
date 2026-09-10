@@ -43,7 +43,8 @@ describe("eventToAccelerator", () => {
     expect(eventToAccelerator(keyEvent({ key: "Meta", metaKey: true }), true)).toBeNull();
     expect(eventToAccelerator(keyEvent({ key: "Shift", shiftKey: true }), true)).toBeNull();
     expect(eventToAccelerator(keyEvent({ key: "a" }), true)).toBeNull();
-    expect(eventToAccelerator(keyEvent({ key: "Enter", metaKey: true }), true)).toBeNull();
+    // Enter became bindable (maximize-pane default is Shift+Cmd+Enter).
+    expect(eventToAccelerator(keyEvent({ key: "Enter", metaKey: true }), true)).toBe("CmdOrCtrl+Enter");
   });
 
   it("rejects the platform's inactive primary modifier", () => {

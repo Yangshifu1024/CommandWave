@@ -151,6 +151,33 @@ export function dispatchMenuAction(action: string): void {
     case "next-pane":
       s.cyclePane(1);
       break;
+    case "pane-left":
+      s.navigatePaneDirection("left");
+      break;
+    case "pane-right":
+      s.navigatePaneDirection("right");
+      break;
+    case "pane-up":
+      s.navigatePaneDirection("up");
+      break;
+    case "pane-down":
+      s.navigatePaneDirection("down");
+      break;
+    case "toggle-maximize-pane":
+      s.toggleMaximizePane();
+      break;
+    case "toggle-broadcast":
+      s.toggleBroadcast();
+      break;
+    case "toggle-expose":
+      s.toggleExpose();
+      break;
+    case "rename-tab":
+      if (tab) useAppStore.setState({ renamingTabId: tab.id });
+      break;
+    case "toggle-tab-lock":
+      if (tab) s.toggleTabLock(tab.id);
+      break;
     case "prev-mark":
       jumpToPromptMark(-1);
       break;
@@ -243,6 +270,14 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { sep: true },
       { label: "Previous Pane", action: "prev-pane" },
       { label: "Next Pane", action: "next-pane" },
+      { sep: true },
+      { label: "Select Pane Left", action: "pane-left" },
+      { label: "Select Pane Right", action: "pane-right" },
+      { label: "Select Pane Up", action: "pane-up" },
+      { label: "Select Pane Down", action: "pane-down" },
+      { label: "Maximize Pane", action: "toggle-maximize-pane" },
+      { sep: true },
+      { label: "Broadcast Input to All Panes", action: "toggle-broadcast" },
     ],
   },
   {
@@ -270,7 +305,10 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { label: "Reset Text Size", action: "zoom-reset" },
       { sep: true },
       { label: "Copy Mode", action: "copy-mode" },
+      { label: "Exposé All Panes", action: "toggle-expose" },
       { sep: true },
+      { label: "Rename Tab…", action: "rename-tab" },
+      { label: "Lock / Unlock Tab", action: "toggle-tab-lock" },
       { label: "Search…", action: "open-search" },
       { label: "Search Next Match", action: "search-again" },
       { sep: true },

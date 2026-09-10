@@ -92,6 +92,11 @@ class TerminalManager {
     return undefined;
   }
 
+  /** Every live entry (broadcast input iterates all panes). */
+  allEntries(): TerminalEntry[] {
+    return [...this.entries.values()];
+  }
+
   /** Move the terminal's DOM element into the visible container. */
   attach(paneId: string, container: HTMLElement): void {
     const entry = this.entries.get(paneId);

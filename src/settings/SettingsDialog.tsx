@@ -10,6 +10,7 @@ import { themes, getTheme, COLOR_KEYS } from "../terminal/themes";
 import { parseItermColors } from "../terminal/itermColors";
 import { KeyboardSection } from "./KeyboardSection";
 import { AutomationSection } from "./AutomationSection";
+import { SessionSection } from "./SessionSection";
 
 /**
  * Settings dialog with a profile manager: list on the left, editor on the
@@ -369,6 +370,7 @@ export function SettingsDialog() {
             </section>
 
             <AutomationSection />
+            <SessionSection />
             <KeyboardSection />
           </div>
         </div>

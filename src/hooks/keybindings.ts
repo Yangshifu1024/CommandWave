@@ -21,6 +21,15 @@ export const KEYBINDING_ACTIONS: {
   { action: "split-down", label: "Split Pane Down", default: "Shift+CmdOrCtrl+D" },
   { action: "prev-pane", label: "Previous Pane", default: "CmdOrCtrl+[" },
   { action: "next-pane", label: "Next Pane", default: "CmdOrCtrl+]" },
+  { action: "pane-left", label: "Select Pane Left", default: "CmdOrCtrl+Alt+Left" },
+  { action: "pane-right", label: "Select Pane Right", default: "CmdOrCtrl+Alt+Right" },
+  { action: "pane-up", label: "Select Pane Up", default: "CmdOrCtrl+Alt+Up" },
+  { action: "pane-down", label: "Select Pane Down", default: "CmdOrCtrl+Alt+Down" },
+  { action: "toggle-maximize-pane", label: "Maximize Pane", default: "Shift+CmdOrCtrl+Enter" },
+  { action: "toggle-broadcast", label: "Broadcast Input", default: "" },
+  { action: "toggle-expose", label: "Exposé All Panes", default: "Shift+CmdOrCtrl+E" },
+  { action: "rename-tab", label: "Rename Tab", default: "CmdOrCtrl+I" },
+  { action: "toggle-tab-lock", label: "Lock / Unlock Tab", default: "" },
   { action: "cycle-tab-prev", label: "Previous Tab", default: "Shift+CmdOrCtrl+[" },
   { action: "cycle-tab-next", label: "Next Tab", default: "Shift+CmdOrCtrl+]" },
   { action: "toggle-vertical-tabs", label: "Toggle Vertical Tabs", default: "Shift+CmdOrCtrl+B" },
@@ -63,11 +72,12 @@ export function eventToAccelerator(e: BindableKeyEvent, mac = isMacPlatform): st
   if (e.altKey) parts.push("Alt");
   if (e.shiftKey) parts.push("Shift");
   let main: string;
-  if (key === "ArrowUp") main = "Up";
-  else if (key === "ArrowDown") main = "Down";
-  else if (key === "ArrowLeft") main = "Left";
-  else if (key === "ArrowRight") main = "Right";
-  else if (key === ",") main = ",";
+    if (key === "ArrowUp") main = "Up";
+    else if (key === "ArrowDown") main = "Down";
+    else if (key === "ArrowLeft") main = "Left";
+    else if (key === "ArrowRight") main = "Right";
+    else if (key === "Enter") main = "Enter";
+    else if (key === ",") main = ",";
   else if (key.length === 1) main = key.toUpperCase();
   else if (/^F\d{1,2}$/.test(key)) main = key;
   else return null; // modifier-only or unsupported key

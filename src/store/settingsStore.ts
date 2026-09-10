@@ -36,6 +36,8 @@ export interface UiSettings {
   sidebarWidth: number;
   /** Font size delta from the profile's size (⌘+/- zoom, reset with ⌘0). */
   fontSizeDelta: number;
+  /** Restore the tab/pane layout from the previous run on launch. */
+  restoreSessionOnStart: boolean;
 }
 
 export interface NotificationSettings {
@@ -80,6 +82,10 @@ export interface Settings {
   triggers: Trigger[];
   autoAnswers: AutoAnswer[];
   autoLog: AutoLogSettings;
+  /** Saved window arrangements: name → serialized session snapshot JSON. */
+  arrangements: Record<string, string>;
+  /** Last session snapshot (autosaved) for restore-on-launch. */
+  session: string | null;
   /** actionId -> Tauri accelerator ("" = no binding). */
   keybindings: Record<string, string>;
 }
@@ -108,7 +114,7 @@ export const defaultSettings: Settings = {
     },
   ],
   defaultProfileId: "default",
-  ui: { tabBarPosition: "top", sidebarWidth: 180, fontSizeDelta: 0 },
+  ui: { tabBarPosition: "top", sidebarWidth: 180, fontSizeDelta: 0, restoreSessionOnStart: true },
   notifications: { commandCompletion: true, pasteWarning: true },
   triggers: [
     {
@@ -122,6 +128,8 @@ export const defaultSettings: Settings = {
   ],
   autoAnswers: [],
   autoLog: { enabled: false, directory: null },
+  arrangements: {},
+  session: null,
   keybindings: defaultKeybindings,
 };
 

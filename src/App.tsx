@@ -6,6 +6,7 @@ import { SplitTree } from "./layout/SplitTree";
 import { TabStrip } from "./layout/TabStrip";
 import { ContextMenu } from "./layout/ContextMenu";
 import { PasteConfirm } from "./layout/PasteConfirm";
+import { Expose } from "./layout/Expose";
 import { TitleBar, dispatchMenuAction, isMac } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
@@ -14,6 +15,7 @@ import { appearanceDefaults, useSettingsStore } from "./store/settingsStore";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { setHomeDir } from "./terminal/paneTitle";
 import { exitCopyMode } from "./terminal/copyModeController";
+import { parseSnapshot, serializeSession } from "./layout/snapshot";
 import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
@@ -57,6 +59,38 @@ export default function App() {
     if (!settingsLoaded) return;
     useAppStore.setState({ tabBarPosition: uiTabBarPosition });
   }, [settingsLoaded, uiTabBarPosition]);
+
+  // Session restore: rebuild the previous run's tab/pane layout once the
+  // persisted snapshot is available. New panes get fresh ids and respawn
+  // shells; only the layout + profile/cwd metadata carry over.
+  useEffect(() => {
+    if (!settingsLoaded) return;
+    const settings = useSettingsStore.getState().settings;
+    if (!settings.ui.restoreSessionOnStart || !settings.session) return;
+    const snapshot = parseSnapshot(settings.session);
+    if (snapshot) useAppStore.getState().restoreSession(snapshot);
+  }, [settingsLoaded]);
+
+  // Autosave the current session (debounced) so the next launch can restore.
+  useEffect(() => {
+    if (!settingsLoaded || !isTauri) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const save = () => {
+      const { tabs, activeTabId } = useAppStore.getState();
+      useSettingsStore.getState().update((draft) => {
+        draft.session = JSON.stringify(serializeSession(tabs, activeTabId));
+      });
+    };
+    const unsub = useAppStore.subscribe((state, prev) => {
+      if (state.tabs === prev.tabs) return;
+      clearTimeout(timer);
+      timer = setTimeout(save, 800);
+    });
+    return () => {
+      unsub();
+      clearTimeout(timer);
+    };
+  }, [settingsLoaded]);
 
   // Theme drives the UI chrome colors as well; text adapts to light themes.
   const profile = useSettingsStore(
@@ -165,6 +199,7 @@ export default function App() {
       {settingsOpen && <SettingsDialog />}
       <ContextMenu />
       <PasteConfirm />
+      <Expose />
     </div>
   );
 }

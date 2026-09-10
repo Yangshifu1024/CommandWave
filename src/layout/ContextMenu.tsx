@@ -51,6 +51,9 @@ export function ContextMenu() {
     ? [
         { label: "New Tab", action: "new-tab" },
         { sep: true },
+        { label: "Rename Tab…", action: "rename-tab" },
+        { label: "Lock / Unlock Tab", action: "toggle-tab-lock" },
+        { sep: true },
         { label: "Close Tab", action: "close-tab" },
       ]
     : [

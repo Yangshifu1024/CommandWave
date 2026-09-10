@@ -83,6 +83,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
   );
   const themeName = profile?.themeName ?? appearanceDefaults.themeName;
   const inCopyMode = useAppStore((s) => s.copyModePane === paneId);
+  const broadcasting = useAppStore((s) => s.broadcast);
   // Badge placeholders resolve against the live pane meta (cwd etc.).
   const badgeTemplate = profile?.badge ?? null;
   const paneCwd = useAppStore((s) => {
@@ -272,6 +273,13 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     term.element?.addEventListener("mousedown", onMouseDown, true);
 
     term.onData((data) => {
+      if (useAppStore.getState().broadcast) {
+        // Broadcast input: every live pane receives the keystrokes.
+        for (const e of terminalManager.allEntries()) {
+          if (e.ptyId !== null) ptyWrite(e.ptyId, data);
+        }
+        return;
+      }
       if (entry.ptyId !== null && !exited) {
         ptyWrite(entry.ptyId, data);
       }
@@ -443,6 +451,11 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
         </div>
       )}
       {badgeText && <div className="pane-badge">{badgeText}</div>}
+      {broadcasting && (
+        <div className="broadcast-banner" role="status">
+          BROADCAST INPUT — keystrokes go to every pane (toggle to disable)
+        </div>
+      )}
     </div>
   );
 }
