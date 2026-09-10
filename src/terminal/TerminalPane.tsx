@@ -19,6 +19,7 @@ import { completionSuffix, extractInput, filterSuggestions } from "./autocomplet
 import { formatDuration, lastDurationMs, subscribeCommands, suggestCommands } from "./commandHistory";
 import { resolveBackdrop } from "./backdrop";
 import { parseOsc1337File, type OscImage } from "./oscImages";
+import { decodeSixel, type SixelImage } from "./sixel";
 import { captureReplay, clearReplay } from "./instantReplay";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
@@ -405,10 +406,43 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       imgTray.appendChild(el);
       while (imgTray.children.length > 3) imgTray.firstElementChild?.remove();
     };
+    const pushSixel = (img: SixelImage) => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.putImageData(
+          new ImageData(
+            new Uint8ClampedArray(img.rgba.buffer as ArrayBuffer),
+            img.width,
+            img.height,
+          ),
+          0,
+          0,
+        );
+        const el = document.createElement("img");
+        el.src = canvas.toDataURL();
+        el.title = "sixel image";
+        el.addEventListener("click", () => el.remove());
+        imgTray.appendChild(el);
+        while (imgTray.children.length > 3) imgTray.firstElementChild?.remove();
+      } catch {
+        // canvas unavailable
+      }
+    };
     term.parser.registerOscHandler(1337, (data) => {
       if (!data.startsWith("File=")) return false;
       const img = parseOsc1337File(data);
       if (img) pushImage(img);
+      return false;
+    });
+
+    // Sixel graphics (DCS q … ST) decode into the same image tray.
+    term.parser.registerDcsHandler({ final: "q" }, (data) => {
+      const img = decodeSixel(data);
+      if (img) pushSixel(img);
       return false;
     });
 
