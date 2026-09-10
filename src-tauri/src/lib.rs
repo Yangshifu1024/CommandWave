@@ -29,7 +29,8 @@ pub fn run() {
             commands::ssh_hosts,
             commands::starship_detect,
             commands::starship_presets,
-            commands::starship_apply_preset
+            commands::starship_apply_preset,
+            commands::set_window_blur
         ])
         .setup(|app| {
             // Build the native menu with the persisted keybindings; a failed

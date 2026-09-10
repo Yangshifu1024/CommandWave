@@ -28,6 +28,10 @@ pub struct Profile {
     pub env: Option<Vec<String>>,
     /// auto-init the starship prompt (zsh via ZDOTDIR chain)
     pub use_starship: Option<bool>,
+    /// background image URL/path behind the terminal
+    pub background_image: Option<String>,
+    /// background image layer opacity (0–1)
+    pub background_image_opacity: Option<f64>,
 }
 
 impl Default for Profile {
@@ -51,6 +55,8 @@ impl Default for Profile {
             background_opacity: None,
             env: None,
             use_starship: None,
+            background_image: None,
+            background_image_opacity: None,
         }
     }
 }

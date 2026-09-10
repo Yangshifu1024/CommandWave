@@ -313,8 +313,38 @@ export function SettingsDialog() {
 
               <div className="field-row">
                 <label className="field">
-                  <span>Badge ({"{cwd}"} / {"{profile}"} placeholders)</span>
+                  <span>Background image (URL or absolute path; empty = none)</span>
                   <input
+                    type="text"
+                    placeholder="/path/to/wallpaper.png"
+                    value={selected?.backgroundImage ?? ""}
+                    spellCheck={false}
+                    onChange={(e) => setProfile({ backgroundImage: e.target.value.trim() || null })}
+                  />
+                </label>
+                <label className="field field-narrow">
+                  <span>Image opacity</span>
+                  <input
+                    type="number"
+                    min={0.05}
+                    max={1}
+                    step={0.05}
+                    placeholder="0.35"
+                    value={selected?.backgroundImageOpacity ?? ""}
+                    onChange={(e) =>
+                      setProfile({
+                        backgroundImageOpacity: e.target.value
+                          ? clampFloat(e.target.value, 0.05, 1, 0.35)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="field-row">
+                <label className="field">
+                  <span>Badge ({"{cwd}"} / {"{profile}"} placeholders)</span>                  <input
                     type="text"
                     placeholder="e.g. {cwd}"
                     value={selected?.badge ?? ""}

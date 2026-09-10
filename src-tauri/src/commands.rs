@@ -118,6 +118,37 @@ pub fn set_progress(app: AppHandle, value: Option<f64>) -> Result<(), String> {
     window.set_progress_bar(state).map_err(|e| e.to_string())
 }
 
+
+/// Window-level blur behind a translucent window (acrylic / HUD material).
+/// No-op on platforms without a blur effect; the webview stays transparent
+/// regardless, so unsupported platforms just show plain translucency.
+#[tauri::command]
+pub fn set_window_blur(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri::Manager;
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+    let effects = if enabled {
+        #[cfg(target_os = "windows")]
+        let list = vec![tauri::window::Effect::Acrylic, tauri::window::Effect::Blur];
+        #[cfg(target_os = "macos")]
+        let list = vec![
+            tauri::window::Effect::HudWindow,
+            tauri::window::Effect::Popover,
+            tauri::window::Effect::UnderWindowBackground,
+        ];
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        let list: Vec<tauri::window::Effect> = vec![];
+        tauri::window::EffectsBuilder::new()
+            .effects(list)
+            .state(tauri::window::EffectState::Active)
+            .build()
+    } else {
+        tauri::window::EffectsBuilder::new().build()
+    };
+    window.set_effects(effects).map_err(|e| e.to_string())
+}
+
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SystemStats {

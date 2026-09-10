@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
 import type { ILink } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -17,6 +17,7 @@ import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
 import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
 import { completionSuffix, extractInput, filterSuggestions } from "./autocomplete";
 import { suggestCommands } from "./commandHistory";
+import { resolveBackdrop } from "./backdrop";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
 import { resolveTheme, withAlpha } from "./themes";
@@ -89,6 +90,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
   const themeName = profile?.themeName ?? appearanceDefaults.themeName;
   const inCopyMode = useAppStore((s) => s.copyModePane === paneId);
   const broadcasting = useAppStore((s) => s.broadcast);
+  const backdrop = useMemo(() => resolveBackdrop(profile), [profile]);
   // Badge placeholders resolve against the live pane meta (cwd etc.).
   const badgeTemplate = profile?.badge ?? null;
   const paneCwd = useAppStore((s) => {
@@ -130,12 +132,12 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     let exited = false;
     let unlistenExit: (() => void) | undefined;
 
-    const opacity = profile?.backgroundOpacity ?? null;
     const theme = resolveTheme(themeName, profile?.customColors ?? null);
-    if (opacity !== null && opacity < 1) {
-      // Composite over the pane's backdrop color (see .terminal-pane CSS).
+    if (backdrop.translucent) {
+      // Composite over the pane's backdrop image / the desktop (window is
+      // created with transparent: true; body paints opaque otherwise).
       const bg = theme.background ?? "#1a1d23";
-      const rgba = withAlpha(typeof bg === "string" ? bg : "#1a1d23", opacity);
+      const rgba = withAlpha(typeof bg === "string" ? bg : "#1a1d23", backdrop.bgAlpha);
       if (rgba) theme.background = rgba;
     }
     const term = new Terminal({
@@ -147,7 +149,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       lineHeight: profile?.lineHeight ?? 1,
       letterSpacing: profile?.letterSpacing ?? 0,
       scrollback: profile?.scrollback ?? scrollbackLines,
-      allowTransparency: opacity !== null && opacity < 1,
+      allowTransparency: backdrop.translucent,
       // required for SearchAddon highlight decorations (IDecoration API)
       allowProposedApi: true,
       // No overviewRuler: xterm paints its canvas opaque white when no
@@ -594,6 +596,15 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
         <div className="copy-mode-banner" role="status">
           COPY MODE · hjkl/↑↓ move · ⌃/⌥f/b page · v select · y copy · q quit
         </div>
+      )}
+      {backdrop.imageUrl && (
+        <div
+          className="pane-bg-image"
+          style={{
+            backgroundImage: `url("${backdrop.imageUrl}")`,
+            opacity: backdrop.imageOpacity,
+          }}
+        />
       )}
       {badgeText && <div className="pane-badge">{badgeText}</div>}
       {broadcasting && (

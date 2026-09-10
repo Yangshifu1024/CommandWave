@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { homeDir } from "@tauri-apps/api/path";
 
@@ -17,6 +17,8 @@ import { useShortcuts } from "./hooks/useShortcuts";
 import { setHomeDir } from "./terminal/paneTitle";
 import { exitCopyMode } from "./terminal/copyModeController";
 import { parseSnapshot, serializeSession } from "./layout/snapshot";
+import { resolveBackdrop } from "./terminal/backdrop";
+import { setWindowBlur } from "./terminal/ipc";
 import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
@@ -174,6 +176,23 @@ export default function App() {
       exitCopyMode();
     }
   }, [activeTabId, activePaneId]);
+
+  // Window-level translucency: when the active pane's profile is
+  // translucent (backgroundOpacity < 1 or a background image), the body
+  // stops painting its opaque background so the desktop shows through the
+  // transparent window, and the OS blur/acrylic effect is enabled.
+  const translucent = useMemo(() => {
+    if (!activeTab) return false;
+    const profileId = activeTab.paneMeta[activePaneId ?? ""]?.profileId;
+    const p = useSettingsStore
+      .getState()
+      .settings.profiles.find((x) => x.id === profileId);
+    return resolveBackdrop(p).translucent;
+  }, [activeTab, activePaneId]);
+  useEffect(() => {
+    document.body.classList.toggle("translucent", translucent);
+    setWindowBlur(translucent);
+  }, [translucent]);
   useEffect(() => {
     document.title = activeTab ? `${activeTab.title} — CommandWave` : "CommandWave";
   }, [activeTab?.id, activeTab?.title]);

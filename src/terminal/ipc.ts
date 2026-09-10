@@ -209,6 +209,12 @@ export function starshipApplyPreset(name: string): Promise<string | null> {
   return invoke<string | null>("starship_apply_preset", { name }).catch(() => null);
 }
 
+/** Window-level blur behind translucent panes (acrylic / HUD). */
+export function setWindowBlur(enabled: boolean): void {
+  if (!isTauri) return;
+  invoke("set_window_blur", { enabled }).catch(() => {});
+}
+
 // ---------- browser mock ----------
 
 const mockSessions = new Map<number, OutputSink>();

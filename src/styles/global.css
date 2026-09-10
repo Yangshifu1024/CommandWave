@@ -1463,3 +1463,29 @@ body {
   gap: 6px;
   margin-top: 6px;
 }
+
+/* ---------- Window translucency & background image ---------- */
+
+/* body paints the opaque app background; translucent profiles let the
+   desktop show through the transparent window instead. */
+body.translucent {
+  background: transparent;
+}
+
+.pane-bg-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+}
+
+/* Panes sit above the background image layer. */
+.terminal-pane .xterm,
+.terminal-pane .copy-mode-banner,
+.terminal-pane .broadcast-banner,
+.terminal-pane .pane-badge {
+  position: relative;
+  z-index: 1;
+}

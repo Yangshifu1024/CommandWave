@@ -45,6 +45,8 @@ export function IntegrationsSection() {
           badge: "{cwd}",
           customColors: null,
           backgroundOpacity: null,
+          backgroundImage: null,
+          backgroundImageOpacity: null,
           env: null,
           useStarship: null,
         });

@@ -27,6 +27,10 @@ export interface Profile {
   customColors: Record<string, string> | null;
   /** 0–1; <1 makes the terminal background translucent */
   backgroundOpacity: number | null;
+  /** image URL/path rendered behind the terminal */
+  backgroundImage: string | null;
+  /** background image layer opacity (0–1) */
+  backgroundImageOpacity: number | null;
   /** extra environment variables ("KEY=VALUE") */
   env: string[] | null;
   /** auto-init the starship prompt (zsh) */
@@ -116,6 +120,8 @@ export const defaultSettings: Settings = {
       badge: null,
       customColors: null,
       backgroundOpacity: null,
+      backgroundImage: null,
+      backgroundImageOpacity: null,
       env: null,
       useStarship: null,
     },
@@ -179,6 +185,8 @@ function blankProfile(base: Profile, name: string): Profile {
     badge: base.badge,
     customColors: base.customColors ? { ...base.customColors } : null,
     backgroundOpacity: base.backgroundOpacity,
+    backgroundImage: base.backgroundImage,
+    backgroundImageOpacity: base.backgroundImageOpacity,
     env: base.env ? [...base.env] : null,
     useStarship: base.useStarship,
   };
