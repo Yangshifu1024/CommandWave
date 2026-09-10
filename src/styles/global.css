@@ -208,10 +208,9 @@ body {
 
 /* ---------- Terminal ---------- */
 
+/* Vestigial mount div (the xterm element is re-parented into .pane). */
 .terminal-pane {
-  position: absolute;
-  inset: 0;
-  padding: 4px 8px;
+  display: none;
 }
 
 .xterm .xterm-screen {
@@ -441,9 +440,12 @@ body {
   min-height: 0;
 }
 
+/* Padding lives on .pane (the xterm element's actual parent); FitAddon
+ * measures this box, so text keeps its breathing room at any size. */
 .pane {
   position: absolute;
   inset: 0;
+  padding: 10px 14px;
 }
 
 .pane-active {
