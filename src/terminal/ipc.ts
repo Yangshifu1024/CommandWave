@@ -10,6 +10,8 @@ export interface PtySpawnOptions {
   cols: number;
   cwd: string | null;
   shell: string | null;
+  /** extra environment variables ("KEY=VALUE") */
+  env: string[] | null;
 }
 
 interface PtyCreated {

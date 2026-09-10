@@ -61,6 +61,8 @@ pub struct PtyCreateOptions {
     pub cwd: Option<String>,
     pub shell: Option<String>,
     pub args: Option<Vec<String>>,
+    /// extra environment variables ("KEY=VALUE")
+    pub env: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -120,6 +122,13 @@ pub fn spawn_session(
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("TERM_PROGRAM", "CommandWave");
+    for pair in options.env.unwrap_or_default() {
+        if let Some((key, value)) = pair.split_once('=') {
+            if !key.is_empty() {
+                cmd.env(key, value);
+            }
+        }
+    }
     // Inject cwd-reporting integration (OSC 7 → tab titles) for the default
     // shell only; profile-configured custom shells are left untouched.
     if !custom_shell {

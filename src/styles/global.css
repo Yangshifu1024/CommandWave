@@ -1209,3 +1209,61 @@ body {
   color: var(--fg);
   border-color: var(--accent);
 }
+
+/* ---------- Phase 3: appearance editor & badge ---------- */
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.color-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--fg-dim);
+  cursor: pointer;
+}
+
+.color-cell input[type="color"] {
+  width: 26px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.import-label {
+  cursor: pointer;
+}
+
+.env-textarea {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  resize: vertical;
+}
+
+.pane-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 12;
+  padding: 2px 8px;
+  font-size: 10px;
+  color: var(--fg-dim);
+  background: color-mix(in srgb, var(--bg-panel) 70%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: nowrap;
+}

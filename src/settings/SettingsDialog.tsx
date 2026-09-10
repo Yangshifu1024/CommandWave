@@ -6,7 +6,8 @@ import {
   useSettingsStore,
   type Profile,
 } from "../store/settingsStore";
-import { themes } from "../terminal/themes";
+import { themes, getTheme, COLOR_KEYS } from "../terminal/themes";
+import { parseItermColors } from "../terminal/itermColors";
 import { KeyboardSection } from "./KeyboardSection";
 import { AutomationSection } from "./AutomationSection";
 
@@ -222,6 +223,130 @@ export function SettingsDialog() {
                   ))}
                 </div>
               </div>
+
+              <div className="field-row">
+                <label className="field field-narrow">
+                  <span>Cursor</span>
+                  <select
+                    value={selected?.cursorStyle ?? "block"}
+                    onChange={(e) =>
+                      setProfile({ cursorStyle: e.target.value as Profile["cursorStyle"] })
+                    }
+                  >
+                    <option value="block">Block</option>
+                    <option value="bar">Bar</option>
+                    <option value="underline">Underline</option>
+                  </select>
+                </label>
+                <label className="field field-narrow">
+                  <span>Cursor blink</span>
+                  <select
+                    value={String(selected?.cursorBlink ?? true)}
+                    onChange={(e) => setProfile({ cursorBlink: e.target.value === "true" })}
+                  >
+                    <option value="true">Blink</option>
+                    <option value="false">Steady</option>
+                  </select>
+                </label>
+                <label className="field field-narrow">
+                  <span>Line height</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={2}
+                    step={0.05}
+                    value={selected?.lineHeight ?? 1}
+                    onChange={(e) =>
+                      setProfile({ lineHeight: clampFloat(e.target.value, 1, 2, 1) })
+                    }
+                  />
+                </label>
+                <label className="field field-narrow">
+                  <span>Letter spacing</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={10}
+                    step={0.5}
+                    value={selected?.letterSpacing ?? 0}
+                    onChange={(e) =>
+                      setProfile({ letterSpacing: clampFloat(e.target.value, 0, 10, 0) })
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="field-row">
+                <label className="field field-narrow">
+                  <span>Scrollback (lines)</span>
+                  <input
+                    type="number"
+                    min={100}
+                    max={1000000}
+                    step={100}
+                    placeholder="10000"
+                    value={selected?.scrollback ?? ""}
+                    onChange={(e) =>
+                      setProfile({ scrollback: e.target.value ? clampInt(e.target.value, 100, 1000000, 10000) : null })
+                    }
+                  />
+                </label>
+                <label className="field field-narrow">
+                  <span>Background opacity</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    max={1}
+                    step={0.05}
+                    placeholder="1"
+                    value={selected?.backgroundOpacity ?? ""}
+                    onChange={(e) =>
+                      setProfile({
+                        backgroundOpacity: e.target.value ? clampFloat(e.target.value, 0.1, 1, 1) : null,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="field-row">
+                <label className="field">
+                  <span>Badge ({"{cwd}"} / {"{profile}"} placeholders)</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. {cwd}"
+                    value={selected?.badge ?? ""}
+                    spellCheck={false}
+                    onChange={(e) => setProfile({ badge: e.target.value || null })}
+                  />
+                </label>
+              </div>
+
+              <div className="field-row">
+                <label className="field">
+                  <span>Environment (one KEY=VALUE per line)</span>
+                  <textarea
+                    rows={2}
+                    className="env-textarea"
+                    spellCheck={false}
+                    placeholder="EDITOR=vim"
+                    value={(selected?.env ?? []).join("\n")}
+                    onChange={(e) =>
+                      setProfile({
+                        env: e.target.value
+                          ? e.target.value.split("\n").map((l) => l.trim()).filter(Boolean)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+              </div>
+
+              <CustomColorsEditor
+                overrides={selected?.customColors ?? null}
+                themeName={selected?.themeName ?? appearanceDefaults.themeName}
+                onChange={(customColors) => setProfile({ customColors })}
+              />
             </section>
 
             <section className="settings-section">
@@ -256,4 +381,77 @@ function clampInt(raw: string, min: number, max: number, fallback: number): numb
   const n = Number.parseInt(raw, 10);
   if (Number.isNaN(n)) return fallback;
   return Math.min(max, Math.max(min, n));
+}
+
+function clampFloat(raw: string, min: number, max: number, fallback: number): number {
+  const n = Number.parseFloat(raw);
+  if (Number.isNaN(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/**
+ * Per-slot color overrides layered on the selected theme, plus import of
+ * iTerm2 `.itermcolors` files.
+ */
+function CustomColorsEditor({
+  overrides,
+  themeName,
+  onChange,
+}: {
+  overrides: Record<string, string> | null;
+  themeName: string;
+  onChange: (next: Record<string, string> | null) => void;
+}) {
+  const base = getTheme(themeName);
+  const setSlot = (key: string, value: string) => {
+    const next = { ...(overrides ?? {}) };
+    if (value && value.toLowerCase() !== (base as Record<string, string>)[key]?.toLowerCase()) {
+      next[key] = value;
+    } else {
+      delete next[key];
+    }
+    onChange(Object.keys(next).length > 0 ? next : null);
+  };
+  const importIterm = async (file: File) => {
+    const text = await file.text();
+    const parsed = parseItermColors(text);
+    if (parsed) onChange({ ...(overrides ?? {}), ...parsed });
+  };
+  return (
+    <div>
+      <div className="field-row">
+        <span className="field-label">Custom colors</span>
+        <label className="settings-add-btn import-label">
+          Import .itermcolors…
+          <input
+            type="file"
+            accept=".itermcolors,.plist,text/xml,application/xml"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void importIterm(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        {overrides && (
+          <button className="profile-mini-btn" onClick={() => onChange(null)}>
+            Reset colors
+          </button>
+        )}
+      </div>
+      <div className="color-grid">
+        {COLOR_KEYS.map((key) => (
+          <label key={key} className="color-cell" title={key}>
+            <input
+              type="color"
+              value={overrides?.[key] ?? (base as Record<string, string>)[key] ?? "#000000"}
+              onChange={(e) => setSlot(key, e.target.value)}
+            />
+            <span>{key}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
 }

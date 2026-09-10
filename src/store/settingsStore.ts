@@ -13,6 +13,22 @@ export interface Profile {
   fontFamily: string | null;
   fontSize: number | null;
   themeName: string | null;
+  /** cursor style: block | bar | underline */
+  cursorStyle: "block" | "bar" | "underline" | null;
+  cursorBlink: boolean | null;
+  /** 1.0 = default; multiplies the font's cell height */
+  lineHeight: number | null;
+  letterSpacing: number | null;
+  /** per-profile scrollback override (lines) */
+  scrollback: number | null;
+  /** overlay text, supports {cwd} and {profile} placeholders */
+  badge: string | null;
+  /** per-slot color overrides layered onto the theme */
+  customColors: Record<string, string> | null;
+  /** 0–1; <1 makes the terminal background translucent */
+  backgroundOpacity: number | null;
+  /** extra environment variables ("KEY=VALUE") */
+  env: string[] | null;
 }
 
 export interface UiSettings {
@@ -80,6 +96,15 @@ export const defaultSettings: Settings = {
       fontFamily: null,
       fontSize: null,
       themeName: null,
+      cursorStyle: null,
+      cursorBlink: null,
+      lineHeight: null,
+      letterSpacing: null,
+      scrollback: null,
+      badge: null,
+      customColors: null,
+      backgroundOpacity: null,
+      env: null,
     },
   ],
   defaultProfileId: "default",
@@ -130,6 +155,15 @@ function blankProfile(base: Profile, name: string): Profile {
     fontFamily: base.fontFamily,
     fontSize: base.fontSize,
     themeName: base.themeName,
+    cursorStyle: base.cursorStyle,
+    cursorBlink: base.cursorBlink,
+    lineHeight: base.lineHeight,
+    letterSpacing: base.letterSpacing,
+    scrollback: base.scrollback,
+    badge: base.badge,
+    customColors: base.customColors ? { ...base.customColors } : null,
+    backgroundOpacity: base.backgroundOpacity,
+    env: base.env ? [...base.env] : null,
   };
 }
 

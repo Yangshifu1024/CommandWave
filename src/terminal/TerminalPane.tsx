@@ -15,7 +15,15 @@ import { parseOscCwd } from "./paneTitle";
 import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
 import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
 import { parseOsc133 } from "./paneMarks";
-import { getTheme } from "./themes";
+import { resolveTheme, withAlpha } from "./themes";
+
+/** Last path segment of a directory string, for badge placeholders. */
+function lastSegment(cwd: string | null): string | null {
+  if (!cwd) return null;
+  const trimmed = cwd.replace(/[\\/]+$/, "");
+  const seg = trimmed.split(/[\\/]/).filter(Boolean).pop();
+  return seg ?? trimmed;
+}
 import { terminalManager } from "./manager";
 import { notifyCommandFinished, onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, sendNotification, spawnPty } from "./ipc";
 
@@ -75,6 +83,20 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
   );
   const themeName = profile?.themeName ?? appearanceDefaults.themeName;
   const inCopyMode = useAppStore((s) => s.copyModePane === paneId);
+  // Badge placeholders resolve against the live pane meta (cwd etc.).
+  const badgeTemplate = profile?.badge ?? null;
+  const paneCwd = useAppStore((s) => {
+    for (const tab of s.tabs) {
+      const meta = tab.paneMeta[paneId];
+      if (meta) return meta.cwd ?? meta.spawnCwd ?? null;
+    }
+    return null;
+  });
+  const badgeText = badgeTemplate
+    ? badgeTemplate
+        .replaceAll("{cwd}", lastSegment(paneCwd) ?? "—")
+        .replaceAll("{profile}", profile?.name ?? "—")
+    : null;
 
   // Live-apply appearance changes to the existing terminal instance.
   useEffect(() => {
@@ -83,9 +105,16 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     if (!term || !entry) return;
     term.options.fontFamily = fontFamily;
     term.options.fontSize = fontSize;
-    term.options.theme = getTheme(themeName);
+    term.options.theme = resolveTheme(themeName, profile?.customColors ?? null);
+    if (profile?.cursorStyle) term.options.cursorStyle = profile.cursorStyle;
+    if (profile?.cursorBlink !== null && profile?.cursorBlink !== undefined) {
+      term.options.cursorBlink = profile.cursorBlink;
+    }
+    if (profile?.lineHeight) term.options.lineHeight = profile.lineHeight;
+    if (profile?.letterSpacing) term.options.letterSpacing = profile.letterSpacing;
+    if (profile?.scrollback) term.options.scrollback = profile.scrollback;
     entry.doFit();
-  }, [fontFamily, fontSize, themeName]);
+  }, [fontFamily, fontSize, themeName, profile]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -95,12 +124,24 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     let exited = false;
     let unlistenExit: (() => void) | undefined;
 
+    const opacity = profile?.backgroundOpacity ?? null;
+    const theme = resolveTheme(themeName, profile?.customColors ?? null);
+    if (opacity !== null && opacity < 1) {
+      // Composite over the pane's backdrop color (see .terminal-pane CSS).
+      const bg = theme.background ?? "#1a1d23";
+      const rgba = withAlpha(typeof bg === "string" ? bg : "#1a1d23", opacity);
+      if (rgba) theme.background = rgba;
+    }
     const term = new Terminal({
       fontFamily,
       fontSize,
-      theme: getTheme(themeName),
-      cursorBlink: true,
-      scrollback: scrollbackLines,
+      theme,
+      cursorBlink: profile?.cursorBlink ?? true,
+      cursorStyle: profile?.cursorStyle ?? "block",
+      lineHeight: profile?.lineHeight ?? 1,
+      letterSpacing: profile?.letterSpacing ?? 0,
+      scrollback: profile?.scrollback ?? scrollbackLines,
+      allowTransparency: opacity !== null && opacity < 1,
       // required for SearchAddon highlight decorations (IDecoration API)
       allowProposedApi: true,
       // No overviewRuler: xterm paints its canvas opaque white when no
@@ -355,7 +396,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       // ignore first-fit failures
     }
 
-    spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null }, (data) => {
+    spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null }, (data) => {
       term.write(data);
       handleTriggerChunk(data);
     })
@@ -401,6 +442,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
           COPY MODE · hjkl/↑↓ move · ⌃/⌥f/b page · v select · y copy · q quit
         </div>
       )}
+      {badgeText && <div className="pane-badge">{badgeText}</div>}
     </div>
   );
 }

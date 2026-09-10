@@ -16,6 +16,16 @@ pub struct Profile {
     pub font_family: Option<String>,
     pub font_size: Option<u16>,
     pub theme_name: Option<String>,
+    pub cursor_style: Option<String>,
+    pub cursor_blink: Option<bool>,
+    pub line_height: Option<f64>,
+    pub letter_spacing: Option<f64>,
+    pub scrollback: Option<u32>,
+    pub badge: Option<String>,
+    pub custom_colors: Option<std::collections::HashMap<String, String>>,
+    pub background_opacity: Option<f64>,
+    /// extra environment variables ("KEY=VALUE")
+    pub env: Option<Vec<String>>,
 }
 
 impl Default for Profile {
@@ -29,6 +39,15 @@ impl Default for Profile {
             font_family: None,
             font_size: None,
             theme_name: None,
+            cursor_style: None,
+            cursor_blink: None,
+            line_height: None,
+            letter_spacing: None,
+            scrollback: None,
+            badge: None,
+            custom_colors: None,
+            background_opacity: None,
+            env: None,
         }
     }
 }

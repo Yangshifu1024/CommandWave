@@ -452,3 +452,54 @@ export function getTheme(name: string): ITheme {
 export function isDarkTheme(name: string): boolean {
   return (themes.find((t) => t.name === name) ?? themes[0]).dark;
 }
+
+/** Customizable color slots (profile customColors keys). */
+export const COLOR_KEYS = [
+  "background",
+  "foreground",
+  "cursor",
+  "cursorAccent",
+  "selectionBackground",
+  "black",
+  "red",
+  "green",
+  "yellow",
+  "blue",
+  "magenta",
+  "cyan",
+  "white",
+  "brightBlack",
+  "brightRed",
+  "brightGreen",
+  "brightYellow",
+  "brightBlue",
+  "brightMagenta",
+  "brightCyan",
+  "brightWhite",
+] as const;
+
+export type ColorKey = (typeof COLOR_KEYS)[number];
+export type ColorOverrides = Partial<Record<ColorKey, string>>;
+
+/** Built-in theme with the profile's per-slot overrides applied. */
+export function resolveTheme(name: string, overrides: ColorOverrides | null | undefined): ITheme {
+  const base = { ...getTheme(name) };
+  if (!overrides) return base;
+  for (const key of COLOR_KEYS) {
+    const v = overrides[key];
+    if (v) (base as Record<string, string>)[key] = v;
+  }
+  return base;
+}
+
+/**
+ * Convert a hex color to rgba with the given alpha (backgroundOpacity
+ * profile setting). Invalid input returns null so callers can skip.
+ */
+export function withAlpha(hex: string, alpha: number): string | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const a = Math.min(1, Math.max(0, alpha));
+  const n = Number.parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
