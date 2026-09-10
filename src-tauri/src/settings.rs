@@ -32,6 +32,8 @@ pub struct Profile {
     pub background_image: Option<String>,
     /// background image layer opacity (0–1)
     pub background_image_opacity: Option<f64>,
+    /// per-profile keybinding overrides (actionId -> accelerator)
+    pub keybindings: Option<std::collections::HashMap<String, String>>,
 }
 
 impl Default for Profile {
@@ -57,6 +59,7 @@ impl Default for Profile {
             use_starship: None,
             background_image: None,
             background_image_opacity: None,
+            keybindings: None,
         }
     }
 }
@@ -196,12 +199,49 @@ fn settings_path(app: &AppHandle) -> Result<PathBuf> {
 
 pub fn load(app: &AppHandle) -> Result<Settings> {
     let path = settings_path(app)?;
-    if !path.exists() {
-        return Ok(Settings::default());
+    let mut settings = if path.exists() {
+        let text = fs::read_to_string(&path).context("reading settings.json")?;
+        // A corrupt file falls back to defaults rather than failing the app.
+        serde_json::from_str(&text).unwrap_or_default()
+    } else {
+        Settings::default()
+    };
+    merge_dynamic_profiles(app, &mut settings);
+    Ok(settings)
+}
+
+/// Dynamic Profiles: every `profiles/*.json` in the app config dir holds a
+/// Profile that is merged in on load (same id replaces the stored copy).
+/// Lets external tools (SSH config generators, dotfile managers) feed the
+/// profile list without touching settings.json.
+fn merge_dynamic_profiles(app: &AppHandle, settings: &mut Settings) {
+    let Ok(dir) = app.path().app_config_dir() else {
+        return;
+    };
+    let dir = dir.join("profiles");
+    let Ok(entries) = fs::read_dir(&dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(&p) else {
+            continue;
+        };
+        let Ok(profile) = serde_json::from_str::<Profile>(&text) else {
+            continue;
+        };
+        if profile.id.is_empty() {
+            continue;
+        }
+        if let Some(existing) = settings.profiles.iter_mut().find(|x| x.id == profile.id) {
+            *existing = profile;
+        } else {
+            settings.profiles.push(profile);
+        }
     }
-    let text = fs::read_to_string(&path).context("reading settings.json")?;
-    // A corrupt file falls back to defaults rather than failing the app.
-    Ok(serde_json::from_str(&text).unwrap_or_default())
 }
 
 pub fn save(app: &AppHandle, settings: &Settings) -> Result<()> {

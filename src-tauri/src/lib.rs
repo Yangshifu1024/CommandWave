@@ -30,6 +30,8 @@ pub fn run() {
             commands::starship_detect,
             commands::starship_presets,
             commands::starship_apply_preset,
+            commands::starship_read_config,
+            commands::starship_write_config,
             commands::set_window_blur
         ])
         .setup(|app| {

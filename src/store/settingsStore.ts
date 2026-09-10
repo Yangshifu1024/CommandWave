@@ -35,6 +35,8 @@ export interface Profile {
   env: string[] | null;
   /** auto-init the starship prompt (zsh) */
   useStarship: boolean | null;
+  /** per-profile keybinding overrides (actionId -> accelerator) */
+  keybindings: Record<string, string> | null;
 }
 
 export interface UiSettings {
@@ -124,6 +126,7 @@ export const defaultSettings: Settings = {
       backgroundImageOpacity: null,
       env: null,
       useStarship: null,
+      keybindings: null,
     },
   ],
   defaultProfileId: "default",
@@ -189,6 +192,7 @@ function blankProfile(base: Profile, name: string): Profile {
     backgroundImageOpacity: base.backgroundImageOpacity,
     env: base.env ? [...base.env] : null,
     useStarship: base.useStarship,
+    keybindings: base.keybindings ? { ...base.keybindings } : null,
   };
 }
 

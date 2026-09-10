@@ -21,9 +21,27 @@ const MAX_OUTPUT_CHARS = 4000;
 
 const records: CommandRecord[] = [];
 
+type Listener = () => void;
+const listeners = new Set<Listener>();
+
+/** Fires whenever a command finishes (drives {duration} badge updates). */
+export function subscribeCommands(fn: Listener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 export function recordCommand(rec: CommandRecord): void {
   records.push({ ...rec, output: rec.output.slice(0, MAX_OUTPUT_CHARS) });
   if (records.length > MAX_RECORDS) records.splice(0, records.length - MAX_RECORDS);
+  for (const fn of listeners) fn();
+}
+
+/** Duration of the most recent finished command in a pane, or null. */
+export function lastDurationMs(paneId: string): number | null {
+  for (let i = records.length - 1; i >= 0; i--) {
+    if (records[i].paneId === paneId) return records[i].durationMs;
+  }
+  return null;
 }
 
 export function allCommands(): readonly CommandRecord[] {

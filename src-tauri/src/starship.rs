@@ -55,6 +55,21 @@ fn config_path() -> Option<PathBuf> {
     Some(PathBuf::from(home).join(".config").join("starship.toml"))
 }
 
+/// Read the current starship config (None when absent).
+pub fn read_config() -> Option<String> {
+    std::fs::read_to_string(config_path()?).ok()
+}
+
+/// Overwrite the starship config with the given TOML text.
+pub fn write_config(text: &str) -> Result<String, String> {
+    let path = config_path().ok_or("no home directory")?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 /// Apply a preset by writing it to the starship config path.
 pub fn apply_preset(name: &str) -> Result<String, String> {
     // Only allow known-safe names to avoid argument injection.

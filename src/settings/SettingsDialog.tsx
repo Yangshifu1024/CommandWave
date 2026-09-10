@@ -7,6 +7,7 @@ import {
   type Profile,
 } from "../store/settingsStore";
 import { themes, getTheme, COLOR_KEYS } from "../terminal/themes";
+import { KEYBINDING_ACTIONS } from "../hooks/keybindings";
 import { parseItermColors } from "../terminal/itermColors";
 import { KeyboardSection } from "./KeyboardSection";
 import { AutomationSection } from "./AutomationSection";
@@ -383,6 +384,12 @@ export function SettingsDialog() {
                 <span>Starship prompt — auto-init starship for zsh panes of this profile</span>
               </label>
 
+              <ProfileKeyOverrides
+                overrides={selected?.keybindings ?? null}
+                global={settings.keybindings}
+                onChange={(keybindings) => setProfile({ keybindings })}
+              />
+
               <CustomColorsEditor
                 overrides={selected?.customColors ?? null}
                 themeName={selected?.themeName ?? appearanceDefaults.themeName}
@@ -416,6 +423,83 @@ export function SettingsDialog() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Per-profile keybinding overrides: replaced actions win over the global
+ * map while panes of this profile are focused.
+ */
+function ProfileKeyOverrides({
+  overrides,
+  global,
+  onChange,
+}: {
+  overrides: Record<string, string> | null;
+  global: Record<string, string>;
+  onChange: (next: Record<string, string> | null) => void;
+}) {
+  const [action, setAction] = useState(KEYBINDING_ACTIONS[0].action);
+  const [accel, setAccel] = useState("");
+  const entries = Object.entries(overrides ?? {});
+  return (
+    <div>
+      <div className="field-row">
+        <span className="field-label">Key overrides ({entries.length})</span>
+      </div>
+      <div className="trigger-row">
+        <select value={action} onChange={(e) => setAction(e.target.value)}>
+          {KEYBINDING_ACTIONS.map((a) => (
+            <option key={a.action} value={a.action}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          placeholder={`global: ${global[action] || "—"}`}
+          value={accel}
+          spellCheck={false}
+          onChange={(e) => setAccel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && accel.trim()) {
+              onChange({ ...(overrides ?? {}), [action]: accel.trim() });
+              setAccel("");
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="settings-add-btn"
+          onClick={() => {
+            if (!accel.trim()) return;
+            onChange({ ...(overrides ?? {}), [action]: accel.trim() });
+            setAccel("");
+          }}
+        >
+          Override
+        </button>
+      </div>
+      {entries.map(([act, acc]) => (
+        <div key={act} className="trigger-row">
+          <span className="arrangement-name">
+            {KEYBINDING_ACTIONS.find((a) => a.action === act)?.label ?? act} → {acc}
+          </span>
+          <button
+            type="button"
+            className="profile-mini-btn"
+            aria-label="Remove override"
+            onClick={() => {
+              const next = { ...(overrides ?? {}) };
+              delete next[act];
+              onChange(Object.keys(next).length > 0 ? next : null);
+            }}
+          >
+            −
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

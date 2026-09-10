@@ -209,6 +209,16 @@ export function starshipApplyPreset(name: string): Promise<string | null> {
   return invoke<string | null>("starship_apply_preset", { name }).catch(() => null);
 }
 
+export function starshipReadConfig(): Promise<string | null> {
+  if (!isTauri) return Promise.resolve(null);
+  return invoke<string | null>("starship_read_config").catch(() => null);
+}
+
+export function starshipWriteConfig(text: string): Promise<string | null> {
+  if (!isTauri) return Promise.resolve(null);
+  return invoke<string | null>("starship_write_config", { text }).catch(() => null);
+}
+
 /** Window-level blur behind translucent panes (acrylic / HUD). */
 export function setWindowBlur(enabled: boolean): void {
   if (!isTauri) return;

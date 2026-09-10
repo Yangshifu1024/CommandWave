@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import type { ILink } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -16,7 +16,7 @@ import { parseOscCwd } from "./paneTitle";
 import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
 import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
 import { completionSuffix, extractInput, filterSuggestions } from "./autocomplete";
-import { suggestCommands } from "./commandHistory";
+import { formatDuration, lastDurationMs, subscribeCommands, suggestCommands } from "./commandHistory";
 import { resolveBackdrop } from "./backdrop";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
@@ -104,7 +104,16 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     ? badgeTemplate
         .replaceAll("{cwd}", lastSegment(paneCwd) ?? "—")
         .replaceAll("{profile}", profile?.name ?? "—")
+        .replaceAll(
+          "{duration}",
+          (lastDurationMs(paneId) ?? -1) >= 0
+            ? formatDuration(lastDurationMs(paneId) ?? -1)
+            : "—",
+        )
     : null;
+  // Badges with {duration} refresh when a command finishes.
+  const [, bumpHistory] = useState(0);
+  useEffect(() => subscribeCommands(() => bumpHistory((v) => v + 1)), []);
 
   // Live-apply appearance changes to the existing terminal instance.
   useEffect(() => {

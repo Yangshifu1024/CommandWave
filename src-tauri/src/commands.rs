@@ -196,3 +196,13 @@ pub fn starship_presets() -> Vec<String> {
 pub fn starship_apply_preset(name: String) -> Result<String, String> {
     crate::starship::apply_preset(&name)
 }
+
+#[tauri::command]
+pub fn starship_read_config() -> Option<String> {
+    crate::starship::read_config()
+}
+
+#[tauri::command]
+pub fn starship_write_config(text: String) -> Result<String, String> {
+    crate::starship::write_config(&text)
+}
