@@ -25,6 +25,15 @@ export interface Tab {
   paneMeta: Record<string, PaneTitleMeta>;
 }
 
+/** A pending right-click menu: screen position plus what was clicked. */
+export interface ContextMenuState {
+  x: number;
+  y: number;
+  paneId?: string;
+  tabId?: string;
+  hasSelection: boolean;
+}
+
 let seq = 0;
 function genId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${++seq}`;
@@ -59,6 +68,7 @@ interface AppStore {
   sidebarWidth: number;
   settingsOpen: boolean;
   searchOpen: boolean;
+  contextMenu: ContextMenuState | null;
 
   newTab: () => void;
   closeTab: (tabId: string) => void;
@@ -72,6 +82,8 @@ interface AppStore {
   closeSettings: () => void;
   openSearch: () => void;
   closeSearch: () => void;
+  openContextMenu: (menu: ContextMenuState) => void;
+  closeContextMenu: () => void;
 
   splitPane: (paneId: string, dir: SplitDir) => void;
   closePane: (tabId: string, paneId: string) => void;
@@ -96,6 +108,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   sidebarWidth: 180,
   settingsOpen: false,
   searchOpen: false,
+  contextMenu: null,
 
   newTab: () => {
     const profile = useSettingsStore.getState().settings.profiles.find(
@@ -177,6 +190,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   closeSettings: () => set({ settingsOpen: false }),
   openSearch: () => set({ searchOpen: true }),
   closeSearch: () => set({ searchOpen: false }),
+  openContextMenu: (menu) => set({ contextMenu: menu }),
+  closeContextMenu: () => set({ contextMenu: null }),
 
   splitPane: (paneId, dir) => {
     set((s) => ({

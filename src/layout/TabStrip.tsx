@@ -67,6 +67,15 @@ export function TabStrip({ side }: TabStripProps) {
               if (dragIndex.current !== null) moveTab(dragIndex.current, i);
               dragIndex.current = null;
             }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              useAppStore.getState().openContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                tabId: tab.id,
+                hasSelection: false,
+              });
+            }}
           >
             <span className="tab-title">{tab.title}</span>
             <button

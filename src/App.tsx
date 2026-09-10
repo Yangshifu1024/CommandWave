@@ -4,6 +4,7 @@ import { homeDir } from "@tauri-apps/api/path";
 
 import { SplitTree } from "./layout/SplitTree";
 import { TabStrip } from "./layout/TabStrip";
+import { ContextMenu } from "./layout/ContextMenu";
 import { TitleBar, dispatchMenuAction, isMac } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
@@ -103,6 +104,24 @@ export default function App() {
       .catch(() => {});
   }, []);
 
+  // Suppress the webview's native context menu everywhere except editable
+  // fields — the app renders its own menus for panes and tabs.
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", onContextMenu);
+    return () => document.removeEventListener("contextmenu", onContextMenu);
+  }, []);
+
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   // Focus the active terminal on tab/pane switches and reflect the tab title.
@@ -135,6 +154,7 @@ export default function App() {
         </div>
       </div>
       {settingsOpen && <SettingsDialog />}
+      <ContextMenu />
     </div>
   );
 }

@@ -159,6 +159,16 @@ function PaneView({
       ref={ref}
       className={`pane${isActivePane && active ? " pane-active" : ""}`}
       onMouseDown={() => useAppStore.getState().selectPane(tab.id, paneId)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        useAppStore.getState().selectPane(tab.id, paneId);
+        useAppStore.getState().openContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          paneId,
+          hasSelection: terminalManager.get(paneId)?.term.hasSelection() ?? false,
+        });
+      }}
     >
       <TerminalPane paneId={paneId} cwd={profile?.cwd ?? null} shell={profile?.shell ?? null} />
       <button
