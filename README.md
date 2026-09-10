@@ -97,9 +97,17 @@ The frontend also runs in a plain browser (`pnpm dev` →
 
 Tab titles show the current directory's last segment (`CommandWave`) and
 update as you `cd`. This relies on the shell reporting its working directory
-via OSC 7 (or ConEmu-style OSC 9;9). If your shell doesn't report it, titles
-fall back to the program-set window title, then the profile's starting
-directory. Enable it with a prompt hook:
+via OSC 7 (or ConEmu-style OSC 9;9).
+
+**zsh and bash need no setup**: on spawn, CommandWave injects a small
+integration automatically (VS Code-style `ZDOTDIR` chaining for zsh,
+`PROMPT_COMMAND` for bash). Emission is guarded on `TERM_PROGRAM ==
+"CommandWave"`, so other terminals and nested shells are unaffected, and
+profile-configured custom shells are never touched.
+
+Other shells (below: PowerShell) need a manual prompt hook. If no cwd is
+reported, titles fall back to the program-set window title, then the
+profile's starting directory.
 
 PowerShell (add to your `$PROFILE`):
 
