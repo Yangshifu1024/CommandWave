@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri::ipc::Channel;
 
+use crate::shell_integration;
 use crate::state::PtyManager;
 
 /// Lifetime of one PTY session. The reader thread owns the read end; input
@@ -106,6 +107,7 @@ pub fn spawn_session(
         pixel_height: 0,
     })?;
 
+    let custom_shell = options.shell.is_some();
     let (shell, args) = match options.shell {
         Some(s) => (s, options.args.unwrap_or_default()),
         None => default_shell(),
@@ -118,6 +120,17 @@ pub fn spawn_session(
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("TERM_PROGRAM", "CommandWave");
+    // Inject cwd-reporting integration (OSC 7 → tab titles) for the default
+    // shell only; profile-configured custom shells are left untouched.
+    if !custom_shell {
+        if let Ok(config_dir) = app.path().app_config_dir() {
+            if let Some(vars) = shell_integration::env_for_shell(&shell, &config_dir) {
+                for (key, value) in vars {
+                    cmd.env(key, value);
+                }
+            }
+        }
+    }
 
     let child = pair.slave.spawn_command(cmd)?;
     let writer = pair.master.take_writer()?;

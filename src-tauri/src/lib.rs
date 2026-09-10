@@ -2,6 +2,7 @@ mod commands;
 mod menu;
 mod pty;
 mod settings;
+mod shell_integration;
 mod state;
 
 use state::PtyManager;
