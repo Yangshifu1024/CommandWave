@@ -122,9 +122,14 @@ integration automatically (VS Code-style `ZDOTDIR` chaining for zsh,
 "CommandWave"`, so other terminals and nested shells are unaffected, and
 profile-configured custom shells are never touched.
 
-Other shells (below: PowerShell) need a manual prompt hook. If no cwd is
+Fish needs a manual prompt hook (see the fish docs); if no cwd is
 reported, titles fall back to the program-set window title, then the
 profile's starting directory.
+
+**Starship prompt**: profiles with the “Starship prompt” option enabled
+auto-init starship for zsh (ZDOTDIR chain), bash (lazy init re-chained
+around starship's PROMPT_COMMAND hook) and PowerShell (`-NoExit
+-Command` after your profile).
 
 PowerShell (add to your `$PROFILE`):
 

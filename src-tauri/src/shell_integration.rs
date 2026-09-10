@@ -70,14 +70,32 @@ macro_rules! zsh_passthrough {
     };
 }
 
-/// bash: runs after each command, before the prompt. $? is the command's
-/// exit status; %d expands it without pre-expanding at env-set time.
-const BASH_PROMPT_COMMAND: &str = r#"printf '\e]133;D;%d\a' "$?"; printf '\e]133;A\a'; printf '\e]7;file://%s%s\a' "${HOSTNAME%%.*}" "$PWD""#;
+/// bash: the plain OSC 133/7 printf chain that follows the starship guard
+/// is inlined at the end of BASH_PROMPT_COMMAND_STARSHIP (below).
 
 /// bash: PS0's value is *printed* (prompt-expanded, not executed) after a
 /// command line is read but before it runs — so embed the escape bytes
 /// directly instead of going through printf.
 const BASH_PS0: &str = "\x1b]133;C\x07";
+
+/// bash + starship: the first prompt lazily evals `starship init bash`
+/// (which replaces PROMPT_COMMAND with its own hook), then re-chains our
+/// OSC 133/7 emission around starship's hook so prompt marks and cwd
+/// tracking survive the takeover. The command's exit status is captured
+/// before starship's hook runs. When CW_USE_STARSHIP is unset the guard
+/// falls straight through to the plain integration below.
+const BASH_PROMPT_COMMAND_STARSHIP: &str = "__CW_E=$?; if [[ $CW_USE_STARSHIP == 1 && -z $CW_STARSHIP_INITED ]] && command -v starship >/dev/null 2>&1; then CW_STARSHIP_INITED=1; eval \"$(starship init bash)\"; __CW_SP=\"$PROMPT_COMMAND\"; PROMPT_COMMAND='__CW_E=$?; eval \"$__CW_SP\"; printf '\\''\\e]133;D;%d\\a'\\'' \"$__CW_E\"; printf '\\''\\e]133;A\\a'\\''; printf '\\''\\e]7;file://%s%s\\a'\\'' \"${HOSTNAME%%.*}\" \"$PWD\"'; fi; printf '\\e]133;D;%d\\a' \"$__CW_E\"; printf '\\e]133;A\\a'; printf '\\e]7;file://%s%s\\a' \"${HOSTNAME%%.*}\" \"$PWD\"";
+
+/// PowerShell + starship: pwsh starts with these arguments so the init runs
+/// after the user's profile, without touching $PROFILE.
+pub fn powershell_starship_args() -> Vec<String> {
+    vec![
+        "-NoExit".to_string(),
+        "-Command".to_string(),
+        "if ($env:CW_USE_STARSHIP -eq '1') { Invoke-Expression (&starship init powershell) }"
+            .to_string(),
+    ]
+}
 
 /// Write the integration files under `<base>/shell-integration/` and return
 /// the ZDOTDIR that should be set for zsh. Idempotent; rewritten on each call
@@ -106,7 +124,10 @@ pub fn env_for_shell(program: &str, base: &Path) -> Option<Vec<(String, String)>
             ])
         }
         "bash" => Some(vec![
-            ("PROMPT_COMMAND".to_string(), BASH_PROMPT_COMMAND.to_string()),
+            (
+                "PROMPT_COMMAND".to_string(),
+                BASH_PROMPT_COMMAND_STARSHIP.to_string(),
+            ),
             ("PS0".to_string(), BASH_PS0.to_string()),
         ]),
         _ => None,
@@ -144,6 +165,30 @@ mod tests {
         // $? is captured as the first statement of the hook.
         assert!(zshrc.contains("local __cw_exit=$?"));
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn bash_prompt_command_chains_starship() {
+        let cmd = BASH_PROMPT_COMMAND_STARSHIP;
+        // Lazy one-time init gated on the profile flag.
+        assert!(cmd.contains("CW_USE_STARSHIP == 1"));
+        assert!(cmd.contains("starship init bash"));
+        // starship's PROMPT_COMMAND takeover is re-chained with our OSC
+        // emission, exit status captured before the starship hook runs.
+        assert!(cmd.contains("__CW_E=$?"));
+        assert!(cmd.contains("eval \"$__CW_SP\""));
+        // Falls through to the plain integration when disabled.
+        assert!(cmd.contains(r"133;D;%d"));
+        assert!(cmd.contains(r"]7;file://%s%s"));
+    }
+
+    #[test]
+    fn powershell_starship_args_init_after_profile() {
+        let args = powershell_starship_args();
+        assert_eq!(args[0], "-NoExit");
+        assert_eq!(args[1], "-Command");
+        assert!(args[2].contains("starship init powershell"));
+        assert!(args[2].contains("$env:CW_USE_STARSHIP"));
     }
 
     #[test]

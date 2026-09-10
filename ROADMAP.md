@@ -87,7 +87,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
-| Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；profile 级 ⌾starship 开关，zsh 经 ZDOTDIR 链自动 init；bash/fish/PowerShell 需手动（见 README） |
+| Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；profile 级 ⌾starship 开关：zsh 经 ZDOTDIR 链、bash 经 PROMPT_COMMAND 惰性 init+重链（退出码在 starship 钩子前捕获，OSC 133/7 标记保留，真实 bash 验证）、PowerShell 经 `-NoExit -Command` 注入（在用户 profile 之后运行）；fish 仍需手动 |
 | 官方 preset 画廊 | ✅ | preset 列表 + 一键写入 starship.toml |
 | starship.toml 图形化编辑器 | ⚠️ | 常用项（add_newline / command_timeout）图形控件 + 原始 TOML 编辑（纯 TOML 辅助函数带测试）；完整字段级编辑器暂缓 |
 | 内置分发 (sidecar) | ⚠️ | scripts/fetch-starship.mjs 按平台下载 starship 到 resources 并注册 bundle 配置；运行时优先用捆绑二进制、回退 PATH。默认构建不强制依赖 |
