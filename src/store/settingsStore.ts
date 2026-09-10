@@ -19,11 +19,17 @@ export interface UiSettings {
   sidebarWidth: number;
 }
 
+export interface NotificationSettings {
+  /** OS notification when a long command finishes while unfocused. */
+  commandCompletion: boolean;
+}
+
 export interface Settings {
   version: number;
   profiles: Profile[];
   defaultProfileId: string;
   ui: UiSettings;
+  notifications: NotificationSettings;
 }
 
 export const defaultSettings: Settings = {
@@ -42,6 +48,7 @@ export const defaultSettings: Settings = {
   ],
   defaultProfileId: "default",
   ui: { tabBarPosition: "top", sidebarWidth: 180 },
+  notifications: { commandCompletion: true },
 };
 
 export interface Appearance {
@@ -79,7 +86,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     try {
       const loaded = await invoke<Partial<Settings>>("settings_load");
       set({
-        settings: { ...defaultSettings, ...loaded, ui: { ...defaultSettings.ui, ...loaded.ui } },
+        settings: {
+          ...defaultSettings,
+          ...loaded,
+          ui: { ...defaultSettings.ui, ...loaded.ui },
+          notifications: { ...defaultSettings.notifications, ...loaded.notifications },
+        },
         loaded: true,
       });
     } catch {

@@ -99,6 +99,34 @@ export async function onMenuAction(
   return unlisten;
 }
 
+/**
+ * OS notification for a finished command. No-op outside Tauri or when the
+ * system denies notification permission.
+ */
+export async function notifyCommandFinished(
+  exitCode: number,
+  context: string,
+): Promise<void> {
+  if (!isTauri) return;
+  try {
+    const mod = await import("@tauri-apps/plugin-notification");
+    let granted = await mod.isPermissionGranted();
+    if (!granted) {
+      granted = (await mod.requestPermission()) === "granted";
+    }
+    if (!granted) return;
+    mod.sendNotification({
+      title:
+        exitCode === 0
+          ? "Command finished"
+          : `Command failed (exit ${exitCode})`,
+      body: context,
+    });
+  } catch {
+    // notification plugin unavailable — silently skip
+  }
+}
+
 // ---------- browser mock ----------
 
 const mockSessions = new Map<number, OutputSink>();

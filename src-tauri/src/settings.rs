@@ -51,11 +51,26 @@ impl Default for UiSettings {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
+pub struct NotificationSettings {
+    pub command_completion: bool,
+}
+
+impl Default for NotificationSettings {
+    fn default() -> Self {
+        Self {
+            command_completion: true,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub version: u8,
     pub profiles: Vec<Profile>,
     pub default_profile_id: String,
     pub ui: UiSettings,
+    pub notifications: NotificationSettings,
 }
 
 impl Default for Settings {
@@ -65,6 +80,7 @@ impl Default for Settings {
             profiles: vec![Profile::default()],
             default_profile_id: "default".to_string(),
             ui: UiSettings::default(),
+            notifications: NotificationSettings::default(),
         }
     }
 }

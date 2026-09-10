@@ -137,6 +137,25 @@ export function SettingsDialog() {
               </label>
             </div>
           </section>
+
+          <section className="settings-section">
+            <h3>Notifications</h3>
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={settings.notifications.commandCompletion}
+                onChange={(e) =>
+                  update((draft) => {
+                    draft.notifications.commandCompletion = e.target.checked;
+                  })
+                }
+              />
+              <span>
+                Command finished — notify when a command that ran ≥ 2s
+                finishes while the window is not focused
+              </span>
+            </label>
+          </section>
         </div>
       </div>
     </div>

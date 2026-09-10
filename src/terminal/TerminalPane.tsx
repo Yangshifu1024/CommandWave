@@ -15,7 +15,7 @@ import { parseOscCwd } from "./paneTitle";
 import { parseOsc133 } from "./paneMarks";
 import { getTheme } from "./themes";
 import { terminalManager } from "./manager";
-import { onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, spawnPty } from "./ipc";
+import { notifyCommandFinished, onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, spawnPty } from "./ipc";
 
 interface TerminalPaneProps {
   paneId: string;
@@ -167,6 +167,19 @@ export function TerminalPane({ paneId, cwd, shell }: TerminalPaneProps) {
           } catch {
             // decoration API unavailable — skip highlight
           }
+        }
+        // Notify when a non-trivial command finished while unfocused.
+        const ranMs = entry.runningSince !== null ? Date.now() - entry.runningSince : 0;
+        const notify =
+          useSettingsStore.getState().settings.notifications.commandCompletion;
+        if (notify && ranMs >= 2000 && !document.hasFocus()) {
+          const tab = useAppStore
+            .getState()
+            .tabs.find((t) => paneId in t.paneMeta);
+          void notifyCommandFinished(
+            parsed.exitCode,
+            tab?.title ?? "CommandWave",
+          );
         }
         entry.runningPrompt = null;
         entry.runningSince = null;
