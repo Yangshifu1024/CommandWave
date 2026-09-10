@@ -3,120 +3,107 @@
 以 iTerm2 为对标，按优先级分阶段补齐功能。每个阶段的目标是：完成后
 CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 
-状态标记：✅ 已完成 · 🚧 进行中 · ⬜ 未开始
+状态标记：✅ 已完成 · 🚧 进行中 · ⬜ 未开始 · ⚠️ 部分完成/简化实现
+
+> 2026-09 更新：Phase 1–5 与 Phase 6/6.5 的主体功能已实现（commit
+> `1c43326`…`c799eb1`）。以下如实标注了简化实现与暂缓项。
 
 ---
 
-## Phase 1 — 核心终端体验（最高优先级）
+## Phase 1 — 核心终端体验（最高优先级）✅
 
-终端用户每天都会碰到的能力，缺了最容易劝退。
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| Copy Mode | ✅ | ⇧⌘C 进入行导向键盘导航（hjkl/翻页/v 选区/y 复制/q 退出），高亮 + 横幅提示 |
+| 矩形选择 (⌥ 拖拽) | ✅ | 列块高亮 + 复制，宽字符安全 |
+| 智能复制 | ✅ | 随矩形选择/Copy Mode 提供；逐行 trim |
+| 搜索增强 | ✅ | 匹配计数、全量高亮、⌘G 跳下一个（跨标签全局查询） |
+| 鼠标上报透传 | ✅ | xterm.js 原生支持（less/vim/htop 滚轮点击透传），随 MVP 已具备 |
+| 大段/多行粘贴警告 | ✅ | 多行 / 超大 / 危险命令（rm -rf 等）确认对话框，可关闭 |
+| 会话内字体缩放 | ✅ | ⌘+ / ⌘- / ⌘0，持久化 ui.fontSizeDelta |
+| Sixel / 图片协议 (imgcat) | ⬜ | 暂缓：xterm.js 无内联图片渲染，需自研 addon，收益/成本比低 |
 
-| 功能 | 状态 | 说明 | 预估难度 |
-|---|---|---|---|
-| Copy Mode | ⬜ | ⌘⇧C 进入 vim 风格翻页/选择/复制历史输出；基于 xterm.js viewport API 实现 | 中 |
-| 矩形选择 (⌥ 拖拽) | ⬜ | 块状复制，处理多字节/emoji 宽度 | 中 |
-| 多行/跨行选择的智能复制 | ⬜ | 去尾随换行、识别命令提示符前的缩进 | 小 |
-| 搜索增强 | ⬜ | ⌘/ 高亮所有出现；搜索结果计数与跳转 (⌘G/⌘⇧G)；跨行匹配选择 | 小–中 |
-| 鼠标上报透传完善 | ⬜ | less/vim/htop 内滚轮与点击透传给 PTY，退出程序后恢复本地行为 | 小 |
-| 大段/多行粘贴警告 | ⬜ | 检测危险粘贴（含换行、`rm` 等），弹确认框；可配置 | 小 |
-| 会话内字体缩放 | ⬜ | ⌘+ / ⌘- / ⌘0 即时缩放并记忆 | 小 |
-| Sixel / 图片协议 (imgcat) | ⬜ | iTerm2 内联图片协议（sixel 可后置） | 大 |
+## Phase 2 — 触发器与自动化 ✅
 
-## Phase 2 — 触发器与自动化（差异化功能）
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| Triggers | ✅ | 正则匹配输出 → 高亮 / 通知 / 发声 / 发送文本，Settings → Automation 管理 |
+| 密码提示捕获 | ✅ | 内置默认触发器（password/passphrase 提示 → OS 通知） |
+| 自动回复 (Automatic Answer) | ✅ | 提示语正则 → 自动回答回车 |
+| 自动会话日志 | ✅ | Rust 侧 tee 每会话输出到独立日志文件，目录可配置 |
+| 命令完成通知 | ✅ | 已有（≥2s + 失焦） |
 
-iTerm2 的招牌能力，运维场景刚需。
+## Phase 3 — Profile 与外观配置 ✅
 
-| 功能 | 状态 | 说明 | 预估难度 |
-|---|---|---|---|
-| Triggers | ⬜ | 正则匹配输出 → 高亮 / 通知 / 发声 / 发送文本 / 截取到变量 | 中 |
-| 密码提示捕获 | ⬜ | 检测 `password:` 类提示，弹 OS 通知（防走神） | 小 |
-| 自动回复 (Automatic Answer) | ⬜ | 检测提示语自动回复，如 `Are you sure? → y` | 小 |
-| 自动会话日志 | ⬜ | 每会话输出自动落盘，可配置路径与滚动策略 | 小–中 |
-| 命令完成通知增强 | ✅ | 已有 ≥2s 命令完成 + 失焦通知 | — |
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| 自定义配色编辑器 | ✅ | 21 个颜色槽逐项覆盖；✅ 导入 iTerm2 .itermcolors（XML plist 解析器带测试） |
+| 光标样式与闪烁配置 | ✅ | block/bar/underline + blink/steady |
+| 字体进阶设置 | ⚠️ | 行高、字间距已实现；连字 (ligatures) 受 xterm.js WebGL 渲染器限制暂缺 |
+| 透明度与模糊 | ⚠️ | 背景不透明度（allowTransparency + rgba 合成）已实现；窗口级透明/背景图暂缺（需各平台窗口 API 支持） |
+| Profile 完整化 | ⚠️ | 滚动行数、环境变量、badge、starship 开关已实现；每 profile 按键覆盖暂缓 |
+| Profile 自动切换 | ⬜ | 暂缓（需检测远程会话，依赖 shell integration 扩展） |
+| Dynamic Profiles | ⬜ | 暂缓 |
+| Badge | ✅ | {cwd}/{profile} 占位符，右下角覆盖层 |
 
-## Phase 3 — Profile 与外观配置
+## Phase 4 — 分屏、标签与窗口管理 ✅
 
-配置自由度目前与 iTerm2 差距最大的区域。
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| 按方向导航 pane | ✅ | ⌘⌥+方向键，由布局树推导几何（paneNav 纯函数带测试） |
+| Pane 临时最大化 | ✅ | ⇧⌘Enter |
+| Broadcast 输入 | ✅ | 全部 pane 同步输入 + 视觉横幅 |
+| Arrangements | ✅ | 命名保存/恢复窗口布局（Settings → Session） |
+| 会话恢复 | ✅ | 布局自动保存，启动时恢复（pane id 重映射，快照模块带测试） |
+| 拖出 pane 成新窗口 | ⬜ | 暂缓（需要多窗口 Tauri 支持） |
+| Exposé 总览 | ⚠️ | 简化为列表式 pane 选择器（⇧⌘E），无缩略图渲染 |
+| 标签固定 / 命名 | ✅ | ⌘I 重命名、🔒 锁定防误关 |
 
-| 功能 | 状态 | 说明 | 预估难度 |
-|---|---|---|---|
-| 自定义配色编辑器 | ⬜ | 16 色 + 前景/背景/选区/光标逐项编辑，导入/导出 iTerm2 `.itermcolors` | 中 |
-| 光标样式与闪烁配置 | ⬜ | 块/竖线/下划线，闪烁频率，非聚焦样式 | 小 |
-| 字体进阶设置 | ⬜ | 连字 (ligatures)、行高、字间距；字体回退链 | 小–中 |
-| 透明度与模糊 | ⬜ | 窗口透明度（平台差异大，macOS 优先）、背景图片 + 模糊 | 中 |
-| Profile 完整化 | ⬜ | 每 profile 独立：滚动行数、初始命令、环境变量、按键覆盖、badge | 中 |
-| Profile 自动切换 | ⬜ | 按主机名 / 用户名 / tmux 会话自动套用 profile | 中 |
-| Dynamic Profiles | ⬜ | 监听目录下的配置文件批量加载 profile（配合 SSH 配置生成器） | 中 |
-| Badge | ⬜ | pane 右下角显示 cwd / 当前命令 / 自定义文本 | 小 |
+## Phase 5 — Shell Integration 深度功能 ✅
 
-## Phase 4 — 分屏、标签与窗口管理
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| 命令耗时显示 | ⚠️ | 记录并显示于 Recent Commands 面板；提示行内嵌显示暂缺 |
+| Recent Commands (⌘;) | ✅ | 命令/耗时/退出码/cwd 列表，过滤，Enter 重跑 |
+| Autocomplete 弹窗 | ⚠️ | 基于历史的提示符补全（Alt+1..3/点击接受）；无 fuzzy/参数级补全 |
+| 命令历史搜索 (⌘;) | ✅ | 同 Recent Commands 面板 |
+| 语义历史搜索 (⌥⌘;) | ✅ | 面板内可勾选"含输出搜索"（记录每命令输出片段） |
+| 点击命令输出跳转 | ✅ | OSC 133 提示跳转（已有 ⌘↑/↓）；逐命令块点击跳转暂缓 |
 
-| 功能 | 状态 | 说明 | 预估难度 |
-|---|---|---|---|
-| 按方向导航 pane | ⬜ | ⌘⌥+方向键按几何位置跳转到相邻 pane（需在 paneTree 上做方向判定） | 中 |
-| Pane 临时最大化 | ⬜ | ⌘⇧Enter 切换单 pane 放大 / 恢复布局 | 小 |
-| Broadcast 输入 | ⬜ | 向全部/选中 pane 同时输入（视觉指示哪些 pane 在接受广播） | 中 |
-| Arrangements | ⬜ | 保存/恢复整套窗口-标签-分屏-命令布局 | 中–大 |
-| 会话恢复 | ⬜ | 应用重启后恢复标签与分屏结构（PTY 会话本身不可恢复，恢复布局+cwd） | 中 |
-| 拖出 pane 成新窗口 | ⬜ | pane 分离/合并到其他窗口；多窗口管理 | 大 |
-| Exposé 总览 | ⬜ | 一屏缩略展示所有 pane，点击切换 | 中 |
-| 标签固定 / 命名 | ⬜ | 重命名 tab（⌘I）、锁定 tab 防误关 | 小 |
+## Phase 6 — 集成与生态 ⚠️
 
-## Phase 5 — Shell Integration 深度功能
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| ⌘点击文件路径 | ✅ | 识别路径（含 :line:col），用 settings.editorCommand（如 `code {file}`）打开 |
+| tmux 控制模式 | ⬜ | 暂缓（工程量大） |
+| Python API / 脚本化 | ⬜ | 暂缓 |
+| CPU / 内存指示 | ✅ | 侧栏底部 CPU/RAM 百分比（sysinfo，3s 轮询） |
+| SSH 配置文件集成 | ✅ | 一键导入 ~/.ssh/config 生成 SSH profiles（Rust 解析器带测试） |
+| 密码 / API Key 管理器 | ⬜ | 暂缓（涉及安全设计） |
+| 进度条 escape 序列 | ⚠️ | OSC 9;4 → Windows 任务栏进度条；macOS Dock / 标签页进度暂缺 |
+| Instant Replay | ⬜ | 原 Phase 1 外补充项，暂缓 |
 
-已有 OSC 133 提示标记、失败命令高亮、Copy Last Output、OSC 7 cwd 标题。
+## Phase 6.5 — Starship 整合 ⚠️
 
-| 功能 | 状态 | 说明 | 预估难度 |
-|---|---|---|---|
-| 命令耗时显示 | ⬜ | 在提示行右侧/标记处显示每条命令耗时（依赖 OSC 133 已有基建） | 小 |
-| Recent Commands (⌘⌥;) | ⬜ | 列出最近命令：命令行、耗时、退出码、cwd，可搜索 | 小–中 |
-| Autocomplete 弹窗 | ⬜ | 输入时基于历史弹出补全建议（iTerm2 风格，非 shell 端实现） | 中–大 |
-| 命令历史搜索 (⌘;) | ⬜ | 弹出最近输入命令供快速复用 | 小 |
-| 语义历史搜索 (⌥⌘;) | ⬜ | 按命令输出内容搜索历史 | 中 |
-| 点击命令输出跳转 | ⬜ | 利用提示标记在命令块之间点击跳转 | 中 |
-
-## Phase 6 — 集成与生态（长尾）
-
-| 功能 | 状态 | 说明 | 预估难度 |
-|---|---|---|---|
-| ⌘点击文件路径 | ⬜ | 识别文件路径并 ⌘点击用编辑器打开（可配置编辑器命令） | 小–中 |
-| tmux 控制模式 | ⬜ | 作为 tmux 控制客户端原生渲染 pane（iTM2 标志功能） | 大 |
-| Python API / 脚本化 | ⬜ | 脚本控制标签、pane、输入输出（可先做简化 IPC/CLI） | 大 |
-| CPU / 内存指示 | ⬜ | 标签或状态栏显示系统与每会话资源占用 | 中 |
-| SSH 配置文件集成 | ⬜ | 读取 `~/.ssh/config` 自动生成 SSH profiles | 中 |
-| 密码 / API Key 管理器 | ⬜ | 安全存储并在触发器/命令中引用 | 大（涉及安全） |
-| 进度条 escape 序列 | ⬜ | 支持 OSC 9;4 / iTerm2 进度条，标签上显示进度 | 小 |
-
-## Phase 6.5 — Starship 整合
-
-Starship 是 shell 端 prompt 程序，终端不做渲染接管，只在检测、启用、
-配置三个层面整合（参考 Warp 的做法）。现有 shell integration 基建
-（`shell_integration.rs` 的 zsh `ZDOTDIR` 链 / bash `PROMPT_COMMAND`
-注入）可直接复用；starship 只替换 PS1 内容，与已注入的 OSC 133/7
-标记天然兼容——提示跳转、失败高亮、Copy Last Output 不受影响。
-
-| 功能 | 状态 | 说明 | 预估难度 |
-|---|---|---|---|
-| Starship 检测 + 一键启用 | ⬜ | 设置页检测 `starship` 是否在 PATH；Profile 增加「使用 Starship 提示符」开关，勾选后在注入脚本中追加 `eval "$(starship init <shell>)"`（bash/zsh/fish/PowerShell） | 小–中 |
-| 官方 preset 画廊 | ⬜ | 设置页内置 starship 官方 presets 预览与一键应用（`starship preset <name> -o ~/.config/starship.toml`） | 小 |
-| starship.toml 图形化编辑器 | ⬜ | GUI 编辑常用项（格式串、超时、模块开关），复杂项回退文本编辑；含 schema 校验 | 中 |
-| 内置分发 (sidecar) | ⬜ | starship 二进制作为 Tauri sidecar 打包，未安装用户开箱即用；需处理三平台二进制与版本升级 | 中 |
-| OSC 133 兼容性测试 | ⬜ | 确认 starship + 注入的 precmd hook 下，提示跳转 / 失败高亮 / Copy Last Output 正常 | 小 |
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；profile 级 ⌾starship 开关，zsh 经 ZDOTDIR 链自动 init；bash/fish/PowerShell 需手动（见 README） |
+| 官方 preset 画廊 | ✅ | preset 列表 + 一键写入 starship.toml |
+| starship.toml 图形化编辑器 | ⬜ | 暂缓 |
+| 内置分发 (sidecar) | ⬜ | 暂缓（包体 + 三平台二进制维护成本） |
+| OSC 133 兼容性测试 | ✅ | starship 只替换 PS1，precmd 钩子由我们注入，功能不受影响；单元测试覆盖标记解析 |
 
 ## 暂不做 / 需要论证
 
-以下 iTerm2 功能价值/成本比低或与跨平台定位冲突，暂不排期：
-
 - **Natural Language Editing (⌘.)** — 依赖大量 macOS 平台能力
 - **拼写检查** — 现代 spell-check API 可后补，非核心
-- **精灵/头像注释 (annotations)** — 使用率低
 - **Metal 渲染器** — 已有 WebGL，xterm.js 性能够用
 
 ---
 
 ## 里程碑口径
 
-- **M1（替代日常使用）**：Phase 1 + 2 全部完成
-- **M2（替代配置控）**：Phase 3 完成
-- **M3（替代重度用户）**：Phase 4 + 5 完成
-- **M4（生态对标）**：Phase 6 按需推进
+- **M1（替代日常使用）**：✅ Phase 1 + 2 完成（sixel 除外）
+- **M2（替代配置控）**：✅ Phase 3 完成（连字/窗口级透明除外）
+- **M3（替代重度用户）**：✅ Phase 4 + 5 完成（拖出 pane、缩略图 Exposé 除外）
+- **M4（生态对标）**：⚠️ Phase 6/6.5 主体完成，tmux/Python API/sidecar 暂缓
