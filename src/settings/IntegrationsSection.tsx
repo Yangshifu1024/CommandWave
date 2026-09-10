@@ -109,7 +109,7 @@ export function IntegrationsSection() {
       </p>
       <p className="section-hint">
         Enable “Starship prompt” per profile (Profile section) to auto-init
-        it for zsh panes; other shells follow the starship docs.
+        it for zsh, bash and PowerShell panes; fish follows the starship docs.
       </p>
       {presets.length > 0 && (
         <div className="preset-grid">
