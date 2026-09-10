@@ -230,6 +230,16 @@ export function starshipWriteConfig(text: string): Promise<string | null> {
   return invoke<string | null>("starship_write_config", { text }).catch(() => null);
 }
 
+/** Whether the window was created with OS transparency (tauri.conf). */
+export async function windowIsTransparent(): Promise<boolean> {
+  if (!isTauri) return false;
+  try {
+    return await invoke<boolean>("window_is_transparent");
+  } catch {
+    return false;
+  }
+}
+
 /** Window-level blur behind translucent panes (acrylic / HUD). */
 export function setWindowBlur(enabled: boolean): void {
   if (!isTauri) return;

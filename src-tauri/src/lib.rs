@@ -38,7 +38,8 @@ pub fn run() {
             commands::starship_apply_preset,
             commands::starship_read_config,
             commands::starship_write_config,
-            commands::set_window_blur
+            commands::set_window_blur,
+            commands::window_is_transparent
         ])
         .setup(|app| {
             // Build the native menu with the persisted keybindings; a failed

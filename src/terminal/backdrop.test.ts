@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { resolveBackdrop, toCssImage } from "./backdrop";
+import { isWindowTransparent, resolveBackdrop, setWindowTransparency, toCssImage } from "./backdrop";
 
 describe("toCssImage", () => {
   it("passes URLs through", () => {
@@ -23,6 +23,10 @@ describe("toCssImage", () => {
 });
 
 describe("resolveBackdrop", () => {
+  // These tests assume an OS-transparent window unless stated otherwise.
+  beforeEach(() => setWindowTransparency(true));
+  afterEach(() => setWindowTransparency(false));
+
   it("opaque by default", () => {
     expect(resolveBackdrop(null)).toEqual({
       translucent: false,
@@ -48,6 +52,22 @@ describe("resolveBackdrop", () => {
     expect(b.bgAlpha).toBe(0.6);
     expect(b.imageUrl).toBe("https://x/y.png");
     expect(b.imageOpacity).toBe(0.35);
+  });
+
+  it("degrades pure translucency to opaque when the window cannot be transparent", () => {
+    setWindowTransparency(false);
+    expect(isWindowTransparent()).toBe(false);
+    // No image + opacity < 1 → forced opaque (no white alpha gap).
+    const plain = resolveBackdrop({ backgroundOpacity: 0.4, backgroundImage: null, backgroundImageOpacity: null });
+    expect(plain.translucent).toBe(false);
+    expect(plain.bgAlpha).toBe(0.4); // alpha kept, but not applied
+    // Background images still work without OS transparency.
+    const img = resolveBackdrop({ backgroundOpacity: null, backgroundImage: "/w.png", backgroundImageOpacity: null });
+    expect(img.translucent).toBe(true);
+    setWindowTransparency(true);
+    const plain2 = resolveBackdrop({ backgroundOpacity: 0.4, backgroundImage: null, backgroundImageOpacity: null });
+    expect(plain2.translucent).toBe(true);
+    setWindowTransparency(false);
   });
 
   it("clamps alpha and honors explicit values", () => {

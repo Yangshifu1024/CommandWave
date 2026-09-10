@@ -20,8 +20,8 @@ import { detachedPane } from "./terminal/detachedWindow";
 import { TerminalPane } from "./terminal/TerminalPane";
 import { exitCopyMode } from "./terminal/copyModeController";
 import { parseSnapshot, serializeSession } from "./layout/snapshot";
-import { resolveBackdrop } from "./terminal/backdrop";
-import { setWindowBlur } from "./terminal/ipc";
+import { resolveBackdrop, setWindowTransparency } from "./terminal/backdrop";
+import { setWindowBlur, windowIsTransparent } from "./terminal/ipc";
 import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
@@ -241,9 +241,15 @@ function MainApp() {
       .settings.profiles.find((x) => x.id === profileId);
     return resolveBackdrop(p).translucent;
   }, [activeTab, activePaneId]);
+  // Window transparency is opt-in (DWM shows a white edge line on
+  // transparent WebView2 windows); background images don't need it.
   useEffect(() => {
-    document.body.classList.toggle("translucent", translucent);
-    setWindowBlur(translucent);
+    void windowIsTransparent().then((enabled) => {
+      setWindowTransparency(enabled);
+      if (!enabled) return;
+      document.body.classList.toggle("translucent", translucent);
+      setWindowBlur(translucent);
+    });
   }, [translucent]);
   useEffect(() => {
     document.title = activeTab ? `${activeTab.title} — CommandWave` : "CommandWave";

@@ -171,6 +171,20 @@ pub fn set_progress(app: AppHandle, value: Option<f64>) -> Result<(), String> {
 }
 
 
+/// Whether the main window was created with OS transparency (from the
+/// embedded tauri.conf.json). Transparent WebView2 windows show a thin
+/// white edge line under Windows DWM, so transparency is opt-in there.
+#[tauri::command]
+pub fn window_is_transparent(app: AppHandle) -> bool {
+    app.config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == "main")
+        .map(|w| w.transparent)
+        .unwrap_or(false)
+}
+
 /// Window-level blur behind a translucent window (acrylic / HUD material).
 /// No-op on platforms without a blur effect; the webview stays transparent
 /// regardless, so unsupported platforms just show plain translucency.

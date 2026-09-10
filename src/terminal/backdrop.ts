@@ -10,6 +10,20 @@ export interface BackdropProfile {
   backgroundImageOpacity: number | null | undefined;
 }
 
+/**
+ * Whether the OS window was created with transparency enabled. Windows
+ * DWM shows a thin white line at the edge of transparent WebView2 windows,
+ * so transparency is opt-in via tauri.conf.json; when disabled, pure
+ * translucency degrades to opaque (background images don't need it).
+ */
+let windowTransparency = false;
+export function setWindowTransparency(enabled: boolean): void {
+  windowTransparency = enabled;
+}
+export function isWindowTransparent(): boolean {
+  return windowTransparency;
+}
+
 export interface Backdrop {
   /** the terminal's background must be translucent (allowTransparency) */
   translucent: boolean;
@@ -45,7 +59,9 @@ export function resolveBackdrop(profile: BackdropProfile | null | undefined): Ba
   }
   const imageUrl = profile.backgroundImage ? toCssImage(profile.backgroundImage) : null;
   const opacity = profile.backgroundOpacity ?? (imageUrl ? 0.6 : 1);
-  const translucent = opacity < 1;
+  // Pure see-through needs an OS-transparent window; degrade to opaque
+  // otherwise (an opaque window would show white behind the alpha).
+  const translucent = opacity < 1 && (windowTransparency || imageUrl !== null);
   return {
     translucent,
     bgAlpha: Math.min(1, Math.max(0.1, opacity)),

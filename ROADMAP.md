@@ -40,7 +40,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | 自定义配色编辑器 | ✅ | 21 个颜色槽逐项覆盖；✅ 导入 iTerm2 .itermcolors（XML plist 解析器带测试） |
 | 光标样式与闪烁配置 | ✅ | block/bar/underline + blink/steady |
 | 字体进阶设置 | ⚠️ | 行高、字间距已实现；连字 (ligatures) 需 xterm.js 渲染器支持（WebGL 不支持，Node-only addon），暂缺 |
-| 透明度与模糊 | ✅ | 窗口 transparent:true + body 透明切换；OS 模糊（Windows Acrylic/Blur、macOS HUD 材质）；每 profile 背景图 + 图片透明度 |
+| 透明度与模糊 | ⚠️ | 每 profile 背景图 + 图片透明度（无需 OS 透明，Windows 验证）；桌面级透明默认关闭——Windows DWM 在透明 WebView2 窗口右缘产生 2-3px 白线（实测复现/修复对照），需在 tauri.conf 开 transparent 后可用，纯透明 profile 在不透明窗口下自动降级为不透明（防止白底） |
 | Profile 完整化 | ✅ | 滚动行数、环境变量、badge、starship 开关、每 profile 按键覆盖（活动 pane 的 profile 覆盖优先于全局） |
 | Profile 自动切换 | ✅ | OSC 7 主机名按 glob/子串规则匹配自动切换 profile（Settings → Session 配置，profileSwitch 模块带测试） |
 | Dynamic Profiles | ✅ | app 配置目录 profiles/*.json 启动时合并（同 id 替换），供外部生成器使用 |
