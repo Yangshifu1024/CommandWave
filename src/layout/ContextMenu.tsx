@@ -37,10 +37,15 @@ export function ContextMenu() {
       if (ref.current?.contains(e.target as Node)) return;
       close();
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
     window.addEventListener("mousedown", onDown, true);
+    window.addEventListener("keydown", onKey, true);
     window.addEventListener("blur", close);
     return () => {
       window.removeEventListener("mousedown", onDown, true);
+      window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("blur", close);
     };
   }, [menu, close]);

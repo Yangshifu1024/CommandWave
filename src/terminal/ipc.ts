@@ -43,12 +43,41 @@ export async function spawnPty(
   return mockSpawn(onOutput);
 }
 
+// Per-PTY write serialization with coalescing: concurrent invoke()s are
+// processed out of order by the host, which scrambles fast typing. Keep a
+// single in-flight write per session and buffer everything that arrives
+// while it's pending — the next flush sends the buffer as one ordered blob.
+interface WriteState {
+  inFlight: boolean;
+  buf: string;
+}
+const writeStates = new Map<number, WriteState>();
+
 export function ptyWrite(ptyId: number, data: string): void {
   if (isTauri) {
-    invoke("pty_write", { ptyId, data }).catch(() => {});
+    let st = writeStates.get(ptyId);
+    if (!st) {
+      st = { inFlight: false, buf: "" };
+      writeStates.set(ptyId, st);
+    }
+    st.buf += data;
+    flushWrite(ptyId, st);
   } else {
     mockWrite(ptyId, data);
   }
+}
+
+function flushWrite(ptyId: number, st: WriteState): void {
+  if (st.inFlight || !st.buf) return;
+  const data = st.buf;
+  st.buf = "";
+  st.inFlight = true;
+  invoke("pty_write", { ptyId, data })
+    .catch(() => {})
+    .finally(() => {
+      st.inFlight = false;
+      if (st.buf) flushWrite(ptyId, st);
+    });
 }
 
 export function ptyResize(ptyId: number, rows: number, cols: number): void {

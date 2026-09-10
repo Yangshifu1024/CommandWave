@@ -209,8 +209,13 @@ body {
 /* ---------- Terminal ---------- */
 
 /* Vestigial mount div (the xterm element is re-parented into .pane). */
+/* Overlay container: carries the pane's own chrome (badges, banners,
+   background image) above/below the xterm element that the manager
+   re-parents into the sibling .pane node. */
 .terminal-pane {
-  display: none;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .xterm .xterm-screen {
@@ -1489,11 +1494,7 @@ body.translucent {
   pointer-events: none;
 }
 
-/* Panes sit above the background image layer. */
-.terminal-pane .xterm,
-.terminal-pane .copy-mode-banner,
-.terminal-pane .broadcast-banner,
-.terminal-pane .pane-badge {
+.pane > .xterm {
   position: relative;
   z-index: 1;
 }

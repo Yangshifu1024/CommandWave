@@ -17,6 +17,7 @@ pub fn pty_create(
 
 #[tauri::command]
 pub fn pty_write(state: State<PtyManager>, pty_id: u32, data: String) -> Result<(), String> {
+    eprintln!("[cw-write] pty={} data={:?}", pty_id, data);
     state
         .sessions
         .lock()
