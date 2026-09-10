@@ -38,6 +38,8 @@ impl Default for Profile {
 pub struct UiSettings {
     pub tab_bar_position: String, // "top" | "left"
     pub sidebar_width: u16,
+    /// Font size delta from the profile's size (⌘+/- zoom).
+    pub font_size_delta: i32,
 }
 
 impl Default for UiSettings {
@@ -45,6 +47,7 @@ impl Default for UiSettings {
         Self {
             tab_bar_position: "top".to_string(),
             sidebar_width: 180,
+            font_size_delta: 0,
         }
     }
 }
@@ -53,12 +56,15 @@ impl Default for UiSettings {
 #[serde(rename_all = "camelCase", default)]
 pub struct NotificationSettings {
     pub command_completion: bool,
+    /// Confirm before pasting multi-line / large / destructive text.
+    pub paste_warning: bool,
 }
 
 impl Default for NotificationSettings {
     fn default() -> Self {
         Self {
             command_completion: true,
+            paste_warning: true,
         }
     }
 }

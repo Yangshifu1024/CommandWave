@@ -1,6 +1,8 @@
 import type { FitAddon } from "@xterm/addon-fit";
 import type { SearchAddon } from "@xterm/addon-search";
-import type { IMarker, Terminal } from "@xterm/xterm";
+import type { IDecoration, IMarker, Terminal } from "@xterm/xterm";
+
+import type { CopyModeState } from "./copyMode";
 
 /** One OSC 133 mark registered in the terminal buffer. */
 export interface PaneMark {
@@ -24,6 +26,10 @@ export interface TerminalEntry {
   runningPrompt: IMarker | null;
   /** wall-clock ms when the running command started (C mark) */
   runningSince: number | null;
+  /** live Copy Mode state, null when the pane is not in Copy Mode */
+  copyMode: CopyModeState | null;
+  /** highlight decorations for Copy Mode (cursor line / selection) */
+  copyModeDecos: { deco: IDecoration; marker: IMarker }[];
 }
 
 /** Cap for tracked marks — markers pin trimmed scrollback lines. */
@@ -68,6 +74,8 @@ class TerminalManager {
       marks: [],
       runningPrompt: null,
       runningSince: null,
+      copyMode: null,
+      copyModeDecos: [],
     };
     this.entries.set(paneId, entry);
     return entry;

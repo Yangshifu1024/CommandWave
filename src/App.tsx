@@ -5,6 +5,7 @@ import { homeDir } from "@tauri-apps/api/path";
 import { SplitTree } from "./layout/SplitTree";
 import { TabStrip } from "./layout/TabStrip";
 import { ContextMenu } from "./layout/ContextMenu";
+import { PasteConfirm } from "./layout/PasteConfirm";
 import { TitleBar, dispatchMenuAction, isMac } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
@@ -12,6 +13,7 @@ import { useAppStore } from "./store/appStore";
 import { appearanceDefaults, useSettingsStore } from "./store/settingsStore";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { setHomeDir } from "./terminal/paneTitle";
+import { exitCopyMode } from "./terminal/copyModeController";
 import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
@@ -129,6 +131,13 @@ export default function App() {
   useEffect(() => {
     if (activePaneId) terminalManager.get(activePaneId)?.term.focus();
   }, [activeTabId, activePaneId]);
+  // Copy Mode is per-pane; leaving the pane exits it.
+  useEffect(() => {
+    const copyModePane = useAppStore.getState().copyModePane;
+    if (copyModePane && copyModePane !== activePaneId) {
+      exitCopyMode();
+    }
+  }, [activeTabId, activePaneId]);
   useEffect(() => {
     document.title = activeTab ? `${activeTab.title} — CommandWave` : "CommandWave";
   }, [activeTab?.id, activeTab?.title]);
@@ -155,6 +164,7 @@ export default function App() {
       </div>
       {settingsOpen && <SettingsDialog />}
       <ContextMenu />
+      <PasteConfirm />
     </div>
   );
 }

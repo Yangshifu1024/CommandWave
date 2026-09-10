@@ -30,6 +30,11 @@ export const KEYBINDING_ACTIONS: {
   { action: "next-mark", label: "Next Prompt", default: "CmdOrCtrl+Down" },
   { action: "copy-last-output", label: "Copy Last Output", default: "" },
   { action: "clear-buffer", label: "Clear Buffer", default: "" },
+  { action: "copy-mode", label: "Copy Mode", default: "Shift+CmdOrCtrl+C" },
+  { action: "search-again", label: "Search Next Match", default: "CmdOrCtrl+G" },
+  { action: "zoom-in", label: "Bigger Text", default: "CmdOrCtrl+=" },
+  { action: "zoom-out", label: "Smaller Text", default: "CmdOrCtrl+-" },
+  { action: "zoom-reset", label: "Reset Text Size", default: "CmdOrCtrl+0" },
 ];
 
 export const defaultKeybindings: Record<string, string> = Object.fromEntries(

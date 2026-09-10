@@ -4,6 +4,7 @@ import { dispatchMenuAction, isMac } from "../layout/TitleBar";
 import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
 import { bindingLookup, eventToAccelerator } from "./keybindings";
+import { handleCopyModeKeyEvent } from "../terminal/copyModeController";
 
 /**
  * Global keyboard shortcuts, registered with capture so they win over xterm
@@ -13,6 +14,14 @@ import { bindingLookup, eventToAccelerator } from "./keybindings";
 export function useShortcuts() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Copy Mode owns the keyboard while active (except webview inputs).
+      if (
+        useAppStore.getState().copyModePane &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
+        if (handleCopyModeKeyEvent(e)) return;
+      }
       if (e.key === "Escape") {
         const s = useAppStore.getState();
         if (s.settingsOpen) {

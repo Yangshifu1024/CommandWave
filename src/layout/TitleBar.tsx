@@ -7,6 +7,8 @@ import { terminalManager } from "../terminal/manager";
 import { isTauri } from "../terminal/ipc";
 import { acceleratorToDisplay } from "../hooks/keybindings";
 import { linesBetween, nextPromptLine } from "../terminal/paneMarks";
+import { inspectPaste } from "../terminal/pasteGuard";
+import { enterCopyModeForActivePane, exitCopyMode } from "../terminal/copyModeController";
 
 export const isMac = /Mac/.test(navigator.platform);
 
@@ -80,7 +82,23 @@ async function pasteIntoTerminal(): Promise<void> {
     return; // clipboard unavailable — nothing sensible to paste
   }
   if (!text) return;
-  activePaneTerminal()?.term.paste(text);
+  const entry = activePaneTerminal();
+  if (!entry) return;
+  const warn = useSettingsStore.getState().settings.notifications.pasteWarning;
+  const warning = warn ? inspectPaste(text) : null;
+  if (warning) {
+    // Queue for the confirmation dialog; nothing reaches the shell yet.
+    useAppStore.setState({ pasteConfirm: { text, paneId: entry.paneId } });
+    return;
+  }
+  entry.term.paste(text);
+}
+
+/** ⌘+/- zoom: nudge the global font size delta, clamped to a sane range. */
+function adjustFontZoom(delta: number): void {
+  useSettingsStore.getState().update((draft) => {
+    draft.ui.fontSizeDelta = Math.min(10, Math.max(-6, draft.ui.fontSizeDelta + delta));
+  });
 }
 
 function selectAll(): void {
@@ -147,6 +165,34 @@ export function dispatchMenuAction(action: string): void {
       break;
     case "open-search":
       s.openSearch();
+      break;
+    case "search-again": {
+      const entry = activePaneTerminal();
+      if (entry?.search && s.searchQuery) {
+        entry.search.findNext(s.searchQuery, {
+          decorations: {
+            matchOverviewRuler: "#4f9cf9",
+            activeMatchColorOverviewRuler: "#ff5555",
+          },
+        });
+        if (!s.searchOpen) s.openSearch();
+      }
+      break;
+    }
+    case "copy-mode":
+      if (s.copyModePane) exitCopyMode();
+      else enterCopyModeForActivePane();
+      break;
+    case "zoom-in":
+      adjustFontZoom(1);
+      break;
+    case "zoom-out":
+      adjustFontZoom(-1);
+      break;
+    case "zoom-reset":
+      useSettingsStore.getState().update((draft) => {
+        draft.ui.fontSizeDelta = 0;
+      });
       break;
     case "window-minimize":
       mainWindow()?.minimize().catch((err) => console.error("minimize failed", err));
@@ -219,7 +265,14 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
     items: [
       { label: "Toggle Vertical Tabs", action: "toggle-vertical-tabs" },
       { sep: true },
+      { label: "Bigger Text", action: "zoom-in" },
+      { label: "Smaller Text", action: "zoom-out" },
+      { label: "Reset Text Size", action: "zoom-reset" },
+      { sep: true },
+      { label: "Copy Mode", action: "copy-mode" },
+      { sep: true },
       { label: "Search…", action: "open-search" },
+      { label: "Search Next Match", action: "search-again" },
       { sep: true },
       { label: "Previous Prompt", action: "prev-mark" },
       { label: "Next Prompt", action: "next-mark" },

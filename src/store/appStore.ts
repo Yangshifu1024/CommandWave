@@ -73,6 +73,12 @@ function updateAt(node: PaneNode, path: number[], fn: (n: PaneNode) => PaneNode)
   };
 }
 
+/** A paste waiting for user confirmation (multi-line/large/destructive). */
+export interface PasteConfirmState {
+  text: string;
+  paneId: string;
+}
+
 interface AppStore {
   tabs: Tab[];
   activeTabId: string;
@@ -80,7 +86,12 @@ interface AppStore {
   sidebarWidth: number;
   settingsOpen: boolean;
   searchOpen: boolean;
+  /** Current search-bar query, shared so ⌘G can repeat it globally. */
+  searchQuery: string;
   contextMenu: ContextMenuState | null;
+  /** Pane currently in Copy Mode (line-oriented keyboard navigation). */
+  copyModePane: string | null;
+  pasteConfirm: PasteConfirmState | null;
 
   newTab: (profileId?: string) => void;
   closeTab: (tabId: string) => void;
@@ -94,6 +105,7 @@ interface AppStore {
   closeSettings: () => void;
   openSearch: () => void;
   closeSearch: () => void;
+  setSearchQuery: (query: string) => void;
   openContextMenu: (menu: ContextMenuState) => void;
   closeContextMenu: () => void;
 
@@ -120,7 +132,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   sidebarWidth: 180,
   settingsOpen: false,
   searchOpen: false,
+  searchQuery: "",
   contextMenu: null,
+  copyModePane: null,
+  pasteConfirm: null,
 
   newTab: (profileId?: string) => {
     const tab = makeTab(profileId ?? null);
@@ -199,6 +214,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   closeSettings: () => set({ settingsOpen: false }),
   openSearch: () => set({ searchOpen: true }),
   closeSearch: () => set({ searchOpen: false }),
+  setSearchQuery: (query) => set({ searchQuery: query }),
   openContextMenu: (menu) => set({ contextMenu: menu }),
   closeContextMenu: () => set({ contextMenu: null }),
 

@@ -12,6 +12,7 @@ import {
 } from "../store/settingsStore";
 import { useAppStore } from "../store/appStore";
 import { parseOscCwd } from "./paneTitle";
+import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
 import { parseOsc133 } from "./paneMarks";
 import { getTheme } from "./themes";
 import { terminalManager } from "./manager";
@@ -49,8 +50,13 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     );
   });
   const fontFamily = profile?.fontFamily ?? appearanceDefaults.fontFamily;
-  const fontSize = profile?.fontSize ?? appearanceDefaults.fontSize;
+  const fontDelta = useSettingsStore((s) => s.settings.ui.fontSizeDelta);
+  const fontSize = Math.max(
+    6,
+    (profile?.fontSize ?? appearanceDefaults.fontSize) + fontDelta,
+  );
   const themeName = profile?.themeName ?? appearanceDefaults.themeName;
+  const inCopyMode = useAppStore((s) => s.copyModePane === paneId);
 
   // Live-apply appearance changes to the existing terminal instance.
   useEffect(() => {
@@ -120,6 +126,91 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       if (terminalManager.isAttached(paneId)) entry.doFit();
     });
     observer.observe(container);
+
+    // ⌥/Alt-drag rectangle (column) selection: capture the mousedown before
+    // xterm's flow selection, highlight the column block, copy on release.
+    const cellMetrics = () => {
+      const el = term.element;
+      if (!el) return null;
+      // Prefer xterm's own cell metrics; fall back to element size / grid.
+      const core = (term as unknown as {
+        _core?: { _renderService?: { dimensions?: { css?: { cell?: { width: number; height: number } } } } };
+      })._core;
+      const css = core?._renderService?.dimensions?.css?.cell;
+      const cellWidth = css?.width || el.clientWidth / term.cols;
+      const cellHeight = css?.height || el.clientHeight / term.rows;
+      return { cellWidth, cellHeight, cols: term.cols, rows: term.rows, baseY: term.buffer.active.baseY };
+    };
+    const rectCleanup = () => {
+      for (const { deco, marker } of rectDecos) {
+        try { deco.dispose(); } catch { /* disposed */ }
+        try { marker.dispose(); } catch { /* disposed */ }
+      }
+      rectDecos = [];
+    };
+    let rectDecos: { deco: import("@xterm/xterm").IDecoration; marker: import("@xterm/xterm").IMarker }[] = [];
+    let rectStart: { x: number; y: number } | null = null;
+    let rectCur: { x: number; y: number } | null = null;
+    const paintRect = () => {
+      rectCleanup();
+      if (!rectStart || !rectCur) return;
+      const rect = normalizeRect({
+        x1: rectStart.x, y1: rectStart.y, x2: rectCur.x, y2: rectCur.y,
+      });
+      const buf = term.buffer.active;
+      const refLine = buf.baseY + buf.cursorY;
+      for (let y = rect.y1; y <= rect.y2; y++) {
+        const marker = term.registerMarker(y - refLine);
+        if (!marker || marker.line < 0) continue;
+        try {
+          const deco = term.registerDecoration({
+            marker,
+            x: rect.x1,
+            width: rect.x2 - rect.x1 + 1,
+            backgroundColor: "rgba(79, 156, 249, 0.30)",
+            layer: "top",
+          });
+          if (deco) rectDecos.push({ deco, marker });
+          else marker.dispose();
+        } catch {
+          marker.dispose();
+        }
+      }
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0 || !e.altKey) return;
+      const metrics = cellMetrics();
+      const el = term.element;
+      if (!metrics || !el) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const bounds = el.getBoundingClientRect();
+      const cell = () =>
+        pixelToCell(e.clientX - bounds.left, e.clientY - bounds.top, metrics);
+      rectStart = cell();
+      rectCur = rectStart;
+      paintRect();
+      const onMove = (ev: MouseEvent) => {
+        rectCur = pixelToCell(ev.clientX - bounds.left, ev.clientY - bounds.top, metrics);
+        paintRect();
+      };
+      const onUp = () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        if (rectStart && rectCur) {
+          const text = rectText(term.buffer.active, {
+            x1: rectStart.x, y1: rectStart.y, x2: rectCur.x, y2: rectCur.y,
+          });
+          if (text) void navigator.clipboard?.writeText(text).catch(() => {});
+        }
+        rectStart = null;
+        rectCur = null;
+        rectCleanup();
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    term.element?.addEventListener("mousedown", onMouseDown, true);
 
     term.onData((data) => {
       if (entry.ptyId !== null && !exited) {
@@ -230,11 +321,23 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     return () => {
       disposed = true;
       observer.disconnect();
+      term.element?.removeEventListener("mousedown", onMouseDown, true);
+      if (useAppStore.getState().copyModePane === paneId) {
+        useAppStore.setState({ copyModePane: null });
+      }
       unlistenExit?.();
       if (entry.ptyId !== null) ptyClose(entry.ptyId);
       terminalManager.dispose(paneId);
     };
   }, [paneId, cwd, shell]);
 
-  return <div ref={containerRef} className="terminal-pane" />;
+  return (
+    <div ref={containerRef} className="terminal-pane">
+      {inCopyMode && (
+        <div className="copy-mode-banner" role="status">
+          COPY MODE · hjkl/↑↓ move · ⌃/⌥f/b page · v select · y copy · q quit
+        </div>
+      )}
+    </div>
+  );
 }

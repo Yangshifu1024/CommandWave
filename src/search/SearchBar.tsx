@@ -15,6 +15,7 @@ export function SearchBar() {
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [regex, setRegex] = useState(false);
+  const [resultCount, setResultCount] = useState<{ index: number; count: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -27,6 +28,21 @@ export function SearchBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchOpen]);
 
+  // Keep the global query in sync so ⌘G can repeat the search.
+  useEffect(() => {
+    useAppStore.getState().setSearchQuery(query);
+  }, [query]);
+
+  // Track match counts while typing.
+  useEffect(() => {
+    const addon = terminalManager.get(paneId ?? "")?.search;
+    if (!addon?.onDidChangeResults) return;
+    const listener = addon.onDidChangeResults((r) => {
+      setResultCount({ index: r.resultIndex, count: r.resultCount });
+    });
+    return () => listener.dispose();
+  }, [paneId]);
+
   if (!searchOpen || !paneId) return null;
 
   const getAddon = (): SearchAddon | null =>
@@ -34,12 +50,13 @@ export function SearchBar() {
 
   // The ruler colors are required by ISearchDecorationOptions but the
   // overview ruler itself is disabled in TerminalPane (it renders an opaque
-  // white strip); only inline match highlights show.
+  // white strip); matchColor highlights every occurrence inline.
   const options = () => ({
     caseSensitive,
     regex,
     decorations: {
       matchOverviewRuler: "#4f9cf9",
+      matchColor: "rgba(79, 156, 249, 0.35)",
       activeMatchColorOverviewRuler: "#ff5555",
     },
   });
@@ -86,6 +103,11 @@ export function SearchBar() {
       >
         .*
       </button>
+      {resultCount && resultCount.count > 0 && (
+        <span className="search-count">
+          {resultCount.index + 1}/{resultCount.count}
+        </span>
+      )}
       <button title="Previous match (Shift+Enter)" aria-label="Previous match" onClick={() => find("previous")}>
         ↑
       </button>

@@ -18,11 +18,15 @@ export interface Profile {
 export interface UiSettings {
   tabBarPosition: "top" | "left";
   sidebarWidth: number;
+  /** Font size delta from the profile's size (⌘+/- zoom, reset with ⌘0). */
+  fontSizeDelta: number;
 }
 
 export interface NotificationSettings {
   /** OS notification when a long command finishes while unfocused. */
   commandCompletion: boolean;
+  /** Confirm before pasting multi-line / large / destructive text. */
+  pasteWarning: boolean;
 }
 
 export interface Settings {
@@ -50,8 +54,8 @@ export const defaultSettings: Settings = {
     },
   ],
   defaultProfileId: "default",
-  ui: { tabBarPosition: "top", sidebarWidth: 180 },
-  notifications: { commandCompletion: true },
+  ui: { tabBarPosition: "top", sidebarWidth: 180, fontSizeDelta: 0 },
+  notifications: { commandCompletion: true, pasteWarning: true },
   keybindings: defaultKeybindings,
 };
 
