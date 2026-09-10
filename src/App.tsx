@@ -1,8 +1,9 @@
 import { useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 import { SplitTree } from "./layout/SplitTree";
 import { TabStrip } from "./layout/TabStrip";
-import { TitleBar, dispatchMenuAction } from "./layout/TitleBar";
+import { TitleBar, dispatchMenuAction, isMac } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
 import { useAppStore } from "./store/appStore";
@@ -10,7 +11,7 @@ import { appearanceDefaults, useSettingsStore } from "./store/settingsStore";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
-import { onMenuAction, onPtyExit } from "./terminal/ipc";
+import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
 
 export default function App() {
   const tabs = useAppStore((s) => s.tabs);
@@ -18,6 +19,16 @@ export default function App() {
   const tabBarPosition = useAppStore((s) => s.tabBarPosition);
   const settingsOpen = useAppStore((s) => s.settingsOpen);
   useShortcuts();
+
+  // macOS: the window is created hidden (visible:false in tauri.conf.json)
+  // so the custom title bar can paint before reveal, preventing a flash of
+  // the native title. Windows/Linux are shown from Rust setup instead.
+  // Reveal via a Rust command: rAF and timers are suspended in a hidden
+  // webview, but IPC from the mounted app always gets through.
+  useEffect(() => {
+    if (!isTauri || !isMac) return;
+    invoke("show_main_window").catch(() => {});
+  }, []);
 
   // Load persisted settings once, then mirror UI prefs into the app store.
   const settingsLoaded = useSettingsStore((s) => s.loaded);

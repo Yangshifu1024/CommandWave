@@ -54,3 +54,17 @@ pub fn settings_load(app: AppHandle) -> Result<Settings, String> {
 pub fn settings_save(app: AppHandle, new_settings: Settings) -> Result<(), String> {
     settings::save(&app, &new_settings).map_err(|e| e.to_string())
 }
+
+/// Reveal the main window once the frontend has mounted. The window is
+/// created hidden (`visible: false`) so the custom title bar paints before
+/// first show; macOS relies on this invocation because timers and rAF are
+/// suspended in a hidden webview. Windows/Linux show from Rust setup.
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| e.to_string())?;
+        let _ = window.set_focus();
+    }
+    Ok(())
+}

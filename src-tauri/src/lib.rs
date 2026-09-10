@@ -16,7 +16,8 @@ pub fn run() {
             commands::pty_resize,
             commands::pty_close,
             commands::settings_load,
-            commands::settings_save
+            commands::settings_save,
+            commands::show_main_window
         ])
         .setup(|app| {
             menu::setup(app.handle())?;
