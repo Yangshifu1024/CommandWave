@@ -5,7 +5,7 @@ use tauri::{
 };
 use tauri::AppHandle as BaseAppHandle;
 #[cfg(not(target_os = "macos"))]
-use tauri::{AppHandle as BaseAppHandle, Wry};
+use tauri::Wry;
 
 use std::collections::HashMap;
 
