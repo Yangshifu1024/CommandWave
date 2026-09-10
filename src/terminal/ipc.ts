@@ -99,6 +99,14 @@ export async function onMenuAction(
   return unlisten;
 }
 
+/** Rebuild the native macOS menu with updated accelerators. */
+export async function rebuildNativeMenu(
+  keybindings: Record<string, string>,
+): Promise<void> {
+  if (!isTauri) return;
+  await invoke("rebuild_menu", { keybindings });
+}
+
 /**
  * OS notification for a finished command. No-op outside Tauri or when the
  * system denies notification permission.

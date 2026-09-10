@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 
 import { isTauri } from "../terminal/ipc";
+import { defaultKeybindings } from "../hooks/keybindings";
 
 export interface Profile {
   id: string;
@@ -30,6 +31,8 @@ export interface Settings {
   defaultProfileId: string;
   ui: UiSettings;
   notifications: NotificationSettings;
+  /** actionId -> Tauri accelerator ("" = no binding). */
+  keybindings: Record<string, string>;
 }
 
 export const defaultSettings: Settings = {
@@ -49,6 +52,7 @@ export const defaultSettings: Settings = {
   defaultProfileId: "default",
   ui: { tabBarPosition: "top", sidebarWidth: 180 },
   notifications: { commandCompletion: true },
+  keybindings: defaultKeybindings,
 };
 
 export interface Appearance {
@@ -96,6 +100,9 @@ interface SettingsStore {
   deleteProfile: (profileId: string) => boolean;
   setDefaultProfile: (profileId: string) => void;
   renameProfile: (profileId: string, name: string) => void;
+  /** Bind an action to an accelerator ("" unbinds); syncs the native menu. */
+  setKeybinding: (action: string, accelerator: string) => void;
+  resetKeybindings: () => void;
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -115,6 +122,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ...loaded,
           ui: { ...defaultSettings.ui, ...loaded.ui },
           notifications: { ...defaultSettings.notifications, ...loaded.notifications },
+          keybindings: { ...defaultSettings.keybindings, ...loaded.keybindings },
         },
         loaded: true,
       });
@@ -184,4 +192,30 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       if (profile) profile.name = name.trim();
     });
   },
+
+  setKeybinding: (action, accelerator) => {
+    get().update((draft) => {
+      draft.keybindings[action] = accelerator;
+    });
+    syncNativeMenu(get().settings.keybindings);
+  },
+
+  resetKeybindings: () => {
+    get().update((draft) => {
+      draft.keybindings = { ...defaultKeybindings };
+    });
+    syncNativeMenu(get().settings.keybindings);
+  },
 }));
+
+import { rebuildNativeMenu } from "../terminal/ipc";
+
+let menuSyncTimer: ReturnType<typeof setTimeout> | undefined;
+/** Debounced native-menu rebuild so recording keystrokes doesn't thrash it. */
+function syncNativeMenu(keybindings: Record<string, string>): void {
+  if (!isTauri) return;
+  clearTimeout(menuSyncTimer);
+  menuSyncTimer = setTimeout(() => {
+    rebuildNativeMenu(keybindings).catch(() => {});
+  }, 150);
+}

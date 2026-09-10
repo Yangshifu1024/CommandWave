@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { useAppStore } from "../store/appStore";
+import { useSettingsStore } from "../store/settingsStore";
 import { terminalManager } from "../terminal/manager";
 import { isTauri } from "../terminal/ipc";
+import { acceleratorToDisplay } from "../hooks/keybindings";
 import { linesBetween, nextPromptLine } from "../terminal/paneMarks";
 
 export const isMac = /Mac/.test(navigator.platform);
@@ -101,6 +103,12 @@ export function dispatchMenuAction(action: string): void {
     case "open-settings":
       s.openSettings();
       break;
+    case "cycle-tab-prev":
+      s.cycleTab(-1);
+      break;
+    case "cycle-tab-next":
+      s.cycleTab(1);
+      break;
     case "toggle-vertical-tabs":
       s.toggleTabBar();
       break;
@@ -170,24 +178,25 @@ export function dispatchMenuAction(action: string): void {
 interface MenuEntry {
   label?: string;
   action?: string;
-  shortcut?: string;
   sep?: boolean;
 }
 
+/** Menu structure (labels + action ids); shortcut strings come from the
+ * keybindings map at render time. */
 const MENUS: { label: string; items: MenuEntry[] }[] = [
   {
     label: "Shell",
     items: [
-      { label: "New Tab", action: "new-tab", shortcut: "Ctrl+T" },
+      { label: "New Tab", action: "new-tab" },
       { sep: true },
-      { label: "Close Pane", action: "close-pane", shortcut: "Ctrl+W" },
-      { label: "Close Tab", action: "close-tab", shortcut: "Ctrl+Shift+W" },
+      { label: "Close Pane", action: "close-pane" },
+      { label: "Close Tab", action: "close-tab" },
       { sep: true },
-      { label: "Split Pane Right", action: "split-right", shortcut: "Ctrl+D" },
-      { label: "Split Pane Down", action: "split-down", shortcut: "Ctrl+Shift+D" },
+      { label: "Split Pane Right", action: "split-right" },
+      { label: "Split Pane Down", action: "split-down" },
       { sep: true },
-      { label: "Previous Pane", action: "prev-pane", shortcut: "Ctrl+[" },
-      { label: "Next Pane", action: "next-pane", shortcut: "Ctrl+]" },
+      { label: "Previous Pane", action: "prev-pane" },
+      { label: "Next Pane", action: "next-pane" },
     ],
   },
   {
@@ -208,16 +217,12 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
   {
     label: "View",
     items: [
-      {
-        label: "Toggle Vertical Tabs",
-        action: "toggle-vertical-tabs",
-        shortcut: "Ctrl+Shift+B",
-      },
+      { label: "Toggle Vertical Tabs", action: "toggle-vertical-tabs" },
       { sep: true },
-      { label: "Search…", action: "open-search", shortcut: "Ctrl+F" },
+      { label: "Search…", action: "open-search" },
       { sep: true },
-      { label: "Previous Prompt", action: "prev-mark", shortcut: "Ctrl+↑" },
-      { label: "Next Prompt", action: "next-mark", shortcut: "Ctrl+↓" },
+      { label: "Previous Prompt", action: "prev-mark" },
+      { label: "Next Prompt", action: "next-mark" },
     ],
   },
   {
@@ -243,6 +248,9 @@ export function TitleBar() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
+  const keybindings = useSettingsStore((s) => s.settings.keybindings);
+  const shortcutFor = (action: string) =>
+    acceleratorToDisplay(keybindings[action] ?? "");
 
   // Track maximize state so the Window menu and the control icon stay true.
   useEffect(() => {
@@ -321,8 +329,10 @@ export function TitleBar() {
                         <span className="titlebar-menu-item-label">
                           {entryLabel(entry, isMaximized)}
                         </span>
-                        {entry.shortcut && (
-                          <span className="titlebar-menu-item-key">{entry.shortcut}</span>
+                        {entry.action && shortcutFor(entry.action) && (
+                          <span className="titlebar-menu-item-key">
+                            {shortcutFor(entry.action)}
+                          </span>
                         )}
                       </button>
                     ),

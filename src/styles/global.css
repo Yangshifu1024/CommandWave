@@ -633,6 +633,86 @@ body {
   color: var(--fg);
 }
 
+/* ---------- Keyboard section ---------- */
+
+.kb-hint {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  color: var(--fg-dim);
+}
+
+.kb-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 4px 18px;
+  margin-bottom: 10px;
+}
+
+.kb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.kb-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kb-key {
+  min-width: 92px;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 11.5px;
+  font-family: inherit;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.kb-key:hover {
+  border-color: var(--accent);
+}
+
+.kb-key.recording {
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: kb-pulse 1.2s ease-in-out infinite;
+}
+
+.kb-key.conflict {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+@keyframes kb-pulse {
+  50% {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+}
+
+.kb-reset {
+  border: none;
+  background: none;
+  color: var(--fg-dim);
+  font-size: 13px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.kb-reset:hover {
+  background: var(--bg-raised);
+  color: var(--fg);
+}
+
 .settings-editor {
   flex: 1;
   min-width: 0;

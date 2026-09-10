@@ -71,6 +71,8 @@ pub struct Settings {
     pub default_profile_id: String,
     pub ui: UiSettings,
     pub notifications: NotificationSettings,
+    /// actionId -> accelerator overrides; missing entries use menu defaults.
+    pub keybindings: std::collections::HashMap<String, String>,
 }
 
 impl Default for Settings {
@@ -81,6 +83,7 @@ impl Default for Settings {
             default_profile_id: "default".to_string(),
             ui: UiSettings::default(),
             notifications: NotificationSettings::default(),
+            keybindings: std::collections::HashMap::new(),
         }
     }
 }

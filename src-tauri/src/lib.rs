@@ -19,10 +19,16 @@ pub fn run() {
             commands::pty_close,
             commands::settings_load,
             commands::settings_save,
-            commands::show_main_window
+            commands::show_main_window,
+            commands::rebuild_menu
         ])
         .setup(|app| {
-            menu::setup(app.handle())?;
+            // Build the native menu with the persisted keybindings; a failed
+            // settings read falls back to built-in accelerators.
+            let keybindings = settings::load(app.handle())
+                .map(|s| s.keybindings)
+                .unwrap_or_default();
+            menu::setup(app.handle(), &keybindings)?;
             // Frameless window on Windows/Linux (custom title bar in the
             // webview); macOS keeps native chrome with an overlaid title.
             #[cfg(not(target_os = "macos"))]

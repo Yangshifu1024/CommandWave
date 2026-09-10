@@ -7,6 +7,7 @@ import {
   type Profile,
 } from "../store/settingsStore";
 import { themes } from "../terminal/themes";
+import { KeyboardSection } from "./KeyboardSection";
 
 /**
  * Settings dialog with a profile manager: list on the left, editor on the
@@ -240,6 +241,8 @@ export function SettingsDialog() {
                 </span>
               </label>
             </section>
+
+            <KeyboardSection />
           </div>
         </div>
       </div>

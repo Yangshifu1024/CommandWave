@@ -68,3 +68,9 @@ pub fn show_main_window(app: AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Rebuild the native menu with customized accelerators.
+#[tauri::command]
+pub fn rebuild_menu(app: AppHandle, keybindings: std::collections::HashMap<String, String>) -> Result<(), String> {
+    crate::menu::setup(&app, &keybindings).map_err(|e| e.to_string())
+}

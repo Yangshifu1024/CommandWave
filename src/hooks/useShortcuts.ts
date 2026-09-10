@@ -2,10 +2,13 @@ import { useEffect } from "react";
 
 import { dispatchMenuAction, isMac } from "../layout/TitleBar";
 import { useAppStore } from "../store/appStore";
+import { useSettingsStore } from "../store/settingsStore";
+import { bindingLookup, eventToAccelerator } from "./keybindings";
 
 /**
  * Global keyboard shortcuts, registered with capture so they win over xterm
- * key handling. macOS uses Cmd; other platforms use Ctrl.
+ * key handling. Actions resolve through the customizable keybindings map
+ * (Settings → Keyboard); Cmd/Ctrl+1–9 tabs stay fixed, as does Escape.
  */
 export function useShortcuts() {
   useEffect(() => {
@@ -26,93 +29,28 @@ export function useShortcuts() {
           return;
         }
       }
+      // Ctrl+Tab cycles tabs on Windows/Linux (Ctrl+Tab is not text input).
+      if (!isMac && e.ctrlKey && !e.altKey && e.key === "Tab") {
+        useAppStore.getState().cycleTab(e.shiftKey ? -1 : 1);
+        e.preventDefault();
+        return;
+      }
+
+      const accel = eventToAccelerator(e);
+      if (!accel) return;
+      const lookup = bindingLookup(useSettingsStore.getState().settings.keybindings);
+      const action = lookup.get(accel);
+      if (action) {
+        dispatchMenuAction(action);
+        e.preventDefault();
+        return;
+      }
+
+      // Fixed: Cmd/Ctrl+1–9 selects the nth tab.
       const mod = isMac ? e.metaKey : e.ctrlKey;
-      if (e.altKey || !mod) {
-        // Ctrl+Tab cycles tabs on Windows/Linux (Ctrl+Tab is not text input).
-        if (e.ctrlKey && !e.altKey && e.key === "Tab") {
-          useAppStore.getState().cycleTab(e.shiftKey ? -1 : 1);
-          e.preventDefault();
-        }
-        return;
-      }
-
-      const s = useAppStore.getState();
-      const activeTab = s.tabs.find((t) => t.id === s.activeTabId);
-      const key = e.key.toLowerCase();
-
-      // Prompt-mark navigation (iTerm2 muscle memory: Cmd/Ctrl+Up/Down).
-      if (e.key === "ArrowUp") {
-        dispatchMenuAction("prev-mark");
+      if (mod && !e.altKey && /^[1-9]$/.test(e.key)) {
+        useAppStore.getState().selectTabIndex(Number(e.key) - 1);
         e.preventDefault();
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        dispatchMenuAction("next-mark");
-        e.preventDefault();
-        return;
-      }
-
-      // Tab cycling: Cmd/Ctrl+Shift+[ and Cmd/Ctrl+Shift+]
-      if (e.shiftKey && key === "[") {
-        s.cycleTab(-1);
-        e.preventDefault();
-        return;
-      }
-      if (e.shiftKey && key === "]") {
-        s.cycleTab(1);
-        e.preventDefault();
-        return;
-      }
-
-      switch (key) {
-        case "t":
-          if (e.shiftKey) return; // reserved: reopen closed tab later
-          s.newTab();
-          e.preventDefault();
-          return;
-        case "w":
-          if (e.shiftKey) {
-            if (activeTab) s.closeTab(activeTab.id);
-          } else if (activeTab) {
-            s.closePane(activeTab.id, activeTab.activePaneId);
-          }
-          e.preventDefault();
-          return;
-        case "d": {
-          if (!activeTab) return;
-          // iTerm2 muscle memory: Cmd+D splits vertically (side by side),
-          // Cmd+Shift+D splits horizontally (stacked).
-          s.splitPane(activeTab.activePaneId, e.shiftKey ? "v" : "h");
-          e.preventDefault();
-          return;
-        }
-        case "[":
-          s.cyclePane(-1);
-          e.preventDefault();
-          return;
-        case "]":
-          s.cyclePane(1);
-          e.preventDefault();
-          return;
-        case "b":
-          if (e.shiftKey) {
-            s.toggleTabBar();
-            e.preventDefault();
-          }
-          return;
-        case ",":
-          s.openSettings();
-          e.preventDefault();
-          return;
-        case "f":
-          s.openSearch();
-          e.preventDefault();
-          return;
-        default:
-          if (/^[1-9]$/.test(key)) {
-            s.selectTabIndex(Number(key) - 1);
-            e.preventDefault();
-          }
       }
     };
 
