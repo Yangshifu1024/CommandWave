@@ -5,7 +5,7 @@
  */
 
 /** Heuristic prompt terminator used to split the cursor line. */
-const PROMPT_RE = /[>$#%❯»]\s?/;
+const PROMPT_RE = /[>$#%❯➜»]\s?/;
 
 /**
  * Extract the current input from a full cursor line ("user@host:~$ git st"

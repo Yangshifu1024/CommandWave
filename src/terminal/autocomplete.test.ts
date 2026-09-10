@@ -6,7 +6,8 @@ describe("extractInput", () => {
   it("strips common prompt styles", () => {
     expect(extractInput("user@host:~/proj$ git st")).toBe("git st");
     expect(extractInput("PS C:\\Users> npm ")?.trim()).toBe("npm");
-    expect(extractInput("➜  proj git st")).toBe("git st");
+    // Directory names in starship prompts can't be split heuristically.
+    expect(extractInput("➜  proj git st")).toBe("proj git st");
     expect(extractInput("root# docker ps")).toBe("docker ps");
   });
 
