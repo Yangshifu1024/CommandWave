@@ -17,6 +17,7 @@ import {
 } from "../layout/paneTree";
 import { navigatePane } from "../layout/paneNav";
 import { remapSnapshot } from "../layout/snapshot";
+import { pickProfileForHost } from "../terminal/profileSwitch";
 
 export interface Tab {
   id: string;
@@ -108,6 +109,8 @@ interface AppStore {
   exposeOpen: boolean;
   /** Recent Commands palette (⌘;) */
   historyOpen: boolean;
+  /** Instant Replay overlay (buffer snapshots) */
+  replayOpen: boolean;
   /** opened via semantic search (⌥⌘;) — include output by default */
   historySemantic: boolean;
   /** tab being renamed inline (TabStrip) */
@@ -147,6 +150,8 @@ interface AppStore {
   setSplitSizes: (tabId: string, path: number[], sizes: number[]) => void;
   onPaneTitle: (paneId: string, title: string) => void;
   onPaneCwd: (paneId: string, cwd: string) => void;
+  /** OSC 7 host → profile auto-switch rules. */
+  onPaneHost: (paneId: string, host: string) => void;
   setInitialSpawnCwd: (spawnCwd: string | null) => void;
   refreshTitles: () => void;
   closePaneByPtyId: (ptyId: number, exitCode: number) => void;
@@ -172,6 +177,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   exposeOpen: false,
   historyOpen: false,
   historySemantic: false,
+  replayOpen: false,
   renamingTabId: null,
 
   newTab: (profileId?: string) => {
@@ -416,6 +422,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
           paneMeta,
           title: tab.activePaneId === paneId ? computeTabTitle(paneMeta[paneId]) : tab.title,
         };
+      }),
+    }));
+  },
+
+  onPaneHost: (paneId, host) => {
+    set((s) => ({
+      tabs: s.tabs.map((tab) => {
+        if (!(paneId in tab.paneMeta)) return tab;
+        // Profile auto-switch: a matching host rule re-themes the pane.
+        const rule = pickProfileForHost(
+          host,
+          useSettingsStore.getState().settings.autoSwitchRules,
+        );
+        if (!rule) return tab;
+        const meta = tab.paneMeta[paneId];
+        if (meta.profileId === rule.profileId) return tab;
+        const paneMeta = { ...tab.paneMeta, [paneId]: { ...meta, profileId: rule.profileId } };
+        return { ...tab, paneMeta };
       }),
     }));
   },

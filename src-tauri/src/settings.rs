@@ -125,6 +125,14 @@ pub struct AutoAnswer {
     pub enabled: bool,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AutoSwitchRule {
+    /// glob (with *) or substring matched against the OSC 7 host
+    pub host_pattern: String,
+    pub profile_id: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AutoLogSettings {
@@ -158,6 +166,8 @@ pub struct Settings {
     pub session: Option<String>,
     /// Editor command for ⌘/Ctrl-click file links, e.g. "code {file}".
     pub editor_command: Option<String>,
+    /// OSC 7 host → profile auto-switch rules.
+    pub auto_switch_rules: Vec<AutoSwitchRule>,
     /// actionId -> accelerator overrides; missing entries use menu defaults.
     pub keybindings: std::collections::HashMap<String, String>,
 }
@@ -183,6 +193,7 @@ impl Default for Settings {
             arrangements: std::collections::HashMap::new(),
             session: None,
             editor_command: None,
+            auto_switch_rules: vec![],
             keybindings: std::collections::HashMap::new(),
         }
     }

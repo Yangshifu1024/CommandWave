@@ -63,22 +63,31 @@ export function titleFromPath(path: string | null | undefined): string | null {
  * anything that does not look like a path.
  */
 export function parseOscCwd(data: string): string | null {
+  return parseOscLocation(data)?.cwd ?? null;
+}
+
+/** OSC 7 location: host (for profile auto-switch) + cwd. */
+export function parseOscLocation(
+  data: string,
+): { host: string | null; cwd: string | null } | null {
   const raw = data.trim();
   if (!raw) return null;
   if (raw.startsWith("file://")) {
     try {
       const url = new URL(raw);
       let p = decodeURIComponent(url.pathname);
-      if (!p) return null;
+      if (!p) return { host: url.hostname || null, cwd: null };
       // Windows file URLs keep the drive in the path: "/C:/Users" → "C:/Users".
       if (/^\/[A-Za-z]:\//.test(p)) p = p.slice(1);
-      return p;
+      return { host: url.hostname || null, cwd: p };
     } catch {
       return null;
     }
   }
   // Plain absolute paths (POSIX or Windows drive form).
-  if (raw.startsWith("/") || /^[A-Za-z]:[\\/]/.test(raw)) return raw;
+  if (raw.startsWith("/") || /^[A-Za-z]:[\\/]/.test(raw)) {
+    return { host: null, cwd: raw };
+  }
   return null;
 }
 

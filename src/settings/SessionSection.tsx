@@ -10,6 +10,8 @@ import { parseSnapshot, serializeSession } from "../layout/snapshot";
  */
 export function SessionSection() {
   const arrangements = useSettingsStore((s) => s.settings.arrangements);
+  const rules = useSettingsStore((s) => s.settings.autoSwitchRules);
+  const profiles = useSettingsStore((s) => s.settings.profiles);
   const restoreOnStart = useSettingsStore((s) => s.settings.ui.restoreSessionOnStart);
   const update = useSettingsStore((s) => s.update);
   const [name, setName] = useState("");
@@ -81,6 +83,70 @@ export function SessionSection() {
           </button>
         </div>
       ))}
+
+      <h3>Profile Auto-Switch</h3>
+      <p className="section-hint">
+        Panes whose shell reports a matching host (OSC 7, e.g. ssh sessions
+        with remote shell integration) switch to the chosen profile.
+      </p>
+      {rules.map((rule, i) => (
+        <div key={i} className="trigger-row">
+          <input
+            className="trigger-regex"
+            type="text"
+            placeholder="host pattern (prod-*)"
+            value={rule.hostPattern}
+            spellCheck={false}
+            onChange={(e) =>
+              update((draft) => {
+                draft.autoSwitchRules[i].hostPattern = e.target.value;
+              })
+            }
+          />
+          <select
+            value={rule.profileId}
+            onChange={(e) =>
+              update((draft) => {
+                draft.autoSwitchRules[i].profileId = e.target.value;
+              })
+            }
+          >
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="profile-mini-btn"
+            aria-label="Delete rule"
+            onClick={() =>
+              update((draft) => {
+                draft.autoSwitchRules.splice(i, 1);
+              })
+            }
+          >
+            −
+          </button>
+        </div>
+      ))}
+      <div className="field-row">
+        <button
+          type="button"
+          className="settings-add-btn"
+          onClick={() =>
+            update((draft) => {
+              draft.autoSwitchRules.push({
+                hostPattern: "",
+                profileId: draft.defaultProfileId,
+              });
+            })
+          }
+        >
+          + Add Auto-Switch Rule
+        </button>
+      </div>
 
       <h3>Session Restore</h3>
       <label className="check-row">

@@ -190,6 +190,9 @@ export function dispatchMenuAction(action: string): void {
     case "clear-buffer":
       activePaneTerminal()?.term.clear();
       break;
+    case "instant-replay":
+      useAppStore.setState((s) => ({ replayOpen: !s.replayOpen }));
+      break;
     case "recent-commands":
       useAppStore.setState({ historyOpen: true, historySemantic: false });
       break;
@@ -319,6 +322,7 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { label: "Search Next Match", action: "search-again" },
       { label: "Recent Commands…", action: "recent-commands" },
       { label: "Semantic History Search…", action: "semantic-history" },
+      { label: "Instant Replay…", action: "instant-replay" },
       { sep: true },
       { label: "Previous Prompt", action: "prev-mark" },
       { label: "Next Prompt", action: "next-mark" },

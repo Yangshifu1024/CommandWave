@@ -12,12 +12,14 @@ import {
   useSettingsStore,
 } from "../store/settingsStore";
 import { useAppStore } from "../store/appStore";
-import { parseOscCwd } from "./paneTitle";
+import { parseOscCwd, parseOscLocation } from "./paneTitle";
 import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
 import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
 import { completionSuffix, extractInput, filterSuggestions } from "./autocomplete";
 import { formatDuration, lastDurationMs, subscribeCommands, suggestCommands } from "./commandHistory";
 import { resolveBackdrop } from "./backdrop";
+import { parseOsc1337File, type OscImage } from "./oscImages";
+import { captureReplay, clearReplay } from "./instantReplay";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
 import { resolveTheme, withAlpha } from "./themes";
@@ -388,6 +390,35 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       updateAutocomplete();
     };
 
+    // Inline images (imgcat OSC 1337): decoded into a per-pane tray.
+    const imgTray = document.createElement("div");
+    imgTray.className = "pane-image-tray";
+    container.appendChild(imgTray);
+    const pushImage = (img: OscImage) => {
+      const el = document.createElement("img");
+      const mime = img.mime || "image/png";
+      let binary = "";
+      for (const b of img.bytes) binary += String.fromCharCode(b);
+      el.src = `data:${mime};base64,${btoa(binary)}`;
+      el.title = img.name;
+      el.addEventListener("click", () => el.remove());
+      imgTray.appendChild(el);
+      while (imgTray.children.length > 3) imgTray.firstElementChild?.remove();
+    };
+    term.parser.registerOscHandler(1337, (data) => {
+      if (!data.startsWith("File=")) return false;
+      const img = parseOsc1337File(data);
+      if (img) pushImage(img);
+      return false;
+    });
+
+    // Instant Replay snapshots: capture the tail of the buffer every 10s so
+    // ⇧⌘B-style replay can show the pane's state in the recent past.
+    const replayTimer = setInterval(() => {
+      if (exited) return;
+      captureReplay(paneId, term.buffer.active);
+    }, 10_000);
+
     // Inline autocomplete: a small imperative overlay above the prompt that
     // lists history commands extending the current input; Alt+1..3 or click
     // completes by sending the missing suffix.
@@ -460,8 +491,9 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     // Shell integration: OSC 7 ("file://host/path") and ConEmu-style OSC 9;9
     // both report the shell's working directory; use them for tab titles.
     term.parser.registerOscHandler(7, (data) => {
-      const cwd = parseOscCwd(data);
-      if (cwd) useAppStore.getState().onPaneCwd(paneId, cwd);
+      const loc = parseOscLocation(data);
+      if (loc?.cwd) useAppStore.getState().onPaneCwd(paneId, loc.cwd);
+      if (loc?.host) useAppStore.getState().onPaneHost(paneId, loc.host);
       return false;
     });
     term.parser.registerOscHandler(9, (data) => {
@@ -588,6 +620,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
 
     return () => {
       disposed = true;
+      clearInterval(replayTimer);
       observer.disconnect();
       term.element?.removeEventListener("mousedown", onMouseDown, true);
       if (useAppStore.getState().copyModePane === paneId) {
@@ -596,6 +629,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       unlistenExit?.();
       if (entry.ptyId !== null) ptyClose(entry.ptyId);
       terminalManager.dispose(paneId);
+      clearReplay(paneId);
     };
   }, [paneId, cwd, shell]);
 

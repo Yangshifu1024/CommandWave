@@ -83,6 +83,12 @@ export interface AutoLogSettings {
   directory: string | null;
 }
 
+/** OSC 7 host → profile auto-switch rule. */
+export interface AutoSwitchRule {
+  hostPattern: string;
+  profileId: string;
+}
+
 export interface Settings {
   version: number;
   profiles: Profile[];
@@ -98,6 +104,8 @@ export interface Settings {
   session: string | null;
   /** Editor command for ⌘/Ctrl-click file links, e.g. "code {file}". */
   editorCommand: string | null;
+  /** OSC 7 host → profile auto-switch rules. */
+  autoSwitchRules: AutoSwitchRule[];
   /** actionId -> Tauri accelerator ("" = no binding). */
   keybindings: Record<string, string>;
 }
@@ -147,6 +155,7 @@ export const defaultSettings: Settings = {
   arrangements: {},
   session: null,
   editorCommand: null,
+  autoSwitchRules: [],
   keybindings: defaultKeybindings,
 };
 
@@ -231,6 +240,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ui: { ...defaultSettings.ui, ...loaded.ui },
           notifications: { ...defaultSettings.notifications, ...loaded.notifications },
           autoLog: { ...defaultSettings.autoLog, ...loaded.autoLog },
+          autoSwitchRules: loaded.autoSwitchRules ?? defaultSettings.autoSwitchRules,
           triggers: loaded.triggers ?? defaultSettings.triggers,
           autoAnswers: loaded.autoAnswers ?? defaultSettings.autoAnswers,
           keybindings: { ...defaultSettings.keybindings, ...loaded.keybindings },

@@ -8,6 +8,7 @@ import { ContextMenu } from "./layout/ContextMenu";
 import { PasteConfirm } from "./layout/PasteConfirm";
 import { Expose } from "./layout/Expose";
 import { RecentCommands } from "./layout/RecentCommands";
+import { InstantReplay } from "./layout/InstantReplay";
 import { TitleBar, dispatchMenuAction, isMac } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
@@ -222,6 +223,7 @@ export default function App() {
       <PasteConfirm />
       <Expose />
       <RecentCommands semantic={historySemantic} />
+      <InstantReplay />
     </div>
   );
 }

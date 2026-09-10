@@ -115,7 +115,16 @@ pub fn set_progress(app: AppHandle, value: Option<f64>) -> Result<(), String> {
             progress: None,
         },
     };
-    window.set_progress_bar(state).map_err(|e| e.to_string())
+    let _ = window.set_progress_bar(state);
+    // macOS: mirror the value as a Dock badge (no taskbar progress there).
+    #[cfg(target_os = "macos")]
+    {
+        use tauri::Manager;
+        let _ = window.set_badge_count(value.map(|v| v.clamp(0.0, 100.0) as i32));
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+    Ok(())
 }
 
 
