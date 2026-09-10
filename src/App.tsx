@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { homeDir } from "@tauri-apps/api/path";
 
 import { SplitTree } from "./layout/SplitTree";
 import { TabStrip } from "./layout/TabStrip";
@@ -9,6 +10,7 @@ import { SettingsDialog } from "./settings/SettingsDialog";
 import { useAppStore } from "./store/appStore";
 import { appearanceDefaults, useSettingsStore } from "./store/settingsStore";
 import { useShortcuts } from "./hooks/useShortcuts";
+import { setHomeDir } from "./terminal/paneTitle";
 import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
@@ -88,6 +90,17 @@ export default function App() {
     return () => {
       promise.then((unlisten) => unlisten());
     };
+  }, []);
+
+  // Once the home directory is known, tab titles can render it as "~".
+  useEffect(() => {
+    if (!isTauri) return;
+    homeDir()
+      .then((home) => {
+        setHomeDir(home);
+        useAppStore.getState().refreshTitles();
+      })
+      .catch(() => {});
   }, []);
 
   const activeTab = tabs.find((t) => t.id === activeTabId);

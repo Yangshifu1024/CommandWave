@@ -81,6 +81,7 @@ interface AppStore {
   onPaneTitle: (paneId: string, title: string) => void;
   onPaneCwd: (paneId: string, cwd: string) => void;
   setInitialSpawnCwd: (spawnCwd: string | null) => void;
+  refreshTitles: () => void;
   closePaneByPtyId: (ptyId: number, exitCode: number) => void;
 }
 
@@ -305,6 +306,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
         const paneMeta = { ...tab.paneMeta, [paneId]: { ...meta, spawnCwd } };
         return { ...tab, title: computeTabTitle(paneMeta[paneId]), paneMeta };
       }),
+    }));
+  },
+
+  // Recompute every tab's title from its active pane (used after async
+  // inputs like the home directory arrive, which titles render as "~").
+  refreshTitles: () => {
+    set((s) => ({
+      tabs: s.tabs.map((tab) => ({
+        ...tab,
+        title: computeTabTitle(tab.paneMeta[tab.activePaneId]),
+      })),
     }));
   },
 

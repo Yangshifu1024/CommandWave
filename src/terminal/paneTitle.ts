@@ -4,7 +4,8 @@
  *
  * Title priority for a pane: reported cwd last segment → OSC 0/2 title →
  * spawn cwd last segment → "Shell". Once a shell reports its cwd (OSC 7 /
- * OSC 9;9) that value wins over program-set window titles.
+ * OSC 9;9) that value wins over program-set window titles. The home
+ * directory renders as "~" when known (set via setHomeDir at startup).
  */
 
 export interface PaneTitleMeta {
@@ -14,6 +15,19 @@ export interface PaneTitleMeta {
   cwd: string | null;
   /** Last window title set by a program via OSC 0/2, may be null. */
   oscTitle: string | null;
+}
+
+let home: string | null = null;
+
+/** Provide the user's home directory so titles can render it as "~". */
+export function setHomeDir(path: string | null): void {
+  home = path ? normalizePath(path) : null;
+}
+
+function normalizePath(p: string): string {
+  let n = p.trim().replace(/\\/g, "/");
+  while (n.length > 1 && n.endsWith("/")) n = n.slice(0, -1);
+  return n;
 }
 
 /** Extract the last path segment ("D:\Work\demo" → "demo"); null for roots/empty. */
@@ -27,6 +41,16 @@ export function pathLastSegment(path: string | null | undefined): string | null 
   const idx = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
   const seg = idx >= 0 ? p.slice(idx + 1) : p;
   return seg || null;
+}
+
+/**
+ * Title form of a path: the home directory itself renders as "~"; anything
+ * else falls back to the last segment.
+ */
+export function titleFromPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (home && normalizePath(path) === home) return "~";
+  return pathLastSegment(path);
 }
 
 /**
@@ -58,11 +82,11 @@ export function parseOscCwd(data: string): string | null {
 
 /** Title fallback chain for one pane (see module doc). */
 export function computeTabTitle(meta: PaneTitleMeta | undefined): string {
-  const cwdSeg = pathLastSegment(meta?.cwd ?? null);
+  const cwdSeg = titleFromPath(meta?.cwd ?? null);
   if (cwdSeg) return cwdSeg;
   const osc = meta?.oscTitle?.trim();
   if (osc) return osc;
-  const spawnSeg = pathLastSegment(meta?.spawnCwd ?? null);
+  const spawnSeg = titleFromPath(meta?.spawnCwd ?? null);
   if (spawnSeg) return spawnSeg;
   return "Shell";
 }

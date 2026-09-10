@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   computeTabTitle,
   parseOscCwd,
   pathLastSegment,
+  setHomeDir,
+  titleFromPath,
   type PaneTitleMeta,
 } from "./paneTitle";
 
@@ -74,5 +76,39 @@ describe("computeTabTitle", () => {
 
   it("ignores whitespace-only OSC titles", () => {
     expect(computeTabTitle(meta({ oscTitle: "   " }))).toBe("Shell");
+  });
+});
+
+describe("home directory abbreviation", () => {
+  afterEach(() => setHomeDir(null));
+
+  it("renders the home directory itself as ~", () => {
+    setHomeDir("/Users/me");
+    expect(titleFromPath("/Users/me")).toBe("~");
+    expect(titleFromPath("/Users/me/")).toBe("~");
+  });
+
+  it("keeps last-segment titles for paths under home and outside it", () => {
+    setHomeDir("/Users/me");
+    expect(titleFromPath("/Users/me/dev/app")).toBe("app");
+    expect(titleFromPath("/var/log")).toBe("log");
+    expect(titleFromPath("/Users/meteor/dev")).toBe("dev"); // prefix but not home
+  });
+
+  it("normalizes separators and trailing slashes when matching home", () => {
+    setHomeDir("C:\\Users\\me");
+    expect(titleFromPath("C:/Users/me")).toBe("~");
+    expect(titleFromPath("C:\\Users\\me\\")).toBe("~");
+  });
+
+  it("falls back to last segment when home is unknown", () => {
+    setHomeDir(null);
+    expect(titleFromPath("/Users/me")).toBe("me");
+  });
+
+  it("uses ~ for cwd and spawn cwd in the title chain", () => {
+    setHomeDir("/Users/me");
+    expect(computeTabTitle({ spawnCwd: null, cwd: "/Users/me", oscTitle: null })).toBe("~");
+    expect(computeTabTitle({ spawnCwd: "/Users/me", cwd: null, oscTitle: null })).toBe("~");
   });
 });
