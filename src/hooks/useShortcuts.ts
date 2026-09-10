@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { isMac } from "../layout/TitleBar";
+import { dispatchMenuAction, isMac } from "../layout/TitleBar";
 import { useAppStore } from "../store/appStore";
 
 /**
@@ -39,6 +39,18 @@ export function useShortcuts() {
       const s = useAppStore.getState();
       const activeTab = s.tabs.find((t) => t.id === s.activeTabId);
       const key = e.key.toLowerCase();
+
+      // Prompt-mark navigation (iTerm2 muscle memory: Cmd/Ctrl+Up/Down).
+      if (e.key === "ArrowUp") {
+        dispatchMenuAction("prev-mark");
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        dispatchMenuAction("next-mark");
+        e.preventDefault();
+        return;
+      }
 
       // Tab cycling: Cmd/Ctrl+Shift+[ and Cmd/Ctrl+Shift+]
       if (e.shiftKey && key === "[") {

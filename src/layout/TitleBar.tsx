@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAppStore } from "../store/appStore";
 import { terminalManager } from "../terminal/manager";
 import { isTauri } from "../terminal/ipc";
+import { linesBetween, nextPromptLine } from "../terminal/paneMarks";
 
 export const isMac = /Mac/.test(navigator.platform);
 
@@ -16,6 +17,39 @@ function activePaneTerminal() {
   const s = useAppStore.getState();
   const tab = s.tabs.find((t) => t.id === s.activeTabId);
   return tab ? terminalManager.get(tab.activePaneId) : undefined;
+}
+
+/** Scroll to the previous/next shell prompt (OSC 133 marks). */
+function jumpToPromptMark(direction: -1 | 1): void {
+  const entry = activePaneTerminal();
+  if (!entry) return;
+  const top = entry.term.buffer.active.viewportY;
+  const target = nextPromptLine(terminalManager.promptLines(entry.paneId), top, direction);
+  if (target !== null) entry.term.scrollToLine(target);
+}
+
+/** Copy the output of the last completed command to the clipboard. */
+async function copyLastCommandOutput(): Promise<void> {
+  const entry = activePaneTerminal();
+  if (!entry) return;
+  const prompts = terminalManager.promptLines(entry.paneId).filter((l) => l >= 0);
+  if (prompts.length < 2) return;
+  const lastPrompt = prompts[prompts.length - 1];
+  const outputs = entry.marks.filter(
+    (m) =>
+      m.kind === "output" &&
+      m.marker.line >= 0 &&
+      m.marker.line < lastPrompt,
+  );
+  if (outputs.length === 0) return;
+  const from = outputs[outputs.length - 1].marker.line + 1;
+  const text = linesBetween(entry.term.buffer.active, from, lastPrompt);
+  if (!text) return;
+  try {
+    await navigator.clipboard?.writeText(text);
+  } catch {
+    document.execCommand("copy");
+  }
 }
 
 function copySelection(): void {
@@ -91,6 +125,18 @@ export function dispatchMenuAction(action: string): void {
     case "next-pane":
       s.cyclePane(1);
       break;
+    case "prev-mark":
+      jumpToPromptMark(-1);
+      break;
+    case "next-mark":
+      jumpToPromptMark(1);
+      break;
+    case "copy-last-output":
+      void copyLastCommandOutput();
+      break;
+    case "clear-buffer":
+      activePaneTerminal()?.term.clear();
+      break;
     case "open-search":
       s.openSearch();
       break;
@@ -153,8 +199,10 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { label: "Cut", action: "edit-cut" },
       { label: "Copy", action: "edit-copy" },
       { label: "Paste", action: "edit-paste" },
+      { label: "Copy Last Output", action: "copy-last-output" },
       { sep: true },
       { label: "Select All", action: "edit-select-all" },
+      { label: "Clear Buffer", action: "clear-buffer" },
     ],
   },
   {
@@ -167,6 +215,9 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       },
       { sep: true },
       { label: "Search…", action: "open-search", shortcut: "Ctrl+F" },
+      { sep: true },
+      { label: "Previous Prompt", action: "prev-mark", shortcut: "Ctrl+↑" },
+      { label: "Next Prompt", action: "next-mark", shortcut: "Ctrl+↓" },
     ],
   },
   {

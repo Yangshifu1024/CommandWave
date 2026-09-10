@@ -12,6 +12,7 @@ import {
 } from "../store/settingsStore";
 import { useAppStore } from "../store/appStore";
 import { parseOscCwd } from "./paneTitle";
+import { parseOsc133 } from "./paneMarks";
 import { getTheme } from "./themes";
 import { terminalManager } from "./manager";
 import { onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, spawnPty } from "./ipc";
@@ -131,6 +132,44 @@ export function TerminalPane({ paneId, cwd, shell }: TerminalPaneProps) {
       if (data.startsWith("9;")) {
         const cwd = parseOscCwd(data.slice(2));
         if (cwd) useAppStore.getState().onPaneCwd(paneId, cwd);
+      }
+      return false;
+    });
+
+    // Shell integration: OSC 133 prompt marks (A=prompt, C=command running,
+    // D;exit=finished) drive prompt jumping, exit-code highlights and
+    // copy-last-output.
+    let lastPromptMarker: ReturnType<Terminal["registerMarker"]> | null = null;
+    term.parser.registerOscHandler(133, (data) => {
+      const parsed = parseOsc133(data);
+      if (!parsed) return false;
+      if (parsed.kind === "prompt") {
+        const marker = term.registerMarker(0);
+        if (marker) {
+          terminalManager.addMark(paneId, "prompt", marker);
+          lastPromptMarker = marker;
+        }
+      } else if (parsed.kind === "output") {
+        const marker = term.registerMarker(0);
+        if (marker) terminalManager.addMark(paneId, "output", marker);
+        entry.runningPrompt = lastPromptMarker;
+        entry.runningSince = Date.now();
+      } else if (parsed.kind === "finish") {
+        if (parsed.exitCode !== 0 && entry.runningPrompt && entry.runningPrompt.line >= 0) {
+          try {
+            // Flag the failed command's prompt line.
+            term.registerDecoration({
+              marker: entry.runningPrompt,
+              backgroundColor: "rgba(224, 108, 117, 0.28)",
+              layer: "top",
+              overviewRulerOptions: { color: "#e06c75", position: "left" },
+            });
+          } catch {
+            // decoration API unavailable — skip highlight
+          }
+        }
+        entry.runningPrompt = null;
+        entry.runningSince = null;
       }
       return false;
     });

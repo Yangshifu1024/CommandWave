@@ -1,6 +1,12 @@
 import type { FitAddon } from "@xterm/addon-fit";
 import type { SearchAddon } from "@xterm/addon-search";
-import type { Terminal } from "@xterm/xterm";
+import type { IMarker, Terminal } from "@xterm/xterm";
+
+/** One OSC 133 mark registered in the terminal buffer. */
+export interface PaneMark {
+  kind: "prompt" | "output";
+  marker: IMarker;
+}
 
 export interface TerminalEntry {
   paneId: string;
@@ -12,7 +18,16 @@ export interface TerminalEntry {
   attached: boolean;
   /** fit + propagate new size to the PTY */
   doFit: () => void;
+  /** OSC 133 marks, oldest first; markers hold buffer lines, so capped. */
+  marks: PaneMark[];
+  /** the prompt marker of the currently-running command, if any */
+  runningPrompt: IMarker | null;
+  /** wall-clock ms when the running command started (C mark) */
+  runningSince: number | null;
 }
+
+/** Cap for tracked marks — markers pin trimmed scrollback lines. */
+const MAX_MARKS = 1000;
 
 /**
  * Owns every xterm.js instance for the window, keyed by pane id.
@@ -50,6 +65,9 @@ class TerminalManager {
       ptyId: null,
       attached: false,
       doFit: () => {},
+      marks: [],
+      runningPrompt: null,
+      runningSince: null,
     };
     this.entries.set(paneId, entry);
     return entry;
@@ -91,11 +109,41 @@ class TerminalManager {
     const entry = this.entries.get(paneId);
     if (!entry) return;
     this.entries.delete(paneId);
+    for (const mark of entry.marks) {
+      try {
+        mark.marker.dispose();
+      } catch {
+        // already disposed
+      }
+    }
     try {
       entry.term.dispose();
     } catch {
       // already disposed
     }
+  }
+
+  /** Track an OSC 133 mark; trims the oldest when over the cap. */
+  addMark(paneId: string, kind: PaneMark["kind"], marker: IMarker): void {
+    const entry = this.entries.get(paneId);
+    if (!entry) return;
+    entry.marks.push({ kind, marker });
+    if (entry.marks.length > MAX_MARKS) {
+      const dropped = entry.marks.splice(0, entry.marks.length - MAX_MARKS);
+      for (const mark of dropped) {
+        try {
+          mark.marker.dispose();
+        } catch {
+          // already disposed
+        }
+      }
+    }
+  }
+
+  promptLines(paneId: string): number[] {
+    const entry = this.entries.get(paneId);
+    if (!entry) return [];
+    return entry.marks.filter((m) => m.kind === "prompt").map((m) => m.marker.line);
   }
 }
 

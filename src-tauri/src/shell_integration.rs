@@ -1,13 +1,17 @@
 //! Shell integration injection.
 //!
 //! Terminals only learn the shell's working directory when the shell reports
-//! it via OSC 7 ("file://host/path"), which stock shells never do. Following
-//! the VS Code/WezTerm approach we inject a small integration script:
+//! it via OSC 7 ("file://host/path"), and only learn command boundaries when
+//! the shell reports them via OSC 133 (FinalTerm-style prompt marks: A =
+//! prompt start, C = command executing, D;exit = command finished). Stock
+//! shells emit neither, so following the VS Code/WezTerm approach we inject a
+//! small integration script:
 //!
 //! - zsh: point `ZDOTDIR` at a generated directory whose rc files chain to
-//!   the user's own config, then add a `precmd` hook that emits OSC 7.
-//! - bash: set `PROMPT_COMMAND` in the environment (interactive bash honors
-//!   an inherited `PROMPT_COMMAND`).
+//!   the user's own config, then add `precmd`/`preexec` hooks that emit
+//!   OSC 7 + OSC 133.
+//! - bash: `PROMPT_COMMAND` and `PS0` are set in the environment
+//!   (interactive bash honors inherited values).
 //!
 //! Emission is guarded on `TERM_PROGRAM == "CommandWave"` so nested shells
 //! and other terminals are unaffected.
@@ -17,7 +21,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
-const ZSHRC: &str = r#"# CommandWave shell integration: report cwd (OSC 7) for tab titles.
+const ZSHRC: &str = r#"# CommandWave shell integration: report cwd (OSC 7) and prompt marks (OSC 133).
 if [[ $TERM_PROGRAM == "CommandWave" && -z $CW_SHELL_INTEGRATION ]]; then
   export CW_SHELL_INTEGRATION=1
   # ZDOTDIR points at this generated directory; chain to the user's config.
@@ -26,11 +30,20 @@ if [[ $TERM_PROGRAM == "CommandWave" && -z $CW_SHELL_INTEGRATION ]]; then
   elif [[ -r $HOME/.zshrc ]]; then
     source "$HOME/.zshrc"
   fi
-  __commandwave_osc7() {
+  __commandwave_precmd() {
+    # $? must be captured before anything else runs.
+    local __cw_exit=$?
+    builtin printf '\e]133;D;%d\a' "$__cw_exit"
+    builtin printf '\e]133;A\a'
     builtin printf '\e]7;file://%s%s\a' "$HOST" "$PWD"
   }
+  __commandwave_preexec() {
+    builtin printf '\e]133;C\a'
+  }
   typeset -ga precmd_functions
-  precmd_functions+=(__commandwave_osc7)
+  precmd_functions+=(__commandwave_precmd)
+  typeset -ga preexec_functions
+  preexec_functions+=(__commandwave_preexec)
 fi
 "#;
 
@@ -52,7 +65,14 @@ macro_rules! zsh_passthrough {
     };
 }
 
-const BASH_PROMPT_COMMAND: &str = r#"printf '\e]7;file://%s%s\a' "${HOSTNAME%%.*}" "$PWD""#;
+/// bash: runs after each command, before the prompt. $? is the command's
+/// exit status; %d expands it without pre-expanding at env-set time.
+const BASH_PROMPT_COMMAND: &str = r#"printf '\e]133;D;%d\a' "$?"; printf '\e]133;A\a'; printf '\e]7;file://%s%s\a' "${HOSTNAME%%.*}" "$PWD""#;
+
+/// bash: PS0's value is *printed* (prompt-expanded, not executed) after a
+/// command line is read but before it runs — so embed the escape bytes
+/// directly instead of going through printf.
+const BASH_PS0: &str = "\x1b]133;C\x07";
 
 /// Write the integration files under `<base>/shell-integration/` and return
 /// the ZDOTDIR that should be set for zsh. Idempotent; rewritten on each call
@@ -80,10 +100,10 @@ pub fn env_for_shell(program: &str, base: &Path) -> Option<Vec<(String, String)>
                 ("CW_ORIG_ZDOTDIR".to_string(), orig),
             ])
         }
-        "bash" => Some(vec![(
-            "PROMPT_COMMAND".to_string(),
-            BASH_PROMPT_COMMAND.to_string(),
-        )]),
+        "bash" => Some(vec![
+            ("PROMPT_COMMAND".to_string(), BASH_PROMPT_COMMAND.to_string()),
+            ("PS0".to_string(), BASH_PS0.to_string()),
+        ]),
         _ => None,
     }
 }
@@ -101,7 +121,23 @@ mod tests {
         let zshrc = fs::read_to_string(zdotdir.join(".zshrc")).unwrap();
         assert!(zshrc.contains("precmd_functions"));
         assert!(zshrc.contains("OSC 7"));
+        assert!(zshrc.contains("OSC 133"));
         assert!(zshrc.contains("CW_ORIG_ZDOTDIR"));
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn zshrc_emits_prompt_marks_and_cwd() {
+        let dir = std::env::temp_dir().join(format!("cw-int-marks-{}", std::process::id()));
+        let zdotdir = write_integration_files(&dir).expect("write integration files");
+        let zshrc = fs::read_to_string(zdotdir.join(".zshrc")).unwrap();
+        // precmd: previous command finish (D with $?), then prompt start (A), then cwd.
+        assert!(zshrc.contains(r"133;D;%d"));
+        assert!(zshrc.contains(r"133;A"));
+        assert!(zshrc.contains(r"133;C"));
+        assert!(zshrc.contains(r"]7;file://%s%s"));
+        // $? is captured as the first statement of the hook.
+        assert!(zshrc.contains("local __cw_exit=$?"));
         fs::remove_dir_all(&dir).ok();
     }
 
@@ -113,9 +149,21 @@ mod tests {
         assert!(env.iter().any(|(k, _)| k == "CW_ORIG_ZDOTDIR"));
 
         let env = env_for_shell("/usr/bin/bash", &dir).expect("bash integration");
-        assert!(env
+        let prompt_command = env
             .iter()
-            .any(|(k, v)| k == "PROMPT_COMMAND" && v.contains("file://")));
+            .find(|(k, _)| k == "PROMPT_COMMAND")
+            .map(|(_, v)| v.as_str())
+            .expect("PROMPT_COMMAND set");
+        assert!(prompt_command.contains(r"133;D;%d"));
+        assert!(prompt_command.contains(r"133;A"));
+        assert!(prompt_command.contains("file://"));
+
+        let ps0 = env
+            .iter()
+            .find(|(k, _)| k == "PS0")
+            .map(|(_, v)| v.as_str())
+            .expect("PS0 set");
+        assert_eq!(ps0, "\x1b]133;C\x07");
 
         assert!(env_for_shell("/bin/fish", &dir).is_none());
         fs::remove_dir_all(&dir).ok();

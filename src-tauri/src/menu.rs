@@ -43,7 +43,22 @@ pub fn setup(app: &AppHandle<Wry>) -> tauri::Result<()> {
     edit.append(&PredefinedMenuItem::cut(app, None)?)?;
     edit.append(&PredefinedMenuItem::copy(app, None)?)?;
     edit.append(&PredefinedMenuItem::paste(app, None)?)?;
+    edit.append(&MenuItem::with_id(
+        app,
+        "copy-last-output",
+        "Copy Last Output",
+        true,
+        None::<&str>,
+    )?)?;
+    edit.append(&PredefinedMenuItem::separator(app)?)?;
     edit.append(&PredefinedMenuItem::select_all(app, None)?)?;
+    edit.append(&MenuItem::with_id(
+        app,
+        "clear-buffer",
+        "Clear Buffer",
+        true,
+        None::<&str>,
+    )?)?;
 
     let shell = Submenu::with_id(app, "cw-shell", "Shell", true)?;
     shell.append(&MenuItem::with_id(
@@ -113,6 +128,21 @@ pub fn setup(app: &AppHandle<Wry>) -> tauri::Result<()> {
         "Search…",
         true,
         Some("CmdOrCtrl+F"),
+    )?)?;
+    view.append(&PredefinedMenuItem::separator(app)?)?;
+    view.append(&MenuItem::with_id(
+        app,
+        "prev-mark",
+        "Previous Prompt",
+        true,
+        Some("CmdOrCtrl+Up"),
+    )?)?;
+    view.append(&MenuItem::with_id(
+        app,
+        "next-mark",
+        "Next Prompt",
+        true,
+        Some("CmdOrCtrl+Down"),
     )?)?;
 
     let window = Submenu::with_id(app, "cw-window", "Window", true)?;
