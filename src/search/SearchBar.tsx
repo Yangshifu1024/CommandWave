@@ -32,6 +32,9 @@ export function SearchBar() {
   const getAddon = (): SearchAddon | null =>
     terminalManager.get(paneId)?.search ?? null;
 
+  // The ruler colors are required by ISearchDecorationOptions but the
+  // overview ruler itself is disabled in TerminalPane (it renders an opaque
+  // white strip); only inline match highlights show.
   const options = () => ({
     caseSensitive,
     regex,

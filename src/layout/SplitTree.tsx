@@ -182,18 +182,6 @@ function PaneView({
         shell={profile?.shell ?? null}
         profileId={tab.paneMeta[paneId]?.profileId ?? null}
       />
-      <button
-        className="pane-close"
-        aria-label="Close pane"
-        title="Close pane"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation();
-          useAppStore.getState().closePane(tab.id, paneId);
-        }}
-      >
-        ×
-      </button>
     </div>
   );
 }

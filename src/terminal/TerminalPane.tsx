@@ -79,7 +79,8 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       scrollback: scrollbackLines,
       // required for SearchAddon highlight decorations (IDecoration API)
       allowProposedApi: true,
-      overviewRuler: { width: 12 },
+      // No overviewRuler: xterm paints its canvas opaque white when no
+      // decorations exist, showing up as a white strip on the right edge.
     });
     termRef.current = term;
     const fit = new FitAddon();
@@ -171,7 +172,6 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
               marker: entry.runningPrompt,
               backgroundColor: "rgba(224, 108, 117, 0.28)",
               layer: "top",
-              overviewRulerOptions: { color: "#e06c75", position: "left" },
             });
           } catch {
             // decoration API unavailable — skip highlight
