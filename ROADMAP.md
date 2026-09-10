@@ -87,6 +87,22 @@ iTerm2 的招牌能力，运维场景刚需。
 | 密码 / API Key 管理器 | ⬜ | 安全存储并在触发器/命令中引用 | 大（涉及安全） |
 | 进度条 escape 序列 | ⬜ | 支持 OSC 9;4 / iTerm2 进度条，标签上显示进度 | 小 |
 
+## Phase 6.5 — Starship 整合
+
+Starship 是 shell 端 prompt 程序，终端不做渲染接管，只在检测、启用、
+配置三个层面整合（参考 Warp 的做法）。现有 shell integration 基建
+（`shell_integration.rs` 的 zsh `ZDOTDIR` 链 / bash `PROMPT_COMMAND`
+注入）可直接复用；starship 只替换 PS1 内容，与已注入的 OSC 133/7
+标记天然兼容——提示跳转、失败高亮、Copy Last Output 不受影响。
+
+| 功能 | 状态 | 说明 | 预估难度 |
+|---|---|---|---|
+| Starship 检测 + 一键启用 | ⬜ | 设置页检测 `starship` 是否在 PATH；Profile 增加「使用 Starship 提示符」开关，勾选后在注入脚本中追加 `eval "$(starship init <shell>)"`（bash/zsh/fish/PowerShell） | 小–中 |
+| 官方 preset 画廊 | ⬜ | 设置页内置 starship 官方 presets 预览与一键应用（`starship preset <name> -o ~/.config/starship.toml`） | 小 |
+| starship.toml 图形化编辑器 | ⬜ | GUI 编辑常用项（格式串、超时、模块开关），复杂项回退文本编辑；含 schema 校验 | 中 |
+| 内置分发 (sidecar) | ⬜ | starship 二进制作为 Tauri sidecar 打包，未安装用户开箱即用；需处理三平台二进制与版本升级 | 中 |
+| OSC 133 兼容性测试 | ⬜ | 确认 starship + 注入的 precmd hook 下，提示跳转 / 失败高亮 / Copy Last Output 正常 | 小 |
+
 ## 暂不做 / 需要论证
 
 以下 iTerm2 功能价值/成本比低或与跨平台定位冲突，暂不排期：
