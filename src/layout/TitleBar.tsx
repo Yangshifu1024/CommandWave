@@ -166,6 +166,9 @@ export function dispatchMenuAction(action: string): void {
     case "toggle-maximize-pane":
       s.toggleMaximizePane();
       break;
+    case "detach-pane":
+      if (tab) s.detachPaneToWindow(tab.activePaneId);
+      break;
     case "toggle-broadcast":
       s.toggleBroadcast();
       break;
@@ -285,6 +288,7 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { label: "Select Pane Up", action: "pane-up" },
       { label: "Select Pane Down", action: "pane-down" },
       { label: "Maximize Pane", action: "toggle-maximize-pane" },
+      { label: "Move Pane to New Window", action: "detach-pane" },
       { sep: true },
       { label: "Broadcast Input to All Panes", action: "toggle-broadcast" },
     ],

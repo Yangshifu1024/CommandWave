@@ -18,6 +18,7 @@ import {
 import { navigatePane } from "../layout/paneNav";
 import { remapSnapshot } from "../layout/snapshot";
 import { pickProfileForHost } from "../terminal/profileSwitch";
+import { encodeDetachParam } from "../terminal/detachedWindow";
 
 export interface Tab {
   id: string;
@@ -45,6 +46,9 @@ let seq = 0;
 function genId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${++seq}`;
 }
+
+/** Panes being moved to their own window: their PTY must survive unmount. */
+const detaching = new Set<string>();
 
 function makeTab(profileId?: string | null): Tab {
   const { meta } = makePaneMeta(profileId ?? null);
@@ -147,6 +151,10 @@ interface AppStore {
   toggleTabLock: (tabId: string) => void;
   /** Replace all tabs with a remapped snapshot (session restore). */
   restoreSession: (snapshot: import("../layout/snapshot").SessionSnapshot) => void;
+  /** Move a pane into its own window (PTY session is handed over). */
+  detachPaneToWindow: (paneId: string) => void;
+  /** True while the pane's unmount must not kill its PTY. */
+  isDetaching: (paneId: string) => boolean;
   setSplitSizes: (tabId: string, path: number[], sizes: number[]) => void;
   onPaneTitle: (paneId: string, title: string) => void;
   onPaneCwd: (paneId: string, cwd: string) => void;
@@ -385,6 +393,65 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (tabs.length === 0) return;
     set({ tabs, activeTabId: tabs[0].id, maximizedPaneId: null });
   },
+
+  detachPaneToWindow: (paneId) => {
+    const { tabs, activeTabId } = get();
+    const tab = tabs.find((t) => containsPane(t.root, paneId));
+    const entry = terminalManager.get(paneId);
+    if (!tab || !entry || entry.ptyId === null) return;
+    // Moving the last pane of the last tab would close this window — refuse.
+    const isOnlyPane = tab.root.type === "pane" && tab.root.id === paneId;
+    if (isOnlyPane && tabs.length <= 1) return;
+
+    detaching.add(paneId);
+    // Open the child window hosting the pane (same frontend, ?detach= param).
+    const info = {
+      paneId,
+      ptyId: entry.ptyId,
+      cwd: tab.paneMeta[paneId]?.cwd ?? tab.paneMeta[paneId]?.spawnCwd ?? null,
+      shell: null,
+      profileId: tab.paneMeta[paneId]?.profileId ?? null,
+    };
+    void import("@tauri-apps/api/webviewWindow").then(({ WebviewWindow }) => {
+      const label = `detach-${paneId}`;
+      if (!document.querySelector(`[data-window="${label}"]`)) {
+        const win = new WebviewWindow(label, {
+          url: `/?detach=${encodeDetachParam(info)}`,
+          title: computeTabTitle(tab.paneMeta[paneId]) || "CommandWave",
+          width: 800,
+          height: 480,
+          transparent: true,
+        });
+        win.once("tauri://error", () => detaching.delete(paneId));
+      }
+    });
+    // The pane unmounts shortly; release the guard once it has.
+    setTimeout(() => detaching.delete(paneId), 2000);
+
+    // Remove the pane from this window's tree without killing the PTY.
+    set((s) => {
+      if (isOnlyPane) {
+        const remaining = s.tabs.filter((t) => t.id !== tab.id);
+        const nextActive =
+          activeTabId === tab.id ? remaining[Math.min(s.tabs.indexOf(tab), remaining.length - 1)].id : activeTabId;
+        return { tabs: remaining, activeTabId: nextActive, maximizedPaneId: null };
+      }
+      const res = removePaneNode(tab.root, paneId);
+      if (!res.node) return {};
+      const newActive = res.focusPaneId ?? collectPaneIds(res.node)[0];
+      return {
+        tabs: s.tabs.map((t) => {
+          if (t.id !== tab.id) return t;
+          const paneMeta = { ...t.paneMeta };
+          delete paneMeta[paneId];
+          return { ...t, root: res.node!, activePaneId: newActive, paneMeta };
+        }),
+        maximizedPaneId: null,
+      };
+    });
+  },
+
+  isDetaching: (paneId) => detaching.has(paneId),
 
   setSplitSizes: (tabId, path, sizes) => {
     set((s) => ({

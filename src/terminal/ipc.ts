@@ -24,7 +24,7 @@ interface PtyHandle {
   ptyId: number;
 }
 
-type OutputSink = (data: Uint8Array | string) => void;
+export type OutputSink = (data: Uint8Array | string) => void;
 
 /**
  * Single IPC boundary between the UI and the PTY backend. Outside the Tauri
@@ -62,6 +62,16 @@ export function ptyClose(ptyId: number): void {
   } else {
     mockSessions.delete(ptyId);
   }
+}
+
+/**
+ * Take over an existing PTY session's output stream (detached pane window).
+ * The session is not respawned; the previous window stops receiving output.
+ */
+export function ptyAttach(ptyId: number, onOutput: OutputSink): void {
+  if (!isTauri) return;
+  const channel = new Channel<unknown>((raw) => onOutput(normalizeChunk(raw)));
+  invoke("pty_attach", { ptyId, onOutput: channel }).catch(() => {});
 }
 
 /** Subscribes to backend PTY exit events; noop outside Tauri. */

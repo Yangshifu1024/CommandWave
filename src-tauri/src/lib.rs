@@ -19,6 +19,7 @@ pub fn run() {
             commands::pty_write,
             commands::pty_resize,
             commands::pty_close,
+            commands::pty_attach,
             commands::settings_load,
             commands::settings_save,
             commands::show_main_window,

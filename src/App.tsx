@@ -16,6 +16,8 @@ import { useAppStore } from "./store/appStore";
 import { appearanceDefaults, useSettingsStore } from "./store/settingsStore";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { setHomeDir } from "./terminal/paneTitle";
+import { detachedPane } from "./terminal/detachedWindow";
+import { TerminalPane } from "./terminal/TerminalPane";
 import { exitCopyMode } from "./terminal/copyModeController";
 import { parseSnapshot, serializeSession } from "./layout/snapshot";
 import { resolveBackdrop } from "./terminal/backdrop";
@@ -24,7 +26,48 @@ import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
 
+/** Detached-pane window: a single pane hosted outside the main window. */
+function DetachedPaneWindow() {
+  const info = detachedPane!;
+  const settingsLoaded = useSettingsStore((s) => s.loaded);
+  useEffect(() => {
+    useSettingsStore.getState().load();
+  }, []);
+  useEffect(() => {
+    if (settingsLoaded) invoke("show_main_window").catch(() => {});
+  }, [settingsLoaded]);
+  const profile = useSettingsStore((s) =>
+    s.settings.profiles.find((p) => p.id === info.profileId),
+  );
+  return (
+    <div className="app">
+      <TitleBar />
+      <div className="app-body">
+        <div className="main">
+          <div className="content">
+            <div className="tab-layer tab-layer-active">
+              <div className="pane pane-active">
+                <TerminalPane
+                  paneId={info.paneId}
+                  cwd={info.cwd}
+                  shell={info.shell}
+                  profileId={profile?.id ?? null}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  // A detached pane window renders one pane and nothing else.
+  return detachedPane ? <DetachedPaneWindow /> : <MainApp />;
+}
+
+function MainApp() {
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
   const tabBarPosition = useAppStore((s) => s.tabBarPosition);

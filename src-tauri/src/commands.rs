@@ -75,6 +75,25 @@ pub fn rebuild_menu(app: AppHandle, keybindings: std::collections::HashMap<Strin
     crate::menu::setup(&app, &keybindings).map_err(|e| e.to_string())
 }
 
+/// Hand an existing PTY session's output to a new window (pane detach).
+/// Replaces the previous channel: only the new webview receives output.
+#[tauri::command]
+pub fn pty_attach(
+    state: State<PtyManager>,
+    pty_id: u32,
+    on_output: Channel<Vec<u8>>,
+) -> Result<(), String> {
+    state
+        .sessions
+        .lock()
+        .unwrap()
+        .get(&pty_id)
+        .ok_or_else(|| format!("pty {pty_id} not found"))?
+        .router
+        .replace(on_output);
+    Ok(())
+}
+
 /// Open a file with the user's editor command ("code {file}" etc.).
 #[tauri::command]
 pub fn open_with_editor(editor_command: String, file: String) -> Result<(), String> {

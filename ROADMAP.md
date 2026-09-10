@@ -55,7 +55,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | Broadcast 输入 | ✅ | 全部 pane 同步输入 + 视觉横幅 |
 | Arrangements | ✅ | 命名保存/恢复窗口布局（Settings → Session） |
 | 会话恢复 | ✅ | 布局自动保存，启动时恢复（pane id 重映射，快照模块带测试） |
-| 拖出 pane 成新窗口 | ⬜ | 暂缓（需要多窗口 Tauri 支持） |
+| 拖出 pane 成新窗口 | ✅ | 右键/Shell 菜单 "Move Pane to New Window"：Rust 侧 Session 持有可替换的输出路由（pty_attach），子窗口以 ?detach= 参数只渲染被迁移的 pane，原窗口移除 pane 但不杀 PTY。注意：回滚缓冲不随迁移（新窗口从 attach 时刻接收输出） |
 | Exposé 总览 | ⚠️ | 简化为列表式 pane 选择器（⇧⌘E），无缩略图渲染 |
 | 标签固定 / 命名 | ✅ | ⌘I 重命名、🔒 锁定防误关 |
 

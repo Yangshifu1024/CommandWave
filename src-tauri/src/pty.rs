@@ -21,6 +21,38 @@ pub struct Session {
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     child: Mutex<Box<dyn Child + Send + Sync>>,
     closed: AtomicBool,
+    /// Output fan-out: normally one channel (the creating webview); a
+    /// detached pane replaces it so a new window takes over the stream.
+    pub router: OutputRouter,
+}
+
+/// Broadcasts PTY output to the registered channels, dropping dead ones
+/// (a closed window's channel fails on send).
+pub struct OutputRouter {
+    channels: Mutex<Vec<Channel<Vec<u8>>>>,
+}
+
+impl OutputRouter {
+    fn new(initial: Channel<Vec<u8>>) -> Self {
+        Self {
+            channels: Mutex::new(vec![initial]),
+        }
+    }
+
+    fn broadcast(&self, chunk: Vec<u8>) {
+        let mut channels = self.channels.lock().unwrap();
+        if channels.len() == 1 {
+            let _ = channels[0].send(chunk);
+            return;
+        }
+        channels.retain(|c| c.send(chunk.clone()).is_ok());
+    }
+
+    /// Replace all channels with a single new one (pane moved windows).
+    pub fn replace(&self, channel: Channel<Vec<u8>>) {
+        self.channels.lock().unwrap().clear();
+        self.channels.lock().unwrap().push(channel);
+    }
 }
 
 impl Session {
@@ -160,6 +192,7 @@ pub fn spawn_session(
         killer: Mutex::new(killer),
         child: Mutex::new(child),
         closed: AtomicBool::new(false),
+        router: OutputRouter::new(on_output),
     });
     manager
         .sessions
@@ -170,7 +203,7 @@ pub fn spawn_session(
     // Session log: tee all PTY output to a file when auto-log is enabled.
     let log_file = logging_file_for(&app, id);
 
-    spawn_output_forwarder(reader, on_output, session, app, log_file);
+    spawn_output_forwarder(reader, session, app, log_file);
     Ok(PtyCreated { pty_id: id })
 }
 
@@ -204,7 +237,6 @@ fn logging_file_for(app: &AppHandle, session_id: u32) -> Option<std::fs::File> {
 /// early (64KB) to bound memory and keep the IPC stream flowing.
 fn spawn_output_forwarder(
     mut reader: Box<dyn Read + Send>,
-    on_output: Channel<Vec<u8>>,
     session: Arc<Session>,
     app: AppHandle,
     mut log_file: Option<std::fs::File>,
@@ -216,20 +248,17 @@ fn spawn_output_forwarder(
         {
             let pending = pending.clone();
             let session = session.clone();
-            let on_output = on_output.clone();
             std::thread::spawn(move || {
                 while !session.is_closed() {
                     std::thread::sleep(Duration::from_millis(8));
                     let chunk = std::mem::take(&mut *pending.lock().unwrap());
                     if !chunk.is_empty() {
-                        if on_output.send(chunk).is_err() {
-                            break;
-                        }
+                        session.router.broadcast(chunk);
                     }
                 }
                 let chunk = std::mem::take(&mut *pending.lock().unwrap());
                 if !chunk.is_empty() {
-                    let _ = on_output.send(chunk);
+                    session.router.broadcast(chunk);
                 }
             });
         }
@@ -247,9 +276,7 @@ fn spawn_output_forwarder(
                     if p.len() > 64 * 1024 {
                         let chunk = std::mem::take(&mut *p);
                         drop(p);
-                        if on_output.send(chunk).is_err() {
-                            break;
-                        }
+                        session.router.broadcast(chunk);
                     }
                 }
                 Err(_) => break,

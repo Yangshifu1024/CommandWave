@@ -21,6 +21,7 @@ import { resolveBackdrop } from "./backdrop";
 import { parseOsc1337File, type OscImage } from "./oscImages";
 import { decodeSixel, type SixelImage } from "./sixel";
 import { captureReplay, clearReplay } from "./instantReplay";
+import { detachedPane } from "./detachedWindow";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
 import { resolveTheme, withAlpha } from "./themes";
@@ -33,7 +34,7 @@ function lastSegment(cwd: string | null): string | null {
   return seg ?? trimmed;
 }
 import { terminalManager } from "./manager";
-import { notifyCommandFinished, onPtyExit, openExternal, openWithEditor, ptyClose, ptyResize, ptyWrite, sendNotification, setProgress, spawnPty } from "./ipc";
+import { notifyCommandFinished, onPtyExit, openExternal, openWithEditor, ptyAttach, ptyClose, ptyResize, ptyWrite, sendNotification, setProgress, spawnPty, type OutputSink } from "./ipc";
 import { parseFileLink } from "./fileLinks";
 
 /** Short beep via WebAudio (trigger "sound" action). */
@@ -626,21 +627,32 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       // ignore first-fit failures
     }
 
-    spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null, useStarship: profile?.useStarship ?? null }, (data) => {
-      term.write(data);
-      handleTriggerChunk(data);
-    })
-      .then((handle) => {
-        if (disposed) {
-          ptyClose(handle.ptyId);
-          return;
-        }
-        entry.ptyId = handle.ptyId;
-        entry.doFit(); // size may have changed while the shell was starting
+    // Detached pane window: take over the existing PTY stream instead of
+    // spawning a fresh shell; the originating window already gave it up.
+    if (detachedPane && detachedPane.paneId === paneId) {
+      entry.ptyId = detachedPane.ptyId;
+      const sink: OutputSink = (data) => {
+        term.write(data);
+        handleTriggerChunk(data);
+      };
+      ptyAttach(detachedPane.ptyId, sink);
+    } else {
+      spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null, useStarship: profile?.useStarship ?? null }, (data) => {
+        term.write(data);
+        handleTriggerChunk(data);
       })
-      .catch((err) => {
-        term.write(`\r\n\x1b[31mFailed to start shell: ${err}\x1b[0m\r\n`);
-      });
+        .then((handle) => {
+          if (disposed) {
+            ptyClose(handle.ptyId);
+            return;
+          }
+          entry.ptyId = handle.ptyId;
+          entry.doFit(); // size may have changed while the shell was starting
+        })
+        .catch((err) => {
+          term.write(`\r\n\x1b[31mFailed to start shell: ${err}\x1b[0m\r\n`);
+        });
+    }
 
     onPtyExit((ptyId, exitCode) => {
       if (ptyId !== entry.ptyId) return;
@@ -661,7 +673,10 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
         useAppStore.setState({ copyModePane: null });
       }
       unlistenExit?.();
-      if (entry.ptyId !== null) ptyClose(entry.ptyId);
+      // Panes moved to another window keep their PTY alive.
+      if (entry.ptyId !== null && !useAppStore.getState().isDetaching(paneId)) {
+        ptyClose(entry.ptyId);
+      }
       terminalManager.dispose(paneId);
       clearReplay(paneId);
     };

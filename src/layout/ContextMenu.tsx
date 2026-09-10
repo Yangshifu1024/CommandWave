@@ -68,6 +68,9 @@ export function ContextMenu() {
         { label: "Split Pane Right", action: "split-right" },
         { label: "Split Pane Down", action: "split-down" },
         { sep: true },
+        { label: "Maximize Pane", action: "toggle-maximize-pane" },
+        { label: "Move Pane to New Window", action: "detach-pane" },
+        { sep: true },
         { label: "Close Pane", action: "close-pane" },
       ];
 
