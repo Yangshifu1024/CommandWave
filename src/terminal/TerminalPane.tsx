@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Terminal } from "@xterm/xterm";
+import type { ILink } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -28,7 +29,8 @@ function lastSegment(cwd: string | null): string | null {
   return seg ?? trimmed;
 }
 import { terminalManager } from "./manager";
-import { notifyCommandFinished, onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, sendNotification, spawnPty } from "./ipc";
+import { notifyCommandFinished, onPtyExit, openExternal, openWithEditor, ptyClose, ptyResize, ptyWrite, sendNotification, setProgress, spawnPty } from "./ipc";
+import { parseFileLink } from "./fileLinks";
 
 /** Short beep via WebAudio (trigger "sound" action). */
 let audioCtx: AudioContext | null = null;
@@ -175,6 +177,46 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
 
     // Clickable links open with the system handler.
     term.loadAddon(new WebLinksAddon((_event, uri) => void openExternal(uri)));
+
+    // File paths (optionally :line:col) open with the configured editor.
+    const FILE_LINK_RE = /(?:[A-Za-z]:)?(?:[~/.\w-]+[/\\]){1,}[\w.+-]+(?::\d+(?::\d+)?)?/g;
+    const openFileLink = (linkText: string) => {
+      const link = parseFileLink(linkText);
+      if (!link) return;
+      const settings = useSettingsStore.getState().settings;
+      const editor = settings.editorCommand?.trim();
+      if (editor) {
+        const target = link.line !== null ? `${link.path}:${link.line}` : link.path;
+        openWithEditor(editor, target);
+      } else {
+        void openExternal(link.path);
+      }
+    };
+    term.registerLinkProvider({
+      provideLinks: (lineNumber, callback) => {
+        const line = term.buffer.active.getLine(lineNumber - 1);
+        if (!line) {
+          callback([]);
+          return;
+        }
+        const text = line.translateToString(true);
+        const links: ILink[] = [];
+        FILE_LINK_RE.lastIndex = 0;
+        let m: RegExpExecArray | null;
+        while ((m = FILE_LINK_RE.exec(text))) {
+          if (parseFileLink(m[0]) === null) continue;
+          const start = m.index;
+          const end = start + m[0].length - 1;
+          const linkText = m[0];
+          links.push({
+            range: { start: { x: start, y: lineNumber - 1 }, end: { x: end, y: lineNumber - 1 } },
+            text: linkText,
+            activate: (_e: MouseEvent, text: string) => openFileLink(text),
+          });
+        }
+        callback(links);
+      },
+    });
 
     // Prefer the GPU renderer; fall back silently where WebGL is unavailable.
     try {
@@ -416,6 +458,11 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
         const cwd = parseOscCwd(data.slice(2));
         if (cwd) useAppStore.getState().onPaneCwd(paneId, cwd);
       }
+      // ConEmu-style progress (OSC 9;4;progress[;state]) → taskbar.
+      const progress = /^9;4;(\d+(?:\.\d+)?)(?:;.*)?$/.exec(data);
+      if (progress) {
+        setProgress(Number.parseFloat(progress[1]));
+      }
       return false;
     });
 
@@ -502,7 +549,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       // ignore first-fit failures
     }
 
-    spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null }, (data) => {
+    spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null, useStarship: profile?.useStarship ?? null }, (data) => {
       term.write(data);
       handleTriggerChunk(data);
     })

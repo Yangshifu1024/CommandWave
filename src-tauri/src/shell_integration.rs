@@ -37,6 +37,11 @@ if [[ $TERM_PROGRAM == "CommandWave" && -z $CW_SHELL_INTEGRATION ]]; then
     builtin printf '\e]133;A\a'
     builtin printf '\e]7;file://%s%s\a' "$HOST" "$PWD"
   }
+  # Optional starship prompt (profile option; idempotent across nested shells).
+  if [[ $CW_USE_STARSHIP == 1 && -z $CW_STARSHIP_INITED ]] && command -v starship >/dev/null 2>&1; then
+    export CW_STARSHIP_INITED=1
+    eval "$(starship init zsh)"
+  fi
   __commandwave_preexec() {
     builtin printf '\e]133;C\a'
   }

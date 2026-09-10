@@ -12,6 +12,8 @@ export interface PtySpawnOptions {
   shell: string | null;
   /** extra environment variables ("KEY=VALUE") */
   env: string[] | null;
+  /** enable starship prompt auto-init for this pane */
+  useStarship: boolean | null;
 }
 
 interface PtyCreated {
@@ -151,6 +153,60 @@ export async function sendNotification(title: string, body: string): Promise<voi
   } catch {
     // notification plugin unavailable — silently skip
   }
+}
+
+/** Open a file with the configured editor command ("code {file}"). */
+export function openWithEditor(editorCommand: string, file: string): void {
+  if (!isTauri) return;
+  invoke("open_with_editor", { editorCommand, file }).catch(() => {});
+}
+
+/** Show terminal progress (OSC 9;4) on the taskbar. */
+export function setProgress(value: number | null): void {
+  if (!isTauri) return;
+  invoke("set_progress", { value }).catch(() => {});
+}
+
+export interface SystemStats {
+  cpuPercent: number;
+  usedMemMb: number;
+  totalMemMb: number;
+}
+
+/** CPU / RAM readout (tab-strip status). */
+export async function systemStats(): Promise<SystemStats | null> {
+  if (!isTauri) return null;
+  try {
+    return await invoke<SystemStats>("system_stats");
+  } catch {
+    return null;
+  }
+}
+
+export interface SshHost {
+  host: string;
+  hostname: string | null;
+  user: string | null;
+}
+
+export function sshHosts(): Promise<SshHost[]> {
+  if (!isTauri) return Promise.resolve([]);
+  return invoke<SshHost[]>("ssh_hosts").catch(() => []);
+}
+
+export function starshipDetect(): Promise<string | null> {
+  if (!isTauri) return Promise.resolve(null);
+  return invoke<string | null>("starship_detect").catch(() => null);
+}
+
+export function starshipPresets(): Promise<string[]> {
+  if (!isTauri) return Promise.resolve([]);
+  return invoke<string[]>("starship_presets").catch(() => []);
+}
+
+export function starshipApplyPreset(name: string): Promise<string | null> {
+  if (!isTauri) return Promise.resolve(null);
+  return invoke<string | null>("starship_apply_preset", { name }).catch(() => null);
 }
 
 // ---------- browser mock ----------

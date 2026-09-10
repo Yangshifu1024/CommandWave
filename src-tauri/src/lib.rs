@@ -3,6 +3,8 @@ mod menu;
 mod pty;
 mod settings;
 mod shell_integration;
+mod ssh;
+mod starship;
 mod state;
 
 use state::PtyManager;
@@ -20,7 +22,14 @@ pub fn run() {
             commands::settings_load,
             commands::settings_save,
             commands::show_main_window,
-            commands::rebuild_menu
+            commands::rebuild_menu,
+            commands::open_with_editor,
+            commands::set_progress,
+            commands::system_stats,
+            commands::ssh_hosts,
+            commands::starship_detect,
+            commands::starship_presets,
+            commands::starship_apply_preset
         ])
         .setup(|app| {
             // Build the native menu with the persisted keybindings; a failed

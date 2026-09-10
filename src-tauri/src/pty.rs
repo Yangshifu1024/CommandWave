@@ -63,6 +63,8 @@ pub struct PtyCreateOptions {
     pub args: Option<Vec<String>>,
     /// extra environment variables ("KEY=VALUE")
     pub env: Option<Vec<String>>,
+    /// enable starship prompt auto-init for this pane
+    pub use_starship: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -122,6 +124,10 @@ pub fn spawn_session(
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("TERM_PROGRAM", "CommandWave");
+    if options.use_starship == Some(true) {
+        // Consumed by the injected zsh integration; harmless elsewhere.
+        cmd.env("CW_USE_STARSHIP", "1");
+    }
     for pair in options.env.unwrap_or_default() {
         if let Some((key, value)) = pair.split_once('=') {
             if !key.is_empty() {

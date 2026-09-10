@@ -1445,3 +1445,21 @@ body {
 }
 
 .autocomplete button:hover { background: var(--bg-raised); }
+
+/* ---------- Phase 6: sys stats & presets ---------- */
+
+.sys-stats {
+  font-size: 10px;
+  color: var(--fg-dim);
+  padding: 2px 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}

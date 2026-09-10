@@ -26,6 +26,8 @@ pub struct Profile {
     pub background_opacity: Option<f64>,
     /// extra environment variables ("KEY=VALUE")
     pub env: Option<Vec<String>>,
+    /// auto-init the starship prompt (zsh via ZDOTDIR chain)
+    pub use_starship: Option<bool>,
 }
 
 impl Default for Profile {
@@ -48,6 +50,7 @@ impl Default for Profile {
             custom_colors: None,
             background_opacity: None,
             env: None,
+            use_starship: None,
         }
     }
 }
@@ -144,6 +147,8 @@ pub struct Settings {
     pub arrangements: std::collections::HashMap<String, String>,
     /// Last session snapshot, autosaved for restore-on-launch.
     pub session: Option<String>,
+    /// Editor command for ⌘/Ctrl-click file links, e.g. "code {file}".
+    pub editor_command: Option<String>,
     /// actionId -> accelerator overrides; missing entries use menu defaults.
     pub keybindings: std::collections::HashMap<String, String>,
 }
@@ -168,6 +173,7 @@ impl Default for Settings {
             auto_log: AutoLogSettings::default(),
             arrangements: std::collections::HashMap::new(),
             session: None,
+            editor_command: None,
             keybindings: std::collections::HashMap::new(),
         }
     }

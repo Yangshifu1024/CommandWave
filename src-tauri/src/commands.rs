@@ -74,3 +74,94 @@ pub fn show_main_window(app: AppHandle) -> Result<(), String> {
 pub fn rebuild_menu(app: AppHandle, keybindings: std::collections::HashMap<String, String>) -> Result<(), String> {
     crate::menu::setup(&app, &keybindings).map_err(|e| e.to_string())
 }
+
+/// Open a file with the user's editor command ("code {file}" etc.).
+#[tauri::command]
+pub fn open_with_editor(editor_command: String, file: String) -> Result<(), String> {
+    let mut parts = editor_command
+        .replace("{file}", &file)
+        .split_whitespace()
+        .map(String::from)
+        .collect::<Vec<_>>();
+    if parts.is_empty() {
+        return Err("empty editor command".into());
+    }
+    let program = parts.remove(0);
+    std::process::Command::new(program)
+        .args(&parts)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+/// Show a progress value (0–100) on the taskbar/dock; None clears it.
+/// OSC 9;4 from the terminal feeds this. Windows taskbar only for now.
+#[tauri::command]
+pub fn set_progress(app: AppHandle, value: Option<f64>) -> Result<(), String> {
+    use tauri::Manager;
+    let Some(window) = app.get_webview_window("main") else {
+        return Ok(());
+    };
+    let state = match value {
+        Some(v) => {
+            let v = v.clamp(0.0, 100.0) as u64;
+            tauri::window::ProgressBarState {
+                status: Some(tauri::window::ProgressBarStatus::Normal),
+                progress: Some(v),
+            }
+        }
+        None => tauri::window::ProgressBarState {
+            status: Some(tauri::window::ProgressBarStatus::None),
+            progress: None,
+        },
+    };
+    window.set_progress_bar(state).map_err(|e| e.to_string())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemStats {
+    pub cpu_percent: f32,
+    pub used_mem_mb: f64,
+    pub total_mem_mb: f64,
+}
+
+/// CPU/RAM readout for the tab-strip status line. The first call after
+/// startup reports 0% CPU (sysinfo needs two refresh cycles).
+#[tauri::command]
+pub fn system_stats() -> SystemStats {
+    use std::sync::Mutex;
+    use sysinfo::System;
+    static SYS: Mutex<Option<System>> = Mutex::new(None);
+    let mut guard = SYS.lock().unwrap();
+    let sys = guard.get_or_insert_with(System::new);
+    sys.refresh_cpu_usage();
+    sys.refresh_memory();
+    SystemStats {
+        cpu_percent: sys.global_cpu_usage(),
+        used_mem_mb: sys.used_memory() as f64 / 1024.0 / 1024.0,
+        total_mem_mb: sys.total_memory() as f64 / 1024.0 / 1024.0,
+    }
+}
+
+/// Hosts parsed from ~/.ssh/config (for SSH profile import).
+#[tauri::command]
+pub fn ssh_hosts() -> Vec<crate::ssh::SshHost> {
+    crate::ssh::load_hosts()
+}
+
+/// Starship version string, or None when not installed.
+#[tauri::command]
+pub fn starship_detect() -> Option<String> {
+    crate::starship::detect()
+}
+
+#[tauri::command]
+pub fn starship_presets() -> Vec<String> {
+    crate::starship::presets()
+}
+
+#[tauri::command]
+pub fn starship_apply_preset(name: String) -> Result<String, String> {
+    crate::starship::apply_preset(&name)
+}

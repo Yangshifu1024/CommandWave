@@ -11,6 +11,7 @@ import { parseItermColors } from "../terminal/itermColors";
 import { KeyboardSection } from "./KeyboardSection";
 import { AutomationSection } from "./AutomationSection";
 import { SessionSection } from "./SessionSection";
+import { IntegrationsSection } from "./IntegrationsSection";
 
 /**
  * Settings dialog with a profile manager: list on the left, editor on the
@@ -343,6 +344,15 @@ export function SettingsDialog() {
                 </label>
               </div>
 
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={selected?.useStarship ?? false}
+                  onChange={(e) => setProfile({ useStarship: e.target.value === "true" ? true : e.target.checked })}
+                />
+                <span>Starship prompt — auto-init starship for zsh panes of this profile</span>
+              </label>
+
               <CustomColorsEditor
                 overrides={selected?.customColors ?? null}
                 themeName={selected?.themeName ?? appearanceDefaults.themeName}
@@ -371,6 +381,7 @@ export function SettingsDialog() {
 
             <AutomationSection />
             <SessionSection />
+            <IntegrationsSection />
             <KeyboardSection />
           </div>
         </div>

@@ -29,6 +29,8 @@ export interface Profile {
   backgroundOpacity: number | null;
   /** extra environment variables ("KEY=VALUE") */
   env: string[] | null;
+  /** auto-init the starship prompt (zsh) */
+  useStarship: boolean | null;
 }
 
 export interface UiSettings {
@@ -88,6 +90,8 @@ export interface Settings {
   arrangements: Record<string, string>;
   /** Last session snapshot (autosaved) for restore-on-launch. */
   session: string | null;
+  /** Editor command for ⌘/Ctrl-click file links, e.g. "code {file}". */
+  editorCommand: string | null;
   /** actionId -> Tauri accelerator ("" = no binding). */
   keybindings: Record<string, string>;
 }
@@ -113,6 +117,7 @@ export const defaultSettings: Settings = {
       customColors: null,
       backgroundOpacity: null,
       env: null,
+      useStarship: null,
     },
   ],
   defaultProfileId: "default",
@@ -132,6 +137,7 @@ export const defaultSettings: Settings = {
   autoLog: { enabled: false, directory: null },
   arrangements: {},
   session: null,
+  editorCommand: null,
   keybindings: defaultKeybindings,
 };
 
@@ -174,6 +180,7 @@ function blankProfile(base: Profile, name: string): Profile {
     customColors: base.customColors ? { ...base.customColors } : null,
     backgroundOpacity: base.backgroundOpacity,
     env: base.env ? [...base.env] : null,
+    useStarship: base.useStarship,
   };
 }
 
