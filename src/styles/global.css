@@ -961,7 +961,12 @@ body {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  z-index: 200;
+  z-index: 200;}
+
+/* Portal variant: rendered under document.body, fixed-positioned at the
+   caret so no overflow:auto ancestor can clip it or grow scrollbars. */
+.profile-flyout-fixed {
+  position: fixed;
   min-width: 200px;
   padding: 5px;
   background: var(--bg-panel);
