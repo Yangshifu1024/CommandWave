@@ -13,10 +13,28 @@ import {
 import { useAppStore } from "../store/appStore";
 import { parseOscCwd } from "./paneTitle";
 import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
+import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
 import { parseOsc133 } from "./paneMarks";
 import { getTheme } from "./themes";
 import { terminalManager } from "./manager";
-import { notifyCommandFinished, onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, spawnPty } from "./ipc";
+import { notifyCommandFinished, onPtyExit, openExternal, ptyClose, ptyResize, ptyWrite, sendNotification, spawnPty } from "./ipc";
+
+/** Short beep via WebAudio (trigger "sound" action). */
+let audioCtx: AudioContext | null = null;
+function playBeep(): void {
+  try {
+    audioCtx ??= new AudioContext();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.value = 0.08;
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.12);
+  } catch {
+    // audio unavailable — silent
+  }
+}
 
 interface TerminalPaneProps {
   paneId: string;
@@ -218,6 +236,50 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       }
     });
 
+    // Triggers & auto-answers: accumulate printed text into lines and match
+    // them against the user's trigger list (invalid regexes are skipped).
+    let triggerBuf = "";
+    const decoder = new TextDecoder();
+    const evaluateLine = (rawLine: string) => {
+      const line = stripAnsi(rawLine);
+      if (!line.trim()) return;
+      const settings = useSettingsStore.getState().settings;
+      for (const hit of matchTriggers(line, compileTriggers(settings.triggers))) {
+        const { action, param } = hit.def;
+        if (action === "highlight") {
+          try {
+            const marker = term.registerMarker(-1);
+            if (marker && marker.line >= 0) {
+              const deco = term.registerDecoration({
+                marker,
+                backgroundColor: param || "rgba(224, 200, 80, 0.35)",
+                layer: "top",
+              });
+              if (!deco) marker.dispose();
+            }
+          } catch {
+            // decoration API unavailable
+          }
+        } else if (action === "notify") {
+          void sendNotification(param || "Trigger fired", line.slice(0, 120));
+        } else if (action === "sound") {
+          playBeep();
+        } else if (action === "send-text" && entry.ptyId !== null) {
+          ptyWrite(entry.ptyId, param ?? "");
+        }
+      }
+      const answer = matchAutoAnswer(line, settings.autoAnswers);
+      if (answer && entry.ptyId !== null) {
+        ptyWrite(entry.ptyId, `${answer.reply}\r`);
+      }
+    };
+    const handleTriggerChunk = (chunk: Uint8Array | string) => {
+      const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
+      const { lines, rest } = feedLines(triggerBuf, text);
+      triggerBuf = rest;
+      for (const line of lines) evaluateLine(line);
+    };
+
     term.onTitleChange((title) => {
       useAppStore.getState().onPaneTitle(paneId, title);
     });
@@ -295,6 +357,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
 
     spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null }, (data) => {
       term.write(data);
+      handleTriggerChunk(data);
     })
       .then((handle) => {
         if (disposed) {

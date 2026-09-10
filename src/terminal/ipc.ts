@@ -135,6 +135,22 @@ export async function notifyCommandFinished(
   }
 }
 
+/** Generic OS notification (trigger notifications etc.). */
+export async function sendNotification(title: string, body: string): Promise<void> {
+  if (!isTauri) return;
+  try {
+    const mod = await import("@tauri-apps/plugin-notification");
+    let granted = await mod.isPermissionGranted();
+    if (!granted) {
+      granted = (await mod.requestPermission()) === "granted";
+    }
+    if (!granted) return;
+    mod.sendNotification({ title, body });
+  } catch {
+    // notification plugin unavailable — silently skip
+  }
+}
+
 // ---------- browser mock ----------
 
 const mockSessions = new Map<number, OutputSink>();

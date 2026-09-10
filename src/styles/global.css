@@ -1149,3 +1149,63 @@ body {
   border-color: var(--accent);
   color: #fff;
 }
+
+/* ---------- Automation (triggers) ---------- */
+
+.section-hint {
+  margin: 2px 0 10px;
+  font-size: 11px;
+  color: var(--fg-dim);
+  line-height: 1.5;
+}
+
+.trigger-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.trigger-row .trigger-regex {
+  flex: 1 1 30%;
+  min-width: 100px;
+}
+
+.trigger-row .trigger-param {
+  flex: 1 1 30%;
+  min-width: 100px;
+}
+
+.trigger-row select {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 3px 5px;
+}
+
+.trigger-case {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+
+.settings-add-btn {
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px dashed var(--border);
+  background: none;
+  color: var(--fg-dim);
+  cursor: pointer;
+}
+
+.settings-add-btn:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}

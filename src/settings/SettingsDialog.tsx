@@ -8,6 +8,7 @@ import {
 } from "../store/settingsStore";
 import { themes } from "../terminal/themes";
 import { KeyboardSection } from "./KeyboardSection";
+import { AutomationSection } from "./AutomationSection";
 
 /**
  * Settings dialog with a profile manager: list on the left, editor on the
@@ -242,6 +243,7 @@ export function SettingsDialog() {
               </label>
             </section>
 
+            <AutomationSection />
             <KeyboardSection />
           </div>
         </div>

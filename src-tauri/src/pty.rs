@@ -152,8 +152,35 @@ pub fn spawn_session(
         .unwrap()
         .insert(id, session.clone());
 
-    spawn_output_forwarder(reader, on_output, session, app);
+    // Session log: tee all PTY output to a file when auto-log is enabled.
+    let log_file = logging_file_for(&app, id);
+
+    spawn_output_forwarder(reader, on_output, session, app, log_file);
     Ok(PtyCreated { pty_id: id })
+}
+
+/// Open the per-session log file (auto-log disabled → None). Fresh name per
+/// session so restarts never append across sessions.
+fn logging_file_for(app: &AppHandle, session_id: u32) -> Option<std::fs::File> {
+    let settings = crate::settings::load(app).ok()?;
+    if !settings.auto_log.enabled {
+        return None;
+    }
+    let dir = match settings.auto_log.directory {
+        Some(d) if !d.is_empty() => std::path::PathBuf::from(d),
+        _ => app.path().app_log_dir().ok()?,
+    };
+    std::fs::create_dir_all(&dir).ok()?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let path = dir.join(format!("commandwave-{session_id}-{now}.log"));
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .ok()
 }
 
 /// Reads PTY output on a dedicated thread and forwards it to the frontend
@@ -165,6 +192,7 @@ fn spawn_output_forwarder(
     on_output: Channel<Vec<u8>>,
     session: Arc<Session>,
     app: AppHandle,
+    mut log_file: Option<std::fs::File>,
 ) {
     std::thread::spawn(move || {
         let pending = Arc::new(Mutex::new(Vec::<u8>::new()));
@@ -196,6 +224,9 @@ fn spawn_output_forwarder(
             match reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
+                    if let Some(f) = log_file.as_mut() {
+                        let _ = f.write_all(&buf[..n]);
+                    }
                     let mut p = pending.lock().unwrap();
                     p.extend_from_slice(&buf[..n]);
                     if p.len() > 64 * 1024 {

@@ -29,12 +29,41 @@ export interface NotificationSettings {
   pasteWarning: boolean;
 }
 
+/** iTerm2-style trigger: regex over printed lines firing an action. */
+export interface Trigger {
+  id: string;
+  regex: string;
+  caseSensitive: boolean;
+  /** highlight | notify | sound | send-text */
+  action: "highlight" | "notify" | "sound" | "send-text";
+  /** color (highlight) | message (notify) | text (send-text) */
+  param: string | null;
+  enabled: boolean;
+}
+
+/** Auto answer: regex over printed lines that gets an instant reply. */
+export interface AutoAnswer {
+  pattern: string;
+  reply: string;
+  enabled: boolean;
+}
+
+export interface AutoLogSettings {
+  /** Tee all PTY output of new sessions to log files. */
+  enabled: boolean;
+  /** Directory for logs; null = app log dir. */
+  directory: string | null;
+}
+
 export interface Settings {
   version: number;
   profiles: Profile[];
   defaultProfileId: string;
   ui: UiSettings;
   notifications: NotificationSettings;
+  triggers: Trigger[];
+  autoAnswers: AutoAnswer[];
+  autoLog: AutoLogSettings;
   /** actionId -> Tauri accelerator ("" = no binding). */
   keybindings: Record<string, string>;
 }
@@ -56,6 +85,18 @@ export const defaultSettings: Settings = {
   defaultProfileId: "default",
   ui: { tabBarPosition: "top", sidebarWidth: 180, fontSizeDelta: 0 },
   notifications: { commandCompletion: true, pasteWarning: true },
+  triggers: [
+    {
+      id: "trigger-password",
+      regex: "(password|passphrase)\\s*[:：]\\s*$",
+      caseSensitive: false,
+      action: "notify",
+      param: "Password prompt detected",
+      enabled: true,
+    },
+  ],
+  autoAnswers: [],
+  autoLog: { enabled: false, directory: null },
   keybindings: defaultKeybindings,
 };
 
@@ -126,6 +167,9 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ...loaded,
           ui: { ...defaultSettings.ui, ...loaded.ui },
           notifications: { ...defaultSettings.notifications, ...loaded.notifications },
+          autoLog: { ...defaultSettings.autoLog, ...loaded.autoLog },
+          triggers: loaded.triggers ?? defaultSettings.triggers,
+          autoAnswers: loaded.autoAnswers ?? defaultSettings.autoAnswers,
           keybindings: { ...defaultSettings.keybindings, ...loaded.keybindings },
         },
         loaded: true,

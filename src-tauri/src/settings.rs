@@ -69,6 +69,41 @@ impl Default for NotificationSettings {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Trigger {
+    pub id: String,
+    pub regex: String,
+    pub case_sensitive: bool,
+    /// highlight | notify | sound | send-text
+    pub action: String,
+    pub param: Option<String>,
+    pub enabled: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct AutoAnswer {
+    pub pattern: String,
+    pub reply: String,
+    pub enabled: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AutoLogSettings {
+    pub enabled: bool,
+    pub directory: Option<String>,
+}
+
+impl Default for AutoLogSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            directory: None,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -77,6 +112,9 @@ pub struct Settings {
     pub default_profile_id: String,
     pub ui: UiSettings,
     pub notifications: NotificationSettings,
+    pub triggers: Vec<Trigger>,
+    pub auto_answers: Vec<AutoAnswer>,
+    pub auto_log: AutoLogSettings,
     /// actionId -> accelerator overrides; missing entries use menu defaults.
     pub keybindings: std::collections::HashMap<String, String>,
 }
@@ -89,6 +127,16 @@ impl Default for Settings {
             default_profile_id: "default".to_string(),
             ui: UiSettings::default(),
             notifications: NotificationSettings::default(),
+            triggers: vec![Trigger {
+                id: "trigger-password".to_string(),
+                regex: "(password|passphrase)\\s*[:：]\\s*$".to_string(),
+                case_sensitive: false,
+                action: "notify".to_string(),
+                param: Some("Password prompt detected".to_string()),
+                enabled: true,
+            }],
+            auto_answers: vec![],
+            auto_log: AutoLogSettings::default(),
             keybindings: std::collections::HashMap::new(),
         }
     }
@@ -130,6 +178,7 @@ mod tests {
             ui: UiSettings {
                 tab_bar_position: "left".to_string(),
                 sidebar_width: 220,
+                font_size_delta: 2,
             },
             ..Default::default()
         };
@@ -145,6 +194,34 @@ mod tests {
         let back: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(back.ui.tab_bar_position, "top");
         assert_eq!(back.default_profile_id, "default");
+        assert_eq!(back.ui.font_size_delta, 0);
+        assert_eq!(back.auto_log.enabled, false);
+    }
+
+    #[test]
+    fn settings_roundtrip_triggers_and_answers() {
+        let settings = Settings {
+            triggers: vec![Trigger {
+                id: "t".into(),
+                regex: "error".into(),
+                case_sensitive: true,
+                action: "highlight".into(),
+                param: Some("#f00".into()),
+                enabled: true,
+            }],
+            auto_answers: vec![AutoAnswer {
+                pattern: r"sure\?".into(),
+                reply: "y".into(),
+                enabled: true,
+            }],
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&settings).unwrap();
+        let back: Settings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.triggers[0].regex, "error");
+        assert!(back.triggers[0].case_sensitive);
+        assert_eq!(back.auto_answers[0].reply, "y");
+        assert_eq!(back.auto_log.enabled, false);
     }
 
     #[test]
