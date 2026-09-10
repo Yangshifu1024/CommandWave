@@ -1,6 +1,8 @@
+mod api_server;
 mod commands;
 mod menu;
 mod pty;
+mod secrets;
 mod settings;
 mod shell_integration;
 mod ssh;
@@ -20,6 +22,9 @@ pub fn run() {
             commands::pty_resize,
             commands::pty_close,
             commands::pty_attach,
+            commands::secrets_list,
+            commands::secrets_upsert,
+            commands::secrets_delete,
             commands::settings_load,
             commands::settings_save,
             commands::show_main_window,
@@ -42,6 +47,10 @@ pub fn run() {
                 .map(|s| s.keybindings)
                 .unwrap_or_default();
             menu::setup(app.handle(), &keybindings)?;
+            // Local scripting API (loopback HTTP; port/token in api.json).
+            if let Err(e) = api_server::start(app.handle().clone()) {
+                eprintln!("api server failed to start: {e}");
+            }
             // Frameless window on Windows/Linux (custom title bar in the
             // webview); macOS keeps native chrome with an overlaid title.
             #[cfg(not(target_os = "macos"))]

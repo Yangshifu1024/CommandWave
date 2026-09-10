@@ -94,6 +94,30 @@ pub fn pty_attach(
     Ok(())
 }
 
+// ---------- Secrets vault (client-side encrypted blobs) ----------
+
+#[tauri::command]
+pub fn secrets_list(app: AppHandle) -> Vec<crate::secrets::SecretBlob> {
+    crate::secrets::load(&app).entries
+}
+
+#[tauri::command]
+pub fn secrets_upsert(app: AppHandle, entry: crate::secrets::SecretBlob) -> Result<(), String> {
+    let mut file = crate::secrets::load(&app);
+    match file.entries.iter().position(|e| e.name == entry.name) {
+        Some(i) => file.entries[i] = entry,
+        None => file.entries.push(entry),
+    }
+    crate::secrets::save(&app, &file).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn secrets_delete(app: AppHandle, name: String) -> Result<(), String> {
+    let mut file = crate::secrets::load(&app);
+    file.entries.retain(|e| e.name != name);
+    crate::secrets::save(&app, &file).map_err(|e| e.to_string())
+}
+
 /// Open a file with the user's editor command ("code {file}" etc.).
 #[tauri::command]
 pub fn open_with_editor(editor_command: String, file: String) -> Result<(), String> {

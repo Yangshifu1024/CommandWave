@@ -13,6 +13,7 @@ import { KeyboardSection } from "./KeyboardSection";
 import { AutomationSection } from "./AutomationSection";
 import { SessionSection } from "./SessionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
+import { SecretsSection } from "./SecretsSection";
 
 /**
  * Settings dialog with a profile manager: list on the left, editor on the
@@ -419,6 +420,7 @@ export function SettingsDialog() {
             <AutomationSection />
             <SessionSection />
             <IntegrationsSection />
+            <SecretsSection />
             <KeyboardSection />
           </div>
         </div>

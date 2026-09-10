@@ -4,11 +4,31 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn run_starship(args: &[&str]) -> Option<String> {
-    let output = Command::new("starship").args(args).output().ok()?;
+    let mut cmd = Command::new(bundled_starship().unwrap_or_else(|| "starship".into()));
+    cmd.args(args);
+    let output = cmd.output().ok()?;
     if !output.status.success() {
         return None;
     }
     Some(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Path to a starship binary bundled as an app resource (see
+/// scripts/fetch-starship.mjs), if present.
+fn bundled_starship() -> Option<PathBuf> {
+    // Resources live next to the app; resolving via the executable's
+    // directory keeps dev and bundle layouts working.
+    let exe = std::env::current_exe().ok()?;
+    let name = if cfg!(windows) { "starship.exe" } else { "starship" };
+    let mut dir = exe.parent()?;
+    for _ in 0..3 {
+        let candidate = dir.join("resources").join(name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        dir = dir.parent()?;
+    }
+    None
 }
 
 /// The starship binary version string, or None when not installed.

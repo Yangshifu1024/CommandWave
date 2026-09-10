@@ -75,11 +75,11 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | 功能 | 状态 | 说明 |
 |---|---|---|
 | ⌘点击文件路径 | ✅ | 识别路径（含 :line:col），用 settings.editorCommand（如 `code {file}`）打开 |
-| tmux 控制模式 | ⬜ | 暂缓（工程量大） |
-| Python API / 脚本化 | ⬜ | 暂缓 |
+| tmux 控制模式 | ⬜ | 暂缓：需完整实现 tmux 控制协议（%-expansion 解析 + pane 同步渲染），独立工程量级 |
+| Python API / 脚本化 | ⚠️ | 本地脚本 API：127.0.0.1 HTTP JSON（GET /panes、POST /write、POST /new-tab、GET /health），端口+token 写入 api.json 供 Python/curl 发现；非 iTerm2 式 in-process Python API |
 | CPU / 内存指示 | ✅ | 侧栏底部 CPU/RAM 百分比（sysinfo，3s 轮询） |
 | SSH 配置文件集成 | ✅ | 一键导入 ~/.ssh/config 生成 SSH profiles（Rust 解析器带测试） |
-| 密码 / API Key 管理器 | ⬜ | 暂缓（涉及安全设计） |
+| 密码 / API Key 管理器 | ⚠️ | 基础版：AES-GCM + PBKDF2(250k) 客户端加密 vault（Rust 仅存密文），主密码不落盘；触发器/自动回复 send-text 支持 {secret:name} 引用（引用解析带测试）；未做浏览器集成/自动填充 |
 | 进度条 escape 序列 | ✅ | OSC 9;4 → Windows 任务栏进度条 + macOS Dock 徽标数字 |
 | Instant Replay | ⚠️ | ⌥⌘B（Ctrl/Cmd+Alt+B）：每 pane 10 秒快照（10 分钟历史）+ 时间滑杆回放只读视图；非全缓冲时间旅行 |
 
@@ -90,7 +90,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；profile 级 ⌾starship 开关，zsh 经 ZDOTDIR 链自动 init；bash/fish/PowerShell 需手动（见 README） |
 | 官方 preset 画廊 | ✅ | preset 列表 + 一键写入 starship.toml |
 | starship.toml 图形化编辑器 | ⚠️ | 常用项（add_newline / command_timeout）图形控件 + 原始 TOML 编辑（纯 TOML 辅助函数带测试）；完整字段级编辑器暂缓 |
-| 内置分发 (sidecar) | ⬜ | 暂缓（包体 + 三平台二进制维护成本） |
+| 内置分发 (sidecar) | ⚠️ | scripts/fetch-starship.mjs 按平台下载 starship 到 resources 并注册 bundle 配置；运行时优先用捆绑二进制、回退 PATH。默认构建不强制依赖 |
 | OSC 133 兼容性测试 | ✅ | starship 只替换 PS1，precmd 钩子由我们注入，功能不受影响；单元测试覆盖标记解析 |
 
 ## 暂不做 / 需要论证
@@ -106,4 +106,4 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 - **M1（替代日常使用）**：✅ Phase 1 + 2 完成（图片以浮动托盘显示，非行内）
 - **M2（替代配置控）**：✅ Phase 3 完成（连字除外——渲染器限制）
 - **M3（替代重度用户）**：✅ Phase 4 + 5 完成（拖出 pane、缩略图 Exposé 除外）
-- **M4（生态对标）**：⚠️ Phase 6/6.5 主体完成，tmux/Python API/sidecar 暂缓
+- **M4（生态对标）**：⚠️ Phase 6/6.5 主体完成（脚本 API 为本地 HTTP；tmux 控制模式为唯一暂缓项）

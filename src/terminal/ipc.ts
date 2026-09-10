@@ -235,6 +235,30 @@ export function setWindowBlur(enabled: boolean): void {
   invoke("set_window_blur", { enabled }).catch(() => {});
 }
 
+// ---------- Secrets vault ----------
+
+export interface SecretBlob {
+  name: string;
+  salt: string;
+  iv: string;
+  data: string;
+}
+
+export function secretsList(): Promise<SecretBlob[]> {
+  if (!isTauri) return Promise.resolve([]);
+  return invoke<SecretBlob[]>("secrets_list").catch(() => []);
+}
+
+export function secretsUpsert(entry: SecretBlob): Promise<void> {
+  if (!isTauri) return Promise.resolve();
+  return invoke<void>("secrets_upsert", { entry }).catch(() => {});
+}
+
+export function secretsDelete(name: string): Promise<void> {
+  if (!isTauri) return Promise.resolve();
+  return invoke<void>("secrets_delete", { name }).catch(() => {});
+}
+
 // ---------- browser mock ----------
 
 const mockSessions = new Map<number, OutputSink>();

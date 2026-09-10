@@ -22,6 +22,8 @@ import { parseOsc1337File, type OscImage } from "./oscImages";
 import { decodeSixel, type SixelImage } from "./sixel";
 import { captureReplay, clearReplay } from "./instantReplay";
 import { detachedPane } from "./detachedWindow";
+import { decryptSecret, isUnlocked, resolveSecretRefs, secretRefs } from "./secrets";
+import { secretsList } from "./ipc";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
 import { resolveTheme, withAlpha } from "./themes";
@@ -351,6 +353,20 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     // them against the user's trigger list (invalid regexes are skipped).
     let triggerBuf = "";
     const decoder = new TextDecoder();
+    // Trigger/auto-answer payloads may reference vault secrets
+    // ({secret:name}); unresolved refs are sent verbatim.
+    const sendResolved = async (text: string): Promise<string> => {
+      if (!secretRefs(text).length) return text;
+      if (!isUnlocked()) return text;
+      try {
+        return await resolveSecretRefs(text, async (name) => {
+          const blob = (await secretsList()).find((e) => e.name === name);
+          return blob ? await decryptSecret(blob) : null;
+        });
+      } catch {
+        return text;
+      }
+    };
     const evaluateLine = (rawLine: string) => {
       const line = stripAnsi(rawLine);
       if (!line.trim()) return;
@@ -376,12 +392,12 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
         } else if (action === "sound") {
           playBeep();
         } else if (action === "send-text" && entry.ptyId !== null) {
-          ptyWrite(entry.ptyId, param ?? "");
+          void sendResolved(param ?? "").then((text) => ptyWrite(entry.ptyId!, text));
         }
       }
       const answer = matchAutoAnswer(line, settings.autoAnswers);
       if (answer && entry.ptyId !== null) {
-        ptyWrite(entry.ptyId, `${answer.reply}\r`);
+        void sendResolved(answer.reply).then((text) => ptyWrite(entry.ptyId!, `${text}\r`));
       }
     };
     const handleTriggerChunk = (chunk: Uint8Array | string) => {

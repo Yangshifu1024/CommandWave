@@ -177,6 +177,14 @@ function MainApp() {
     };
   }, []);
 
+  // Scripting API: POST /new-tab on the local HTTP API emits this event.
+  useEffect(() => {
+    if (!isTauri) return;
+    void import("@tauri-apps/api/event").then(({ listen }) =>
+      listen("api-new-tab", () => useAppStore.getState().newTab()),
+    );
+  }, []);
+
   // Once the home directory is known, tab titles can render it as "~".
   useEffect(() => {
     if (!isTauri) return;
