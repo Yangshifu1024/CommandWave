@@ -216,6 +216,8 @@ mod tests {
                 tab_bar_position: "left".to_string(),
                 sidebar_width: 220,
                 font_size_delta: 2,
+                restore_session_on_start: false,
+                autocomplete: true,
             },
             ..Default::default()
         };
