@@ -943,8 +943,11 @@ body {
   border: none;
   background: none;
   color: var(--fg-dim);
-  font-size: 9px;
-  padding: 4px 6px 6px 2px;
+  font-size: 10px;
+  /* Generous hit area: the caret glyph is tiny; without the padding and
+     negative margin the button is ~25x31 and easy to miss-click. */
+  padding: 10px 12px 10px 4px;
+  margin: -8px 0;
   cursor: pointer;
   border-radius: 6px;
 }
