@@ -30,6 +30,8 @@ export const KEYBINDING_ACTIONS: {
   { action: "toggle-expose", label: "Exposé All Panes", default: "Shift+CmdOrCtrl+E" },
   { action: "rename-tab", label: "Rename Tab", default: "CmdOrCtrl+I" },
   { action: "toggle-tab-lock", label: "Lock / Unlock Tab", default: "" },
+  { action: "recent-commands", label: "Recent Commands", default: "CmdOrCtrl+;" },
+  { action: "semantic-history", label: "Semantic History Search", default: "CmdOrCtrl+Alt+;" },
   { action: "cycle-tab-prev", label: "Previous Tab", default: "Shift+CmdOrCtrl+[" },
   { action: "cycle-tab-next", label: "Next Tab", default: "Shift+CmdOrCtrl+]" },
   { action: "toggle-vertical-tabs", label: "Toggle Vertical Tabs", default: "Shift+CmdOrCtrl+B" },

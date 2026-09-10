@@ -38,6 +38,8 @@ export interface UiSettings {
   fontSizeDelta: number;
   /** Restore the tab/pane layout from the previous run on launch. */
   restoreSessionOnStart: boolean;
+  /** Inline autocomplete popup over the prompt. */
+  autocomplete: boolean;
 }
 
 export interface NotificationSettings {
@@ -114,7 +116,7 @@ export const defaultSettings: Settings = {
     },
   ],
   defaultProfileId: "default",
-  ui: { tabBarPosition: "top", sidebarWidth: 180, fontSizeDelta: 0, restoreSessionOnStart: true },
+  ui: { tabBarPosition: "top", sidebarWidth: 180, fontSizeDelta: 0, restoreSessionOnStart: true, autocomplete: true },
   notifications: { commandCompletion: true, pasteWarning: true },
   triggers: [
     {

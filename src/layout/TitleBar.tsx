@@ -190,6 +190,12 @@ export function dispatchMenuAction(action: string): void {
     case "clear-buffer":
       activePaneTerminal()?.term.clear();
       break;
+    case "recent-commands":
+      useAppStore.setState({ historyOpen: true, historySemantic: false });
+      break;
+    case "semantic-history":
+      useAppStore.setState({ historyOpen: true, historySemantic: true });
+      break;
     case "open-search":
       s.openSearch();
       break;
@@ -311,6 +317,8 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { label: "Lock / Unlock Tab", action: "toggle-tab-lock" },
       { label: "Search…", action: "open-search" },
       { label: "Search Next Match", action: "search-again" },
+      { label: "Recent Commands…", action: "recent-commands" },
+      { label: "Semantic History Search…", action: "semantic-history" },
       { sep: true },
       { label: "Previous Prompt", action: "prev-mark" },
       { label: "Next Prompt", action: "next-mark" },

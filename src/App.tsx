@@ -7,6 +7,7 @@ import { TabStrip } from "./layout/TabStrip";
 import { ContextMenu } from "./layout/ContextMenu";
 import { PasteConfirm } from "./layout/PasteConfirm";
 import { Expose } from "./layout/Expose";
+import { RecentCommands } from "./layout/RecentCommands";
 import { TitleBar, dispatchMenuAction, isMac } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
@@ -25,6 +26,7 @@ export default function App() {
   const activeTabId = useAppStore((s) => s.activeTabId);
   const tabBarPosition = useAppStore((s) => s.tabBarPosition);
   const settingsOpen = useAppStore((s) => s.settingsOpen);
+  const historySemantic = useAppStore((s) => s.historySemantic);
   useShortcuts();
 
   // macOS: the window is created hidden (visible:false in tauri.conf.json)
@@ -200,6 +202,7 @@ export default function App() {
       <ContextMenu />
       <PasteConfirm />
       <Expose />
+      <RecentCommands semantic={historySemantic} />
     </div>
   );
 }

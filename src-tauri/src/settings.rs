@@ -61,6 +61,8 @@ pub struct UiSettings {
     pub font_size_delta: i32,
     /// Restore the tab/pane layout from the previous run on launch.
     pub restore_session_on_start: bool,
+    /// Inline autocomplete popup over the prompt.
+    pub autocomplete: bool,
 }
 
 impl Default for UiSettings {
@@ -70,6 +72,7 @@ impl Default for UiSettings {
             sidebar_width: 180,
             font_size_delta: 0,
             restore_session_on_start: true,
+            autocomplete: true,
         }
     }
 }

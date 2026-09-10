@@ -14,7 +14,10 @@ import { useAppStore } from "../store/appStore";
 import { parseOscCwd } from "./paneTitle";
 import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
 import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
-import { parseOsc133 } from "./paneMarks";
+import { completionSuffix, extractInput, filterSuggestions } from "./autocomplete";
+import { suggestCommands } from "./commandHistory";
+import { parseOsc133, linesBetween } from "./paneMarks";
+import { recordCommand } from "./commandHistory";
 import { resolveTheme, withAlpha } from "./themes";
 
 /** Last path segment of a directory string, for badge placeholders. */
@@ -273,6 +276,8 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     term.element?.addEventListener("mousedown", onMouseDown, true);
 
     term.onData((data) => {
+      // Alt+1..3 accept an autocomplete suggestion (ESC-prefixed digit).
+      if (/^\x1b[1-3]$/.test(data) && tryAutocompleteKey(data[1])) return;
       if (useAppStore.getState().broadcast) {
         // Broadcast input: every live pane receives the keystrokes.
         for (const e of terminalManager.allEntries()) {
@@ -327,6 +332,72 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
       const { lines, rest } = feedLines(triggerBuf, text);
       triggerBuf = rest;
       for (const line of lines) evaluateLine(line);
+      updateAutocomplete();
+    };
+
+    // Inline autocomplete: a small imperative overlay above the prompt that
+    // lists history commands extending the current input; Alt+1..3 or click
+    // completes by sending the missing suffix.
+    let tryAutocompleteKey: (digit: string) => boolean = () => false;
+    const acEl = document.createElement("div");
+    acEl.className = "autocomplete hidden";
+    let acInput = "";
+    let acItems: string[] = [];
+    const renderAutocomplete = () => {
+      if (acItems.length === 0) {
+        acEl.classList.add("hidden");
+        return;
+      }
+      acEl.classList.remove("hidden");
+      acEl.replaceChildren(
+        ...acItems.map((s, i) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = s;
+          btn.dataset.acIndex = String(i);
+          return btn;
+        }),
+      );
+    };
+    const updateAutocomplete = () => {
+      if (!useSettingsStore.getState().settings.ui.autocomplete) {
+        acItems = [];
+        renderAutocomplete();
+        return;
+      }
+      const buf = term.buffer.active;
+      const line = buf.getLine(buf.baseY + buf.cursorY);
+      const input = line ? extractInput(line.translateToString(true)) : null;
+      if (input === null) {
+        acItems = [];
+        acInput = "";
+      } else if (input !== acInput) {
+        acInput = input;
+        acItems = filterSuggestions(input, suggestCommands(input, 3));
+      }
+      renderAutocomplete();
+    };
+    acEl.addEventListener("mousedown", (e) => {
+      const btn = (e.target as HTMLElement).closest("button");
+      const idx = Number(btn?.dataset.acIndex ?? -1);
+      if (idx >= 0 && entry.ptyId !== null && acItems[idx]) {
+        const suffix = completionSuffix(acInput, acItems[idx]);
+        if (suffix) ptyWrite(entry.ptyId, suffix);
+      }
+      e.preventDefault();
+      acItems = [];
+      renderAutocomplete();
+    });
+    container.appendChild(acEl);
+    tryAutocompleteKey = (digit) => {
+      const item = acItems[Number(digit) - 1];
+      if (!item || entry.ptyId === null) return false;
+      const suffix = completionSuffix(acInput, item);
+      if (!suffix) return false;
+      ptyWrite(entry.ptyId, suffix);
+      acItems = [];
+      renderAutocomplete();
+      return true;
     };
 
     term.onTitleChange((title) => {
@@ -352,6 +423,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
     // D;exit=finished) drive prompt jumping, exit-code highlights and
     // copy-last-output.
     let lastPromptMarker: ReturnType<Terminal["registerMarker"]> | null = null;
+    let runningCommandText: string | null = null;
     term.parser.registerOscHandler(133, (data) => {
       const parsed = parseOsc133(data);
       if (!parsed) return false;
@@ -366,6 +438,11 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
         if (marker) terminalManager.addMark(paneId, "output", marker);
         entry.runningPrompt = lastPromptMarker;
         entry.runningSince = Date.now();
+        // The prompt line holds the command text being executed.
+        if (lastPromptMarker && lastPromptMarker.line >= 0) {
+          const line = term.buffer.active.getLine(lastPromptMarker.line);
+          runningCommandText = line ? line.translateToString(true).trim() : null;
+        }
       } else if (parsed.kind === "finish") {
         if (parsed.exitCode !== 0 && entry.runningPrompt && entry.runningPrompt.line >= 0) {
           try {
@@ -394,6 +471,27 @@ export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProp
         }
         entry.runningPrompt = null;
         entry.runningSince = null;
+        // Record into the command history (Recent Commands / autocomplete).
+        if (runningCommandText) {
+          const prompts = entry.marks.filter(
+            (m) => m.kind === "prompt" && m.marker.line >= 0,
+          );
+          const promptLine = prompts.length > 0 ? prompts[prompts.length - 1].marker.line : undefined;
+          const outputEnd = term.buffer.active.length;
+          const outputFrom = promptLine !== undefined && promptLine >= 0 ? promptLine + 1 : Math.max(0, outputEnd - 5);
+          recordCommand({
+            paneId,
+            command: runningCommandText,
+            durationMs: ranMs > 0 ? ranMs : -1,
+            exitCode: parsed.exitCode,
+            cwd:
+              useAppStore.getState().tabs.find((t) => paneId in t.paneMeta)?.paneMeta[paneId]
+                ?.cwd ?? null,
+            output: linesBetween(term.buffer.active, outputFrom, outputEnd),
+            at: Date.now(),
+          });
+        }
+        runningCommandText = null;
       }
       return false;
     });

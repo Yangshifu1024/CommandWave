@@ -106,6 +106,10 @@ interface AppStore {
   broadcast: boolean;
   /** Exposé overlay listing all panes */
   exposeOpen: boolean;
+  /** Recent Commands palette (⌘;) */
+  historyOpen: boolean;
+  /** opened via semantic search (⌥⌘;) — include output by default */
+  historySemantic: boolean;
   /** tab being renamed inline (TabStrip) */
   renamingTabId: string | null;
 
@@ -166,6 +170,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   maximizedPaneId: null,
   broadcast: false,
   exposeOpen: false,
+  historyOpen: false,
+  historySemantic: false,
   renamingTabId: null,
 
   newTab: (profileId?: string) => {
