@@ -21,7 +21,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | 鼠标上报透传 | ✅ | xterm.js 原生支持（less/vim/htop 滚轮点击透传），随 MVP 已具备 |
 | 大段/多行粘贴警告 | ✅ | 多行 / 超大 / 危险命令（rm -rf 等）确认对话框，可关闭 |
 | 会话内字体缩放 | ✅ | ⌘+ / ⌘- / ⌘0，持久化 ui.fontSizeDelta |
-| Sixel / 图片协议 (imgcat) | ⬜ | 暂缓：xterm.js 无内联图片渲染，需自研 addon，收益/成本比低 |
+| Sixel / 图片协议 (imgcat) | ⚠️ | imgcat (OSC 1337) 与 Sixel (DCS q) 均解码显示于 pane 右上浮动图片托盘；xterm.js 无内联图片渲染器，图片不占行内位置 |
 
 ## Phase 2 — 触发器与自动化 ✅
 
@@ -39,11 +39,11 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 |---|---|---|
 | 自定义配色编辑器 | ✅ | 21 个颜色槽逐项覆盖；✅ 导入 iTerm2 .itermcolors（XML plist 解析器带测试） |
 | 光标样式与闪烁配置 | ✅ | block/bar/underline + blink/steady |
-| 字体进阶设置 | ⚠️ | 行高、字间距已实现；连字 (ligatures) 受 xterm.js WebGL 渲染器限制暂缺 |
-| 透明度与模糊 | ⚠️ | 背景不透明度（allowTransparency + rgba 合成）已实现；窗口级透明/背景图暂缺（需各平台窗口 API 支持） |
-| Profile 完整化 | ⚠️ | 滚动行数、环境变量、badge、starship 开关已实现；每 profile 按键覆盖暂缓 |
-| Profile 自动切换 | ⬜ | 暂缓（需检测远程会话，依赖 shell integration 扩展） |
-| Dynamic Profiles | ⬜ | 暂缓 |
+| 字体进阶设置 | ⚠️ | 行高、字间距已实现；连字 (ligatures) 需 xterm.js 渲染器支持（WebGL 不支持，Node-only addon），暂缺 |
+| 透明度与模糊 | ✅ | 窗口 transparent:true + body 透明切换；OS 模糊（Windows Acrylic/Blur、macOS HUD 材质）；每 profile 背景图 + 图片透明度 |
+| Profile 完整化 | ✅ | 滚动行数、环境变量、badge、starship 开关、每 profile 按键覆盖（活动 pane 的 profile 覆盖优先于全局） |
+| Profile 自动切换 | ✅ | OSC 7 主机名按 glob/子串规则匹配自动切换 profile（Settings → Session 配置，profileSwitch 模块带测试） |
+| Dynamic Profiles | ✅ | app 配置目录 profiles/*.json 启动时合并（同 id 替换），供外部生成器使用 |
 | Badge | ✅ | {cwd}/{profile} 占位符，右下角覆盖层 |
 
 ## Phase 4 — 分屏、标签与窗口管理 ✅
@@ -63,9 +63,9 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
-| 命令耗时显示 | ⚠️ | 记录并显示于 Recent Commands 面板；提示行内嵌显示暂缺 |
+| 命令耗时显示 | ✅ | Recent Commands 面板列 + badge {duration} 占位符（命令完成时实时刷新） |
 | Recent Commands (⌘;) | ✅ | 命令/耗时/退出码/cwd 列表，过滤，Enter 重跑 |
-| Autocomplete 弹窗 | ⚠️ | 基于历史的提示符补全（Alt+1..3/点击接受）；无 fuzzy/参数级补全 |
+| Autocomplete 弹窗 | ⚠️ | 基于历史的提示符补全（Alt+1..3/点击接受）；fuzzy/参数级补全暂缓 |
 | 命令历史搜索 (⌘;) | ✅ | 同 Recent Commands 面板 |
 | 语义历史搜索 (⌥⌘;) | ✅ | 面板内可勾选"含输出搜索"（记录每命令输出片段） |
 | 点击命令输出跳转 | ✅ | OSC 133 提示跳转（已有 ⌘↑/↓）；逐命令块点击跳转暂缓 |
@@ -80,8 +80,8 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | CPU / 内存指示 | ✅ | 侧栏底部 CPU/RAM 百分比（sysinfo，3s 轮询） |
 | SSH 配置文件集成 | ✅ | 一键导入 ~/.ssh/config 生成 SSH profiles（Rust 解析器带测试） |
 | 密码 / API Key 管理器 | ⬜ | 暂缓（涉及安全设计） |
-| 进度条 escape 序列 | ⚠️ | OSC 9;4 → Windows 任务栏进度条；macOS Dock / 标签页进度暂缺 |
-| Instant Replay | ⬜ | 原 Phase 1 外补充项，暂缓 |
+| 进度条 escape 序列 | ✅ | OSC 9;4 → Windows 任务栏进度条 + macOS Dock 徽标数字 |
+| Instant Replay | ⚠️ | ⌥⌘B（Ctrl/Cmd+Alt+B）：每 pane 10 秒快照（10 分钟历史）+ 时间滑杆回放只读视图；非全缓冲时间旅行 |
 
 ## Phase 6.5 — Starship 整合 ⚠️
 
@@ -89,7 +89,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 |---|---|---|
 | Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；profile 级 ⌾starship 开关，zsh 经 ZDOTDIR 链自动 init；bash/fish/PowerShell 需手动（见 README） |
 | 官方 preset 画廊 | ✅ | preset 列表 + 一键写入 starship.toml |
-| starship.toml 图形化编辑器 | ⬜ | 暂缓 |
+| starship.toml 图形化编辑器 | ⚠️ | 常用项（add_newline / command_timeout）图形控件 + 原始 TOML 编辑（纯 TOML 辅助函数带测试）；完整字段级编辑器暂缓 |
 | 内置分发 (sidecar) | ⬜ | 暂缓（包体 + 三平台二进制维护成本） |
 | OSC 133 兼容性测试 | ✅ | starship 只替换 PS1，precmd 钩子由我们注入，功能不受影响；单元测试覆盖标记解析 |
 
@@ -103,7 +103,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 
 ## 里程碑口径
 
-- **M1（替代日常使用）**：✅ Phase 1 + 2 完成（sixel 除外）
-- **M2（替代配置控）**：✅ Phase 3 完成（连字/窗口级透明除外）
+- **M1（替代日常使用）**：✅ Phase 1 + 2 完成（图片以浮动托盘显示，非行内）
+- **M2（替代配置控）**：✅ Phase 3 完成（连字除外——渲染器限制）
 - **M3（替代重度用户）**：✅ Phase 4 + 5 完成（拖出 pane、缩略图 Exposé 除外）
 - **M4（生态对标）**：⚠️ Phase 6/6.5 主体完成，tmux/Python API/sidecar 暂缓
