@@ -653,6 +653,17 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
       // ignore first-fit failures
     }
 
+    // Self-heal: shells spawned during the window's startup window can come
+    // up wedged (no banner, no echo — conhost deadlock). If nothing was
+    // written within 6s while the PTY is still alive, replace it once.
+    let spawnRetries = 0;
+    let spawnWithRetry: (() => void) | null = null;
+
+    const handleOutput = (data: Uint8Array | string) => {
+      term.write(data);
+      handleTriggerChunk(data);
+    };
+
     if (tmuxPaneId) {
       // tmux control mode: no local PTY; output arrives via the controller.
       entry.tmuxPaneId = tmuxPaneId;
@@ -664,22 +675,40 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
       };
       ptyAttach(detachedPane.ptyId, sink);
     } else {
-      spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null, useStarship: profile?.useStarship ?? null }, (data) => {
-        term.write(data);
-        handleTriggerChunk(data);
-      })
-        .then((handle) => {
-          if (disposed) {
-            ptyClose(handle.ptyId);
-            return;
-          }
-          entry.ptyId = handle.ptyId;
-          entry.doFit(); // size may have changed while the shell was starting
-        })
-        .catch((err) => {
-          term.write(`\r\n\x1b[31mFailed to start shell: ${err}\x1b[0m\r\n`);
-        });
+      spawnWithRetry = () => {
+        spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null, useStarship: profile?.useStarship ?? null }, handleOutput)
+          .then((handle) => {
+            if (disposed) {
+              ptyClose(handle.ptyId);
+              return;
+            }
+            entry.ptyId = handle.ptyId;
+            entry.doFit(); // size may have changed while the shell was starting
+          })
+          .catch((err) => {
+            term.write(`\r\n\x1b[31mFailed to start shell: ${err}\x1b[0m\r\n`);
+          });
+      };
+      spawnWithRetry();
     }
+
+    // Watchdog: swap a wedged shell for a fresh one (single retry). The
+    // test is *visible content*, not raw output — conhost emits an
+    // initialization sequence even for wedged shells.
+    const watchdog = setTimeout(() => {
+      if (disposed || exited || tmuxPaneId) return;
+      if (entry.ptyId === null || spawnRetries >= 1 || !spawnWithRetry) return;
+      const b = term.buffer.active;
+      for (let i = 0; i < b.length; i++) {
+        const line = b.getLine(i);
+        if (line && line.translateToString(true).trim()) return; // healthy
+      }
+      spawnRetries += 1;
+      const wedged = entry.ptyId;
+      entry.ptyId = null;
+      ptyClose(wedged);
+      spawnWithRetry();
+    }, 6000);
 
     onPtyExit((ptyId, exitCode) => {
       if (ptyId !== entry.ptyId) return;
@@ -693,6 +722,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
 
     return () => {
       disposed = true;
+      clearTimeout(watchdog);
       clearInterval(replayTimer);
       observer.disconnect();
       term.element?.removeEventListener("mousedown", onMouseDown, true);

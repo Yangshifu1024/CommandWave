@@ -129,16 +129,25 @@ fn default_shell() -> (String, Vec<String>) {
     }
 }
 
+/// Serializes PTY creation. Concurrent ConPTY spawns (e.g. session restore
+/// mounting many panes in one commit) deadlock conhost on Windows — the
+/// child PowerShell processes hang at ~2.5MB with no output.
+static SPAWN_LOCK: Mutex<()> = Mutex::new(());
+
 pub fn spawn_session(
     manager: &PtyManager,
     app: AppHandle,
     options: PtyCreateOptions,
     on_output: Channel<Vec<u8>>,
 ) -> Result<PtyCreated> {
+    let _spawn_guard = SPAWN_LOCK.lock().unwrap();
     let pty_system = native_pty_system();
+    // Guard against zero-sized pseudoconsoles (fit may not have run yet).
+    let rows = options.rows.max(1);
+    let cols = options.cols.max(1);
     let pair = pty_system.openpty(PtySize {
-        rows: options.rows,
-        cols: options.cols,
+        rows,
+        cols,
         pixel_width: 0,
         pixel_height: 0,
     })?;
@@ -321,7 +330,9 @@ fn spawn_output_forwarder(
 }
 
 pub fn close_session(manager: &PtyManager, pty_id: u32) {
-    if let Some(session) = manager.sessions.lock().unwrap().get(&pty_id) {
+    // Remove immediately so a wedged child (whose reader thread may never
+    // observe EOF) can't linger in the sessions map.
+    if let Some(session) = manager.sessions.lock().unwrap().remove(&pty_id) {
         session.kill();
     }
 }
