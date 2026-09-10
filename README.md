@@ -22,6 +22,20 @@ Rust + xterm.js. Runs on **macOS, Windows, and Linux**.
   persisted settings
 - **In-terminal search** — <kbd>Cmd/Ctrl+F</kbd> with case sensitivity and
   regex modes, match highlights + overview ruler markers
+- **Prompt marks (OSC 133)** — jump between shell prompts with
+  <kbd>Cmd/Ctrl+↑/↓</kbd>, failed commands get a red highlight on their
+  prompt line, and *Copy Last Output* grabs exactly the previous command's
+  output
+- **Command notifications** — when a command that ran ≥ 2s finishes while
+  the window is unfocused, an OS notification fires (toggleable)
+- **Right-click menus** — panes (copy/paste/search/split/close…) and tabs
+  (new/close), with the webview's native menu suppressed
+- **Multiple profiles** — create/duplicate/delete profiles with their own
+  shell, working directory, font and theme; spawn tabs from any profile
+  via the new-tab dropdown; split panes inherit their source profile
+- **Customizable shortcuts** — rebinding via click-to-record in Settings
+  (with conflict detection); the native macOS menu and the Windows/Linux
+  title-bar menu sync automatically
 - **GPU rendering** — WebGL renderer with automatic fallback
 - **Clickable links** — open with the system browser via the opener plugin
 - Shell exit detection with per-pane exit codes (clean exits close panes)
@@ -80,6 +94,8 @@ The frontend also runs in a plain browser (`pnpm dev` →
 
 ## Keyboard shortcuts
 
+All of these are customizable in **Settings → Keyboard** (defaults below).
+
 | Action                          | macOS        | Windows / Linux |
 | ------------------------------- | ------------ | --------------- |
 | New tab                         | ⌘T           | Ctrl+T          |
@@ -92,6 +108,7 @@ The frontend also runs in a plain browser (`pnpm dev` →
 | Toggle vertical/horizontal tabs | ⇧⌘B          | Ctrl+⇧B         |
 | Search                          | ⌘F           | Ctrl+F          |
 | Settings                        | ⌘,           | Ctrl+,          |
+| Previous / next prompt          | ⌘↑ / ⌘↓      | Ctrl+↑ / Ctrl+↓ |
 
 ## Shell integration (tab titles track your cwd)
 
