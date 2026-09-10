@@ -21,6 +21,8 @@ interface TerminalPaneProps {
   paneId: string;
   cwd?: string | null;
   shell?: string | null;
+  /** Profile the pane was spawned with (null = default). */
+  profileId?: string | null;
 }
 
 /**
@@ -28,17 +30,24 @@ interface TerminalPaneProps {
  * feeds it. The xterm element is re-parented by the terminal manager, so
  * mounting/unmounting tracks the pane's lifetime, not tab visibility.
  */
-export function TerminalPane({ paneId, cwd, shell }: TerminalPaneProps) {
+export function TerminalPane({ paneId, cwd, shell, profileId }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const entryRef = useRef<ReturnType<typeof terminalManager.create> | null>(null);
   // Select the profile object (stable reference), derive values locally:
   // zustand v5 requires selectors not to build fresh objects per read.
-  const profile = useSettingsStore(
-    (s) =>
+  // Appearance follows the pane's spawn profile, so split panes from
+  // different profiles can coexist with different looks.
+  const profile = useSettingsStore((s) => {
+    if (profileId != null) {
+      const p = s.settings.profiles.find((x) => x.id === profileId);
+      if (p) return p;
+    }
+    return (
       s.settings.profiles.find((p) => p.id === s.settings.defaultProfileId) ??
-      s.settings.profiles[0],
-  );
+      s.settings.profiles[0]
+    );
+  });
   const fontFamily = profile?.fontFamily ?? appearanceDefaults.fontFamily;
   const fontSize = profile?.fontSize ?? appearanceDefaults.fontSize;
   const themeName = profile?.themeName ?? appearanceDefaults.themeName;

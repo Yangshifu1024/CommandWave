@@ -139,9 +139,15 @@ function PaneView({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const isActivePane = tab.activePaneId === paneId;
-  const profile = useSettingsStore(
-    (s) => s.settings.profiles.find((p) => p.id === s.settings.defaultProfileId),
-  );
+  // Panes carry the profile they were spawned with (falls back to default).
+  const profile = useSettingsStore((s) => {
+    const meta = tab.paneMeta[paneId];
+    return (
+      s.settings.profiles.find((p) => p.id === meta?.profileId) ??
+      s.settings.profiles.find((p) => p.id === s.settings.defaultProfileId) ??
+      s.settings.profiles[0]
+    );
+  });
 
   // Re-parent the persistent xterm element into/out of this container.
   useLayoutEffect(() => {
@@ -170,7 +176,12 @@ function PaneView({
         });
       }}
     >
-      <TerminalPane paneId={paneId} cwd={profile?.cwd ?? null} shell={profile?.shell ?? null} />
+      <TerminalPane
+        paneId={paneId}
+        cwd={profile?.cwd ?? null}
+        shell={profile?.shell ?? null}
+        profileId={tab.paneMeta[paneId]?.profileId ?? null}
+      />
       <button
         className="pane-close"
         aria-label="Close pane"

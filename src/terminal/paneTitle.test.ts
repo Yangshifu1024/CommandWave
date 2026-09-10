@@ -58,6 +58,7 @@ describe("computeTabTitle", () => {
     spawnCwd: null,
     cwd: null,
     oscTitle: null,
+    profileId: null,
     ...overrides,
   });
 
@@ -108,7 +109,11 @@ describe("home directory abbreviation", () => {
 
   it("uses ~ for cwd and spawn cwd in the title chain", () => {
     setHomeDir("/Users/me");
-    expect(computeTabTitle({ spawnCwd: null, cwd: "/Users/me", oscTitle: null })).toBe("~");
-    expect(computeTabTitle({ spawnCwd: "/Users/me", cwd: null, oscTitle: null })).toBe("~");
+    expect(
+      computeTabTitle({ spawnCwd: null, cwd: "/Users/me", oscTitle: null, profileId: null }),
+    ).toBe("~");
+    expect(
+      computeTabTitle({ spawnCwd: "/Users/me", cwd: null, oscTitle: null, profileId: null }),
+    ).toBe("~");
   });
 });

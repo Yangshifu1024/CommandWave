@@ -1,5 +1,6 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/appStore";
+import { useSettingsStore } from "../store/settingsStore";
 
 interface TabStripProps {
   side: "top" | "left";
@@ -21,9 +22,23 @@ export function TabStrip({ side }: TabStripProps) {
   const setSidebarWidth = useAppStore((s) => s.setSidebarWidth);
   const toggleTabBar = useAppStore((s) => s.toggleTabBar);
   const openSettings = useAppStore((s) => s.openSettings);
+  const profiles = useSettingsStore((s) => s.settings.profiles);
+  const defaultProfileId = useSettingsStore((s) => s.settings.defaultProfileId);
 
   const dragIndex = useRef<number | null>(null);
   const vertical = side === "left";
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.(".tab-new-group")) {
+        setProfileMenuOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onDown, true);
+    return () => window.removeEventListener("mousedown", onDown, true);
+  }, [profileMenuOpen]);
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -90,9 +105,44 @@ export function TabStrip({ side }: TabStripProps) {
             </button>
           </div>
         ))}
-        <button className="tab-new" aria-label="New tab" onClick={newTab}>
-          +
-        </button>
+        <div className="tab-new-group">
+          <button
+            className="tab-new"
+            aria-label="New tab"
+            title="New tab (default profile)"
+            onClick={() => newTab()}
+          >
+            +
+          </button>
+          <button
+            className="tab-new-caret"
+            aria-label="New tab with profile"
+            title="New tab with profile…"
+            onClick={() => setProfileMenuOpen((v) => !v)}
+          >
+            ▾
+          </button>
+          {profileMenuOpen && (
+            <div className="profile-flyout" role="menu">
+              {profiles.map((profile) => (
+                <button
+                  key={profile.id}
+                  role="menuitem"
+                  className="profile-flyout-item"
+                  onClick={() => {
+                    setProfileMenuOpen(false);
+                    newTab(profile.id === defaultProfileId ? undefined : profile.id);
+                  }}
+                >
+                  {profile.name}
+                  {profile.id === defaultProfileId && (
+                    <span className="profile-badge">Default</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
       <div className="tabstrip-actions">
         <button

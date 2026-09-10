@@ -39,14 +39,26 @@ function genId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${++seq}`;
 }
 
-function makeTab(spawnCwd: string | null = null): Tab {
+function makeTab(profileId?: string | null): Tab {
+  const { meta } = makePaneMeta(profileId ?? null);
   const paneId = genId("pane");
   return {
     id: genId("tab"),
-    title: computeTabTitle({ spawnCwd, cwd: null, oscTitle: null }),
+    title: computeTabTitle(meta),
     root: paneLeaf(paneId),
     activePaneId: paneId,
-    paneMeta: { [paneId]: { spawnCwd, cwd: null, oscTitle: null } },
+    paneMeta: { [paneId]: meta },
+  };
+}
+
+function makePaneMeta(profileId: string | null = null) {
+  const settings = useSettingsStore.getState().settings;
+  const profile =
+    settings.profiles.find((p) => p.id === profileId) ??
+    settings.profiles.find((p) => p.id === settings.defaultProfileId) ??
+    settings.profiles[0];
+  return {
+    meta: { spawnCwd: profile?.cwd ?? null, cwd: null, oscTitle: null, profileId: profile?.id ?? null },
   };
 }
 
@@ -70,7 +82,7 @@ interface AppStore {
   searchOpen: boolean;
   contextMenu: ContextMenuState | null;
 
-  newTab: () => void;
+  newTab: (profileId?: string) => void;
   closeTab: (tabId: string) => void;
   selectTab: (tabId: string) => void;
   selectTabIndex: (index: number) => void;
@@ -110,11 +122,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   searchOpen: false,
   contextMenu: null,
 
-  newTab: () => {
-    const profile = useSettingsStore.getState().settings.profiles.find(
-      (p) => p.id === useSettingsStore.getState().settings.defaultProfileId,
-    );
-    const tab = makeTab(profile?.cwd ?? null);
+  newTab: (profileId?: string) => {
+    const tab = makeTab(profileId ?? null);
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
   },
 
@@ -198,22 +207,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
       tabs: s.tabs.map((tab) => {
         if (!containsPane(tab.root, paneId)) return tab;
         const newPaneId = genId("pane");
-        const profile = useSettingsStore.getState().settings.profiles.find(
-          (p) => p.id === useSettingsStore.getState().settings.defaultProfileId,
-        );
+        // The new pane inherits the split pane's profile.
+        const profileId = tab.paneMeta[paneId]?.profileId ?? null;
+        const { meta } = makePaneMeta(profileId);
         return {
           ...tab,
           root: splitPaneNode(tab.root, paneId, dir, newPaneId),
           activePaneId: newPaneId,
-          title: computeTabTitle(tab.paneMeta[newPaneId]),
-          paneMeta: {
-            ...tab.paneMeta,
-            [newPaneId]: {
-              spawnCwd: profile?.cwd ?? null,
-              cwd: null,
-              oscTitle: null,
-            },
-          },
+          title: computeTabTitle(meta),
+          paneMeta: { ...tab.paneMeta, [newPaneId]: meta },
         };
       }),
     }));

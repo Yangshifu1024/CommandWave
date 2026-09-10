@@ -15,6 +15,8 @@ export interface PaneTitleMeta {
   cwd: string | null;
   /** Last window title set by a program via OSC 0/2, may be null. */
   oscTitle: string | null;
+  /** Profile the pane was spawned with; null = the default profile. */
+  profileId: string | null;
 }
 
 let home: string | null = null;
