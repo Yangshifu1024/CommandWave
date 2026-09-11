@@ -108,6 +108,30 @@ All of these are customizable in **Settings → Keyboard** (defaults below).
 | Search                          | ⌘F           | Ctrl+F          |
 | Settings                        | ⌘,           | Ctrl+,          |
 | Previous / next prompt          | ⌘↑ / ⌘↓      | Ctrl+↑ / Ctrl+↓ |
+| Focus prompt                    | ⌘L           | Ctrl+L          |
+
+## Prompt (block model)
+
+By default CommandWave renders its own Warp-style prompt: a bottom-pinned
+input card with a segment header (working directory, git branch + dirty
+count, command duration, exit code on failure, optional language versions)
+above a multi-line input area. While the shell idles at a prompt the card
+owns the keyboard (full IME support); when a command runs or a TUI app
+takes over (vim, fzf), the card collapses and every key passes through to
+the terminal, like a classic emulator.
+
+The prompt is customizable in **Settings → Prompt**: switch the block model
+off entirely (keeping starship / oh-my-zsh / whatever your shell already
+configures), pick and reorder header segments (left/right), add custom
+text segments, choose per-segment colors and the input symbol. Changes
+apply to newly opened tabs; existing shells keep the prompt they were
+spawned with.
+
+PowerShell is integrated in block-model mode out of the box (a
+`PSConsoleHostReadLine`/`Prompt` pair injected at spawn — no `$PROFILE`
+edits). zsh and bash get the same treatment via the shell integration
+below. Unsupported shells (fish, nu, …) are left untouched and keep their
+own prompt.
 
 ## Shell integration (tab titles track your cwd)
 
@@ -119,7 +143,7 @@ via OSC 7 (or ConEmu-style OSC 9;9).
 integration automatically (VS Code-style `ZDOTDIR` chaining for zsh,
 `PROMPT_COMMAND` for bash). Emission is guarded on `TERM_PROGRAM ==
 "CommandWave"`, so other terminals and nested shells are unaffected, and
-custom shells configured in settings are never touched.
+shells other than the zsh/bash/PowerShell family are never touched.
 
 Fish needs a manual prompt hook (see the fish docs); if no cwd is
 reported, titles fall back to the program-set window title, then the

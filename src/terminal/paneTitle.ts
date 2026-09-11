@@ -24,6 +24,11 @@ export function setHomeDir(path: string | null): void {
   home = path ? normalizePath(path) : null;
 }
 
+/** The registered home directory (null until known). */
+export function getHomeDir(): string | null {
+  return home;
+}
+
 function normalizePath(p: string): string {
   let n = p.trim().replace(/\\/g, "/");
   while (n.length > 1 && n.endsWith("/")) n = n.slice(0, -1);

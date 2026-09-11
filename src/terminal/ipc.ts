@@ -298,12 +298,17 @@ export function secretsDelete(name: string): Promise<void> {
 const mockSessions = new Map<number, OutputSink>();
 let nextMockId = 1;
 
+const MOCK_CWD = "/Users/demo/commandwave";
+
 function mockSpawn(onOutput: OutputSink): Promise<PtyHandle> {
   const ptyId = nextMockId++;
   mockSessions.set(ptyId, onOutput);
   setTimeout(() => {
     onOutput(
-      "\x1b[36mCommandWave mock shell\x1b[0m — backend unavailable in browser dev mode\r\n> ",
+      "\x1b[36mCommandWave mock shell\x1b[0m — backend unavailable in browser dev mode\r\n" +
+        // Mirror the real shell integration: cwd report + prompt marks.
+        `\x1b]7;file://localhost${MOCK_CWD}\x07` +
+        "\x1b]133;D;0\x07\x1b]133;A\x07",
     );
   }, 30);
   return Promise.resolve({ ptyId });
@@ -312,9 +317,19 @@ function mockSpawn(onOutput: OutputSink): Promise<PtyHandle> {
 function mockWrite(ptyId: number, data: string): void {
   const sink = mockSessions.get(ptyId);
   if (!sink) return;
-  if (data === "\r") {
-    sink("\r\nmock> ");
-  } else if (data >= " " || data === "\t") {
-    sink(data);
+  if (!data.endsWith("\r")) {
+    // A raw keystroke outside the prompt card (e.g. TUI mode) — echo it.
+    if (data >= " " || data === "\t") sink(data);
+    return;
   }
+  const command = data.slice(0, -1);
+  sink(command + "\r\n"); // shell echo of the accepted line
+  sink("\x1b]133;C\x07"); // command executing
+  if (command) sink(`mock: ${command}\r\n`);
+  // Finish a beat later so the block flow (card hides while running) is
+  // observable and the command records a non-zero duration.
+  setTimeout(() => {
+    sink("\x1b]133;D;0\x07\x1b]133;A\x07"); // finished; new prompt
+    sink(`\x1b]7;file://localhost${MOCK_CWD}\x07`);
+  }, 120);
 }

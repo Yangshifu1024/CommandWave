@@ -177,6 +177,7 @@ function PaneView({
         paneId={paneId}
         cwd={spawnCwd}
         tmuxPaneId={tab.tmuxWindowId && paneId.startsWith("tmux-") ? `%${paneId.slice(5)}` : null}
+        paneFocused={active && isActivePane}
       />
     </div>
   );

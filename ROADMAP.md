@@ -98,6 +98,25 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 > 设置全部删除；旧 settings.json 中的 `useStarship` 键在加载时被
 > serde 静默忽略。提示符能力由自研的 Warp 式块模型 prompt 接替。
 
+## Phase 7 — Prompt 块模型（类 Warp）✅ v1
+
+> 2026-09-11：自研 prompt 替代已移除的 starship（Phase 6.5）。shell 注入
+> 空提示符 + OSC 133/7 标记（zsh 经 ZDOTDIR、bash 经 PROMPT_COMMAND、
+> PowerShell 经 `PSConsoleHostReadLine`/`Prompt` 启动注入，三平台一致），
+> 提示符由前端原生输入卡片渲染。
+
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| 原生输入卡片 | ✅ | 底部常驻、多行输入、↑↓ 历史、Tab 接受 ghost 建议、Ctrl+C 清行、IME 原生支持；提交后 shell 回显自然成为块头 |
+| 运行中/TUI 直通 | ✅ | 命令运行（OSC 133 C..D）或 alternate screen 时卡片收起、按键直达 PTY |
+| prompt 分段自定义 | ✅ | Settings → Prompt：左/右分段增删排序（cwd/git/duration/exit/语言版本/自定义文本）、输入符、逐段颜色；对新开标签页生效 |
+| 环境检测 | ✅ | Rust env_info：按 cwd 缓存的 git 分支/dirty 数 + 10 种语言版本（数据驱动 detector 表，仅检测已启用段） |
+| ⌘/Ctrl+L 聚焦输入框 | ✅ | prompt-focus 命令进 keybindings 系统（可改绑）+ 原生菜单可见入口 |
+| 注入门按 shell 种类 | ✅ | zsh/bash/pwsh 家族（含显式指定路径）都注入；fish/nu 等不碰 |
+| 块悬浮操作菜单 | ⬜ | copy output / 重跑命令等块级操作 |
+| 富 git 状态 | ⬜ | ahead/behind、stash 等 |
+| 更多语言 detector | ⬜ | 按需加 detector 表项 |
+
 ## 暂不做 / 需要论证
 
 - **Natural Language Editing (⌘.)** — 依赖大量 macOS 平台能力
