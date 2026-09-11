@@ -8,8 +8,6 @@ describe("detach param", () => {
       paneId: "pane-42",
       ptyId: 7,
       cwd: "/tmp/ünïcode",
-      shell: null,
-      profileId: "default",
     };
     expect(decodeDetachParam(encodeDetachParam(info))).toEqual(info);
   });

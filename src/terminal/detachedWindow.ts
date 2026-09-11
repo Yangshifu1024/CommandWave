@@ -8,8 +8,6 @@ export interface DetachedPaneInfo {
   paneId: string;
   ptyId: number;
   cwd: string | null;
-  shell: string | null;
-  profileId: string | null;
 }
 
 export function encodeDetachParam(info: DetachedPaneInfo): string {
@@ -33,8 +31,6 @@ export function decodeDetachParam(param: string): DetachedPaneInfo | null {
         paneId: parsed.paneId,
         ptyId: parsed.ptyId,
         cwd: parsed.cwd ?? null,
-        shell: parsed.shell ?? null,
-        profileId: parsed.profileId ?? null,
       };
     }
     return null;

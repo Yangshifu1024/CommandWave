@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 
 import { useAppStore, type Tab } from "../store/appStore";
-import { useSettingsStore } from "../store/settingsStore";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { terminalManager } from "../terminal/manager";
 import type { PaneNode, SplitDir } from "./paneTree";
@@ -145,15 +144,7 @@ function PaneView({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const isActivePane = tab.activePaneId === paneId;
-  // Panes carry the profile they were spawned with (falls back to default).
-  const profile = useSettingsStore((s) => {
-    const meta = tab.paneMeta[paneId];
-    return (
-      s.settings.profiles.find((p) => p.id === meta?.profileId) ??
-      s.settings.profiles.find((p) => p.id === s.settings.defaultProfileId) ??
-      s.settings.profiles[0]
-    );
-  });
+  const spawnCwd = tab.paneMeta[paneId]?.spawnCwd ?? null;
 
   // Re-parent the persistent xterm element into/out of this container.
   useLayoutEffect(() => {
@@ -184,9 +175,7 @@ function PaneView({
     >
       <TerminalPane
         paneId={paneId}
-        cwd={profile?.cwd ?? null}
-        shell={profile?.shell ?? null}
-        profileId={tab.paneMeta[paneId]?.profileId ?? null}
+        cwd={spawnCwd}
         tmuxPaneId={tab.tmuxWindowId && paneId.startsWith("tmux-") ? `%${paneId.slice(5)}` : null}
       />
     </div>

@@ -89,7 +89,7 @@ export function KeyboardSection() {
         })}
       </div>
       {conflictNote && <p className="field-error">{conflictNote}</p>}
-      <button type="button" className="profile-set-default" onClick={resetKeybindings}>
+      <button type="button" className="settings-secondary-btn" onClick={resetKeybindings}>
         Reset All to Defaults
       </button>
     </section>

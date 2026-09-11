@@ -7,69 +7,10 @@ use tauri::{AppHandle, Manager};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
-pub struct Profile {
-    pub id: String,
-    pub name: String,
-    pub shell: Option<String>,
-    pub args: Option<Vec<String>>,
-    pub cwd: Option<String>,
-    pub font_family: Option<String>,
-    pub font_size: Option<u16>,
-    pub theme_name: Option<String>,
-    pub cursor_style: Option<String>,
-    pub cursor_blink: Option<bool>,
-    pub line_height: Option<f64>,
-    pub letter_spacing: Option<f64>,
-    pub scrollback: Option<u32>,
-    pub badge: Option<String>,
-    pub custom_colors: Option<std::collections::HashMap<String, String>>,
-    pub background_opacity: Option<f64>,
-    /// extra environment variables ("KEY=VALUE")
-    pub env: Option<Vec<String>>,
-    /// auto-init the starship prompt (zsh via ZDOTDIR chain)
-    pub use_starship: Option<bool>,
-    /// background image URL/path behind the terminal
-    pub background_image: Option<String>,
-    /// background image layer opacity (0–1)
-    pub background_image_opacity: Option<f64>,
-    /// per-profile keybinding overrides (actionId -> accelerator)
-    pub keybindings: Option<std::collections::HashMap<String, String>>,
-}
-
-impl Default for Profile {
-    fn default() -> Self {
-        Self {
-            id: "default".to_string(),
-            name: "Default".to_string(),
-            shell: None,
-            args: None,
-            cwd: None,
-            font_family: None,
-            font_size: None,
-            theme_name: None,
-            cursor_style: None,
-            cursor_blink: None,
-            line_height: None,
-            letter_spacing: None,
-            scrollback: None,
-            badge: None,
-            custom_colors: None,
-            background_opacity: None,
-            env: None,
-            use_starship: None,
-            background_image: None,
-            background_image_opacity: None,
-            keybindings: None,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase", default)]
 pub struct UiSettings {
     pub tab_bar_position: String, // "top" | "left"
     pub sidebar_width: u16,
-    /// Font size delta from the profile's size (⌘+/- zoom).
+    /// Font size delta applied on top of the configured size (⌘+/- zoom).
     pub font_size_delta: i32,
     /// Restore the tab/pane layout from the previous run on launch.
     pub restore_session_on_start: bool,
@@ -125,14 +66,6 @@ pub struct AutoAnswer {
     pub enabled: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
-#[serde(rename_all = "camelCase", default)]
-pub struct AutoSwitchRule {
-    /// glob (with *) or substring matched against the OSC 7 host
-    pub host_pattern: String,
-    pub profile_id: String,
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AutoLogSettings {
@@ -153,8 +86,31 @@ impl Default for AutoLogSettings {
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub version: u8,
-    pub profiles: Vec<Profile>,
-    pub default_profile_id: String,
+    // Shell / session (None = built-in default).
+    pub shell: Option<String>,
+    pub args: Option<Vec<String>>,
+    /// Working directory for new terminals.
+    pub cwd: Option<String>,
+    /// Scrollback buffer (lines).
+    pub scrollback: Option<u32>,
+    /// Overlay text, supports {cwd} and {duration} placeholders.
+    pub badge: Option<String>,
+    /// extra environment variables ("KEY=VALUE")
+    pub env: Option<Vec<String>>,
+    /// auto-init the starship prompt (zsh via ZDOTDIR chain)
+    pub use_starship: Option<bool>,
+    // Appearance (None = built-in default).
+    pub font_family: Option<String>,
+    pub font_size: Option<u16>,
+    pub theme_name: Option<String>,
+    pub cursor_style: Option<String>,
+    pub cursor_blink: Option<bool>,
+    pub line_height: Option<f64>,
+    pub letter_spacing: Option<f64>,
+    pub custom_colors: Option<std::collections::HashMap<String, String>>,
+    pub background_opacity: Option<f64>,
+    pub background_image: Option<String>,
+    pub background_image_opacity: Option<f64>,
     pub ui: UiSettings,
     pub notifications: NotificationSettings,
     pub triggers: Vec<Trigger>,
@@ -166,8 +122,6 @@ pub struct Settings {
     pub session: Option<String>,
     /// Editor command for ⌘/Ctrl-click file links, e.g. "code {file}".
     pub editor_command: Option<String>,
-    /// OSC 7 host → profile auto-switch rules.
-    pub auto_switch_rules: Vec<AutoSwitchRule>,
     /// actionId -> accelerator overrides; missing entries use menu defaults.
     pub keybindings: std::collections::HashMap<String, String>,
 }
@@ -176,8 +130,24 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             version: 1,
-            profiles: vec![Profile::default()],
-            default_profile_id: "default".to_string(),
+            shell: None,
+            args: None,
+            cwd: None,
+            scrollback: None,
+            badge: None,
+            env: None,
+            use_starship: None,
+            font_family: None,
+            font_size: None,
+            theme_name: None,
+            cursor_style: None,
+            cursor_blink: None,
+            line_height: None,
+            letter_spacing: None,
+            custom_colors: None,
+            background_opacity: None,
+            background_image: None,
+            background_image_opacity: None,
             ui: UiSettings::default(),
             notifications: NotificationSettings::default(),
             triggers: vec![Trigger {
@@ -193,10 +163,72 @@ impl Default for Settings {
             arrangements: std::collections::HashMap::new(),
             session: None,
             editor_command: None,
-            auto_switch_rules: vec![],
             keybindings: std::collections::HashMap::new(),
         }
     }
+}
+
+/// Legacy per-profile keys hoisted to the top level by `migrate_legacy_profiles`.
+const LEGACY_PROFILE_FIELDS: &[&str] = &[
+    "shell",
+    "args",
+    "cwd",
+    "fontFamily",
+    "fontSize",
+    "themeName",
+    "cursorStyle",
+    "cursorBlink",
+    "lineHeight",
+    "letterSpacing",
+    "scrollback",
+    "badge",
+    "customColors",
+    "backgroundOpacity",
+    "backgroundImage",
+    "backgroundImageOpacity",
+    "env",
+    "useStarship",
+];
+
+/// Older builds stored per-profile settings under `profiles` (with
+/// `defaultProfileId` picking the active one). Hoist the default profile's
+/// non-null values to the flat top-level shape and drop the profile
+/// machinery. Returns true when the document was migrated.
+fn migrate_legacy_profiles(value: &mut serde_json::Value) -> bool {
+    let Some(obj) = value.as_object_mut() else {
+        return false;
+    };
+    let default_id = obj
+        .get("defaultProfileId")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
+    let profiles = obj.remove("profiles");
+    obj.remove("defaultProfileId");
+    obj.remove("autoSwitchRules");
+    let Some(profiles) = profiles.as_ref().and_then(|p| p.as_array()) else {
+        return false;
+    };
+    let base = profiles
+        .iter()
+        .find(|p| {
+            default_id
+                .as_deref()
+                .is_some_and(|id| p.get("id").and_then(|v| v.as_str()) == Some(id))
+        })
+        .or_else(|| profiles.first());
+    if let (Some(base), Some(obj)) = (base, value.as_object_mut()) {
+        for key in LEGACY_PROFILE_FIELDS {
+            if obj.contains_key(*key) {
+                continue;
+            }
+            if let Some(v) = base.get(*key) {
+                if !v.is_null() {
+                    obj.insert(key.to_string(), v.clone());
+                }
+            }
+        }
+    }
+    true
 }
 
 fn settings_path(app: &AppHandle) -> Result<PathBuf> {
@@ -210,48 +242,20 @@ fn settings_path(app: &AppHandle) -> Result<PathBuf> {
 
 pub fn load(app: &AppHandle) -> Result<Settings> {
     let path = settings_path(app)?;
-    let mut settings = if path.exists() {
-        let text = fs::read_to_string(&path).context("reading settings.json")?;
-        // A corrupt file falls back to defaults rather than failing the app.
-        serde_json::from_str(&text).unwrap_or_default()
+    if !path.exists() {
+        return Ok(Settings::default());
+    }
+    let text = fs::read_to_string(&path).context("reading settings.json")?;
+    // A corrupt file falls back to defaults rather than failing the app.
+    let mut value: serde_json::Value =
+        serde_json::from_str(&text).unwrap_or(serde_json::json!({}));
+    if migrate_legacy_profiles(&mut value) {
+        let settings: Settings = serde_json::from_value(value).unwrap_or_default();
+        // Persist the migrated shape so the legacy fields don't linger.
+        save(app, &settings)?;
+        Ok(settings)
     } else {
-        Settings::default()
-    };
-    merge_dynamic_profiles(app, &mut settings);
-    Ok(settings)
-}
-
-/// Dynamic Profiles: every `profiles/*.json` in the app config dir holds a
-/// Profile that is merged in on load (same id replaces the stored copy).
-/// Lets external tools (SSH config generators, dotfile managers) feed the
-/// profile list without touching settings.json.
-fn merge_dynamic_profiles(app: &AppHandle, settings: &mut Settings) {
-    let Ok(dir) = app.path().app_config_dir() else {
-        return;
-    };
-    let dir = dir.join("profiles");
-    let Ok(entries) = fs::read_dir(&dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let p = entry.path();
-        if p.extension().and_then(|e| e.to_str()) != Some("json") {
-            continue;
-        }
-        let Ok(text) = fs::read_to_string(&p) else {
-            continue;
-        };
-        let Ok(profile) = serde_json::from_str::<Profile>(&text) else {
-            continue;
-        };
-        if profile.id.is_empty() {
-            continue;
-        }
-        if let Some(existing) = settings.profiles.iter_mut().find(|x| x.id == profile.id) {
-            *existing = profile;
-        } else {
-            settings.profiles.push(profile);
-        }
+        Ok(serde_json::from_value(value).unwrap_or_default())
     }
 }
 
@@ -282,14 +286,14 @@ mod tests {
         let back: Settings = serde_json::from_str(&json).unwrap();
         assert_eq!(back.ui.tab_bar_position, "left");
         assert_eq!(back.ui.sidebar_width, 220);
-        assert_eq!(back.profiles.len(), 1);
+        assert_eq!(back.shell, None);
     }
 
     #[test]
     fn settings_parse_tolerates_missing_fields() {
         let back: Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(back.ui.tab_bar_position, "top");
-        assert_eq!(back.default_profile_id, "default");
+        assert_eq!(back.shell, None);
         assert_eq!(back.ui.font_size_delta, 0);
         assert_eq!(back.auto_log.enabled, false);
     }
@@ -323,9 +327,43 @@ mod tests {
     #[test]
     fn settings_parse_uses_camel_case_keys() {
         let back: Settings =
-            serde_json::from_str(r#"{"defaultProfileId":"p2","ui":{"tabBarPosition":"left","sidebarWidth":300}}"#)
+            serde_json::from_str(r#"{"shell":"fish","ui":{"tabBarPosition":"left","sidebarWidth":300}}"#)
                 .unwrap();
-        assert_eq!(back.default_profile_id, "p2");
+        assert_eq!(back.shell.as_deref(), Some("fish"));
         assert_eq!(back.ui.sidebar_width, 300);
+    }
+
+    #[test]
+    fn legacy_profiles_are_hoisted_and_dropped() {
+        let legacy = r#"{
+            "version": 1,
+            "defaultProfileId": "p2",
+            "profiles": [
+                {"id": "p1", "name": "One", "shell": "zsh", "fontSize": 15},
+                {"id": "p2", "name": "Two", "shell": "fish", "cwd": "/tmp",
+                 "themeName": "Light", "env": ["FOO=1"], "scrollback": null}
+            ],
+            "autoSwitchRules": [{"hostPattern": "prod-*", "profileId": "p2"}],
+            "editorCommand": "code {file}"
+        }"#;
+        let mut value: serde_json::Value = serde_json::from_str(legacy).unwrap();
+        assert!(migrate_legacy_profiles(&mut value));
+        let back: Settings = serde_json::from_value(value).unwrap();
+        // The default profile (p2) wins over the first one.
+        assert_eq!(back.shell.as_deref(), Some("fish"));
+        assert_eq!(back.cwd.as_deref(), Some("/tmp"));
+        assert_eq!(back.theme_name.as_deref(), Some("Light"));
+        assert_eq!(back.env, Some(vec!["FOO=1".to_string()]));
+        // Null profile values stay None.
+        assert_eq!(back.scrollback, None);
+        // Non-profile settings are untouched.
+        assert_eq!(back.editor_command.as_deref(), Some("code {file}"));
+    }
+
+    #[test]
+    fn migration_is_a_noop_for_current_documents() {
+        let mut value: serde_json::Value =
+            serde_json::from_str(r#"{"shell":"fish","ui":{"sidebarWidth":300}}"#).unwrap();
+        assert!(!migrate_legacy_profiles(&mut value));
     }
 }

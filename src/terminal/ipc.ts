@@ -223,17 +223,6 @@ export async function systemStats(): Promise<SystemStats | null> {
   }
 }
 
-export interface SshHost {
-  host: string;
-  hostname: string | null;
-  user: string | null;
-}
-
-export function sshHosts(): Promise<SshHost[]> {
-  if (!isTauri) return Promise.resolve([]);
-  return invoke<SshHost[]>("ssh_hosts").catch(() => []);
-}
-
 export function starshipDetect(): Promise<string | null> {
   if (!isTauri) return Promise.resolve(null);
   return invoke<string | null>("starship_detect").catch(() => null);

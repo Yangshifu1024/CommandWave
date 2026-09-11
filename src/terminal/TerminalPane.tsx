@@ -12,7 +12,7 @@ import {
   useSettingsStore,
 } from "../store/settingsStore";
 import { useAppStore } from "../store/appStore";
-import { parseOscCwd, parseOscLocation } from "./paneTitle";
+import { parseOscCwd } from "./paneTitle";
 import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
 import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
 import { completionSuffix, extractInput, filterSuggestions } from "./autocomplete";
@@ -60,9 +60,6 @@ function playBeep(): void {
 interface TerminalPaneProps {
   paneId: string;
   cwd?: string | null;
-  shell?: string | null;
-  /** Profile the pane was spawned with (null = default). */
-  profileId?: string | null;
   /** tmux control mode: mirror this tmux pane instead of spawning a PTY. */
   tmuxPaneId?: string | null;
 }
@@ -72,36 +69,23 @@ interface TerminalPaneProps {
  * feeds it. The xterm element is re-parented by the terminal manager, so
  * mounting/unmounting tracks the pane's lifetime, not tab visibility.
  */
-export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: TerminalPaneProps) {
+export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const entryRef = useRef<ReturnType<typeof terminalManager.create> | null>(null);
-  // Select the profile object (stable reference), derive values locally:
-  // zustand v5 requires selectors not to build fresh objects per read.
-  // Appearance follows the pane's spawn profile, so split panes from
-  // different profiles can coexist with different looks.
-  const profile = useSettingsStore((s) => {
-    if (profileId != null) {
-      const p = s.settings.profiles.find((x) => x.id === profileId);
-      if (p) return p;
-    }
-    return (
-      s.settings.profiles.find((p) => p.id === s.settings.defaultProfileId) ??
-      s.settings.profiles[0]
-    );
-  });
-  const fontFamily = profile?.fontFamily ?? appearanceDefaults.fontFamily;
-  const fontDelta = useSettingsStore((s) => s.settings.ui.fontSizeDelta);
+  // One global settings object (stable reference); appearance follows it live.
+  const settings = useSettingsStore((s) => s.settings);
+  const fontFamily = settings.fontFamily ?? appearanceDefaults.fontFamily;
   const fontSize = Math.max(
     6,
-    (profile?.fontSize ?? appearanceDefaults.fontSize) + fontDelta,
+    (settings.fontSize ?? appearanceDefaults.fontSize) + settings.ui.fontSizeDelta,
   );
-  const themeName = profile?.themeName ?? appearanceDefaults.themeName;
+  const themeName = settings.themeName ?? appearanceDefaults.themeName;
   const inCopyMode = useAppStore((s) => s.copyModePane === paneId);
   const broadcasting = useAppStore((s) => s.broadcast);
-  const backdrop = useMemo(() => resolveBackdrop(profile), [profile]);
+  const backdrop = useMemo(() => resolveBackdrop(settings), [settings]);
   // Badge placeholders resolve against the live pane meta (cwd etc.).
-  const badgeTemplate = profile?.badge ?? null;
+  const badgeTemplate = settings.badge ?? null;
   const paneCwd = useAppStore((s) => {
     for (const tab of s.tabs) {
       const meta = tab.paneMeta[paneId];
@@ -112,7 +96,6 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
   const badgeText = badgeTemplate
     ? badgeTemplate
         .replaceAll("{cwd}", lastSegment(paneCwd) ?? "—")
-        .replaceAll("{profile}", profile?.name ?? "—")
         .replaceAll(
           "{duration}",
           (lastDurationMs(paneId) ?? -1) >= 0
@@ -131,16 +114,16 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
     if (!term || !entry) return;
     term.options.fontFamily = fontFamily;
     term.options.fontSize = fontSize;
-    term.options.theme = resolveTheme(themeName, profile?.customColors ?? null);
-    if (profile?.cursorStyle) term.options.cursorStyle = profile.cursorStyle;
-    if (profile?.cursorBlink !== null && profile?.cursorBlink !== undefined) {
-      term.options.cursorBlink = profile.cursorBlink;
+    term.options.theme = resolveTheme(themeName, settings.customColors);
+    if (settings.cursorStyle) term.options.cursorStyle = settings.cursorStyle;
+    if (settings.cursorBlink !== null && settings.cursorBlink !== undefined) {
+      term.options.cursorBlink = settings.cursorBlink;
     }
-    if (profile?.lineHeight) term.options.lineHeight = profile.lineHeight;
-    if (profile?.letterSpacing) term.options.letterSpacing = profile.letterSpacing;
-    if (profile?.scrollback) term.options.scrollback = profile.scrollback;
+    if (settings.lineHeight) term.options.lineHeight = settings.lineHeight;
+    if (settings.letterSpacing) term.options.letterSpacing = settings.letterSpacing;
+    if (settings.scrollback) term.options.scrollback = settings.scrollback;
     entry.doFit();
-  }, [fontFamily, fontSize, themeName, profile]);
+  }, [fontFamily, fontSize, themeName, settings]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -150,7 +133,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
     let exited = false;
     let unlistenExit: (() => void) | undefined;
 
-    const theme = resolveTheme(themeName, profile?.customColors ?? null);
+    const theme = resolveTheme(themeName, settings.customColors);
     if (backdrop.translucent) {
       // Composite over the pane's backdrop image / the desktop (window is
       // created with transparent: true; body paints opaque otherwise).
@@ -162,11 +145,11 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
       fontFamily,
       fontSize,
       theme,
-      cursorBlink: profile?.cursorBlink ?? true,
-      cursorStyle: profile?.cursorStyle ?? "block",
-      lineHeight: profile?.lineHeight ?? 1,
-      letterSpacing: profile?.letterSpacing ?? 0,
-      scrollback: profile?.scrollback ?? scrollbackLines,
+      cursorBlink: settings.cursorBlink ?? true,
+      cursorStyle: settings.cursorStyle ?? "block",
+      lineHeight: settings.lineHeight ?? 1,
+      letterSpacing: settings.letterSpacing ?? 0,
+      scrollback: settings.scrollback ?? scrollbackLines,
       allowTransparency: backdrop.translucent,
       // required for SearchAddon highlight decorations (IDecoration API)
       allowProposedApi: true,
@@ -552,9 +535,8 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
     // Shell integration: OSC 7 ("file://host/path") and ConEmu-style OSC 9;9
     // both report the shell's working directory; use them for tab titles.
     term.parser.registerOscHandler(7, (data) => {
-      const loc = parseOscLocation(data);
-      if (loc?.cwd) useAppStore.getState().onPaneCwd(paneId, loc.cwd);
-      if (loc?.host) useAppStore.getState().onPaneHost(paneId, loc.host);
+      const cwd = parseOscCwd(data);
+      if (cwd) useAppStore.getState().onPaneCwd(paneId, cwd);
       return false;
     });
     term.parser.registerOscHandler(9, (data) => {
@@ -676,7 +658,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
       ptyAttach(detachedPane.ptyId, sink);
     } else {
       spawnWithRetry = () => {
-        spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: shell ?? null, env: profile?.env ?? null, useStarship: profile?.useStarship ?? null }, handleOutput)
+        spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: settings.shell ?? null, env: settings.env ?? null, useStarship: settings.useStarship ?? null }, handleOutput)
           .then((handle) => {
             if (disposed) {
               ptyClose(handle.ptyId);
@@ -737,7 +719,7 @@ export function TerminalPane({ paneId, cwd, shell, profileId, tmuxPaneId }: Term
       terminalManager.dispose(paneId);
       clearReplay(paneId);
     };
-  }, [paneId, cwd, shell]);
+  }, [paneId, cwd]);
 
   return (
     <div ref={containerRef} className="terminal-pane">

@@ -3,7 +3,7 @@ import { computeTabTitle } from "../terminal/paneTitle";
 
 /**
  * Exposé overlay (⌘⇧E): one card per pane across all tabs showing its
- * title/cwd/profile; clicking one activates its tab + pane. Escape closes.
+ * title/cwd; clicking one activates its tab + pane. Escape closes.
  */
 export function Expose() {
   const open = useAppStore((s) => s.exposeOpen);

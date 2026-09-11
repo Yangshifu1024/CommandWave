@@ -36,9 +36,6 @@ function DetachedPaneWindow() {
   useEffect(() => {
     if (settingsLoaded) invoke("show_main_window").catch(() => {});
   }, [settingsLoaded]);
-  const profile = useSettingsStore((s) =>
-    s.settings.profiles.find((p) => p.id === info.profileId),
-  );
   return (
     <div className="app">
       <TitleBar />
@@ -47,12 +44,7 @@ function DetachedPaneWindow() {
           <div className="content">
             <div className="tab-layer tab-layer-active">
               <div className="pane pane-active">
-                <TerminalPane
-                  paneId={info.paneId}
-                  cwd={info.cwd}
-                  shell={info.shell}
-                  profileId={profile?.id ?? null}
-                />
+                <TerminalPane paneId={info.paneId} cwd={info.cwd} />
               </div>
             </div>
           </div>
@@ -96,12 +88,10 @@ function MainApp() {
     const ui = useSettingsStore.getState().settings.ui;
     useAppStore.setState({ tabBarPosition: ui.tabBarPosition, sidebarWidth: ui.sidebarWidth });
     // The initial tab predates the async settings load; backfill its spawn
-    // cwd so the title shows the profile directory instead of "Shell".
-    const prof =
-      useSettingsStore.getState().settings.profiles.find(
-        (p) => p.id === useSettingsStore.getState().settings.defaultProfileId,
-      ) ?? useSettingsStore.getState().settings.profiles[0];
-    useAppStore.getState().setInitialSpawnCwd(prof?.cwd ?? null);
+    // cwd so the title shows the configured directory instead of "Shell".
+    useAppStore
+      .getState()
+      .setInitialSpawnCwd(useSettingsStore.getState().settings.cwd ?? null);
   }, [settingsLoaded]);
   useEffect(() => {
     if (!settingsLoaded) return;
@@ -110,7 +100,7 @@ function MainApp() {
 
   // Session restore: rebuild the previous run's tab/pane layout once the
   // persisted snapshot is available. New panes get fresh ids and respawn
-  // shells; only the layout + profile/cwd metadata carry over.
+  // shells; only the layout + cwd metadata carry over.
   useEffect(() => {
     if (!settingsLoaded) return;
     const settings = useSettingsStore.getState().settings;
@@ -141,12 +131,9 @@ function MainApp() {
   }, [settingsLoaded]);
 
   // Theme drives the UI chrome colors as well; text adapts to light themes.
-  const profile = useSettingsStore(
-    (s) =>
-      s.settings.profiles.find((p) => p.id === s.settings.defaultProfileId) ??
-      s.settings.profiles[0],
+  const themeName = useSettingsStore(
+    (s) => s.settings.themeName ?? appearanceDefaults.themeName,
   );
-  const themeName = profile?.themeName ?? appearanceDefaults.themeName;
   useEffect(() => {
     const rootStyle = document.documentElement.style;
     const theme = getTheme(themeName);
@@ -229,18 +216,12 @@ function MainApp() {
     }
   }, [activeTabId, activePaneId]);
 
-  // Window-level translucency: when the active pane's profile is
-  // translucent (backgroundOpacity < 1 or a background image), the body
-  // stops painting its opaque background so the desktop shows through the
-  // transparent window, and the OS blur/acrylic effect is enabled.
-  const translucent = useMemo(() => {
-    if (!activeTab) return false;
-    const profileId = activeTab.paneMeta[activePaneId ?? ""]?.profileId;
-    const p = useSettingsStore
-      .getState()
-      .settings.profiles.find((x) => x.id === profileId);
-    return resolveBackdrop(p).translucent;
-  }, [activeTab, activePaneId]);
+  // Window-level translucency: when the global backdrop is translucent
+  // (backgroundOpacity < 1 or a background image), the body stops painting
+  // its opaque background so the desktop shows through the transparent
+  // window, and the OS blur/acrylic effect is enabled.
+  const settings = useSettingsStore((s) => s.settings);
+  const translucent = useMemo(() => resolveBackdrop(settings).translucent, [settings]);
   // Window transparency is opt-in (DWM shows a white edge line on
   // transparent WebView2 windows); background images don't need it.
   useEffect(() => {

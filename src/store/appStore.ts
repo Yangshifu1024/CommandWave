@@ -17,7 +17,6 @@ import {
 } from "../layout/paneTree";
 import { navigatePane } from "../layout/paneNav";
 import { remapSnapshot } from "../layout/snapshot";
-import { pickProfileForHost } from "../terminal/profileSwitch";
 import { encodeDetachParam } from "../terminal/detachedWindow";
 
 export interface Tab {
@@ -52,9 +51,9 @@ function genId(prefix: string): string {
 /** Panes being moved to their own window: their PTY must survive unmount. */
 const detaching = new Set<string>();
 
-function makeTab(profileId?: string | null): Tab {
-  const { meta } = makePaneMeta(profileId ?? null);
+function makeTab(): Tab {
   const paneId = genId("pane");
+  const meta = paneMetaFor();
   return {
     id: genId("tab"),
     title: computeTabTitle(meta),
@@ -66,15 +65,10 @@ function makeTab(profileId?: string | null): Tab {
   };
 }
 
-function makePaneMeta(profileId: string | null = null) {
-  const settings = useSettingsStore.getState().settings;
-  const profile =
-    settings.profiles.find((p) => p.id === profileId) ??
-    settings.profiles.find((p) => p.id === settings.defaultProfileId) ??
-    settings.profiles[0];
-  return {
-    meta: { spawnCwd: profile?.cwd ?? null, cwd: null, oscTitle: null, profileId: profile?.id ?? null },
-  };
+/** Spawn metadata for a new pane: the global working directory setting. */
+function paneMetaFor(): PaneTitleMeta {
+  const cwd = useSettingsStore.getState().settings.cwd ?? null;
+  return { spawnCwd: cwd, cwd: null, oscTitle: null };
 }
 
 /** Replace the node at `path` (indexes into nested splits). */
@@ -122,7 +116,7 @@ interface AppStore {
   /** tab being renamed inline (TabStrip) */
   renamingTabId: string | null;
 
-  newTab: (profileId?: string) => void;
+  newTab: () => void;
   closeTab: (tabId: string) => void;
   selectTab: (tabId: string) => void;
   selectTabIndex: (index: number) => void;
@@ -164,8 +158,6 @@ interface AppStore {
   setSplitSizes: (tabId: string, path: number[], sizes: number[]) => void;
   onPaneTitle: (paneId: string, title: string) => void;
   onPaneCwd: (paneId: string, cwd: string) => void;
-  /** OSC 7 host → profile auto-switch rules. */
-  onPaneHost: (paneId: string, host: string) => void;
   setInitialSpawnCwd: (spawnCwd: string | null) => void;
   refreshTitles: () => void;
   closePaneByPtyId: (ptyId: number, exitCode: number) => void;
@@ -194,8 +186,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   replayOpen: false,
   renamingTabId: null,
 
-  newTab: (profileId?: string) => {
-    const tab = makeTab(profileId ?? null);
+  newTab: () => {
+    const tab = makeTab();
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
   },
 
@@ -289,9 +281,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       tabs: s.tabs.map((tab) => {
         if (!containsPane(tab.root, paneId)) return tab;
         const newPaneId = genId("pane");
-        // The new pane inherits the split pane's profile.
-        const profileId = tab.paneMeta[paneId]?.profileId ?? null;
-        const { meta } = makePaneMeta(profileId);
+        const meta = paneMetaFor();
         return {
           ...tab,
           root: splitPaneNode(tab.root, paneId, dir, newPaneId),
@@ -422,8 +412,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       paneId,
       ptyId: entry.ptyId,
       cwd: tab.paneMeta[paneId]?.cwd ?? tab.paneMeta[paneId]?.spawnCwd ?? null,
-      shell: null,
-      profileId: tab.paneMeta[paneId]?.profileId ?? null,
     };
     void import("@tauri-apps/api/webviewWindow").then(({ WebviewWindow }) => {
       const label = `detach-${paneId}`;
@@ -474,7 +462,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           if (t.tmuxWindowId !== windowId) return t;
           const paneMeta = { ...t.paneMeta };
           for (const paneId of collectPaneIds(root)) {
-            paneMeta[paneId] ??= { spawnCwd: null, cwd: null, oscTitle: "tmux", profileId: null };
+            paneMeta[paneId] ??= { spawnCwd: null, cwd: null, oscTitle: "tmux" };
           }
           return { ...t, root, paneMeta, activePaneId: collectPaneIds(root)[0] };
         }),
@@ -484,7 +472,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const paneIds = collectPaneIds(root);
     const paneMeta: Tab["paneMeta"] = {};
     for (const paneId of paneIds) {
-      paneMeta[paneId] = { spawnCwd: null, cwd: null, oscTitle: "tmux", profileId: null };
+      paneMeta[paneId] = { spawnCwd: null, cwd: null, oscTitle: "tmux" };
     }
     const tab: Tab = {
       id: genId("tab"),
@@ -563,26 +551,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }));
   },
 
-  onPaneHost: (paneId, host) => {
-    set((s) => ({
-      tabs: s.tabs.map((tab) => {
-        if (!(paneId in tab.paneMeta)) return tab;
-        // Profile auto-switch: a matching host rule re-themes the pane.
-        const rule = pickProfileForHost(
-          host,
-          useSettingsStore.getState().settings.autoSwitchRules,
-        );
-        if (!rule) return tab;
-        const meta = tab.paneMeta[paneId];
-        if (meta.profileId === rule.profileId) return tab;
-        const paneMeta = { ...tab.paneMeta, [paneId]: { ...meta, profileId: rule.profileId } };
-        return { ...tab, paneMeta };
-      }),
-    }));
-  },
-
   // Settings load is async; the pre-existing initial tab needs its spawn cwd
-  // (and title) backfilled once the profile is known.
+  // (and title) backfilled once the settings are known.
   setInitialSpawnCwd: (spawnCwd) => {
     set((s) => ({
       tabs: s.tabs.map((tab) => {

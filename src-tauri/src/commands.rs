@@ -242,12 +242,6 @@ pub fn system_stats() -> SystemStats {
     }
 }
 
-/// Hosts parsed from ~/.ssh/config (for SSH profile import).
-#[tauri::command]
-pub fn ssh_hosts() -> Vec<crate::ssh::SshHost> {
-    crate::ssh::load_hosts()
-}
-
 /// Starship version string, or None when not installed.
 #[tauri::command]
 pub fn starship_detect() -> Option<String> {

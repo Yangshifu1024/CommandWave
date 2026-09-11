@@ -33,18 +33,26 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | 自动会话日志 | ✅ | Rust 侧 tee 每会话输出到独立日志文件，目录可配置 |
 | 命令完成通知 | ✅ | 已有（≥2s + 失焦） |
 
-## Phase 3 — Profile 与外观配置 ✅
+## Phase 3 — 外观与终端配置 ✅
+
+> 2026-09：profile 概念已移除——原 per-profile 设置（shell、起始目录、
+> 字体、主题、光标、滚动行数、背景、badge、环境变量、starship）全部
+> 扁平化为全局设置；设置页改为按 Terminal / Appearance / Keyboard /
+> Session / Automation / Integrations / Secrets 分 tab 展示。旧
+> settings.json 中默认 profile 的取值会在加载时自动迁移到全局字段。
+> 随之移除：Profile 自动切换、Dynamic Profiles（profiles/*.json 合并）、
+> 每 profile 按键覆盖、SSH 配置导入（ssh_hosts 命令）。
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
 | 自定义配色编辑器 | ✅ | 21 个颜色槽逐项覆盖；✅ 导入 iTerm2 .itermcolors（XML plist 解析器带测试） |
 | 光标样式与闪烁配置 | ✅ | block/bar/underline + blink/steady |
 | 字体进阶设置 | ⚠️ | 行高、字间距已实现；连字 (ligatures) 需 xterm.js 渲染器支持（WebGL 不支持，Node-only addon），暂缺 |
-| 透明度与模糊 | ⚠️ | 每 profile 背景图 + 图片透明度（无需 OS 透明，Windows 验证）；桌面级透明默认关闭——Windows DWM 在透明 WebView2 窗口右缘产生 2-3px 白线（实测复现/修复对照），需在 tauri.conf 开 transparent 后可用，纯透明 profile 在不透明窗口下自动降级为不透明（防止白底） |
-| Profile 完整化 | ✅ | 滚动行数、环境变量、badge、starship 开关、每 profile 按键覆盖（活动 pane 的 profile 覆盖优先于全局） |
-| Profile 自动切换 | ✅ | OSC 7 主机名按 glob/子串规则匹配自动切换 profile（Settings → Session 配置，profileSwitch 模块带测试） |
-| Dynamic Profiles | ✅ | app 配置目录 profiles/*.json 启动时合并（同 id 替换），供外部生成器使用 |
-| Badge | ✅ | {cwd}/{profile} 占位符，右下角覆盖层 |
+| 透明度与模糊 | ⚠️ | 背景图 + 图片透明度（无需 OS 透明，Windows 验证）；桌面级透明默认关闭——Windows DWM 在透明 WebView2 窗口右缘产生 2-3px 白线（实测复现/修复对照），需在 tauri.conf 开 transparent 后可用，纯透明设置在不透明窗口下自动降级为不透明（防止白底） |
+| 全局终端设置 | ✅ | 滚动行数、环境变量、badge、starship 开关（Settings → Terminal） |
+| Profile 自动切换 | ⬜ | 已随 profile 概念移除 |
+| Dynamic Profiles | ⬜ | 已随 profile 概念移除 |
+| Badge | ✅ | {cwd}/{duration} 占位符，右下角覆盖层 |
 
 ## Phase 4 — 分屏、标签与窗口管理 ✅
 
@@ -78,7 +86,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | tmux 控制模式 | ⚠️ | Shell 菜单 "Attach tmux Session…"（`tmux -CC new -A`）：解析 %output/%layout-change/%window-add|close/%window-renamed/%session-changed/%pane-mode-changed/%exit，tmux 布局树映射为 CommandWave 分屏（tmux-%N pane），输入经 send-keys 双向同步、尺寸经 resize-pane 同步，关标签即 kill-window。协议解析/布局解析/输入映射全部带单元测试。未做：tmux copy-mode/-pane 专用 UI、%begin 命令输出展示、滚动历史回传 |
 | Python API / 脚本化 | ⚠️ | 本地脚本 API：127.0.0.1 HTTP JSON（GET /panes、POST /write、POST /new-tab、GET /health），端口+token 写入 api.json 供 Python/curl 发现；非 iTerm2 式 in-process Python API |
 | CPU / 内存指示 | ✅ | 侧栏底部 CPU/RAM 百分比（sysinfo，3s 轮询） |
-| SSH 配置文件集成 | ✅ | 一键导入 ~/.ssh/config 生成 SSH profiles（Rust 解析器带测试） |
+| SSH 配置文件集成 | ⬜ | 已随 profile 概念移除（原为导入 ~/.ssh/config 生成 SSH profiles） |
 | 密码 / API Key 管理器 | ⚠️ | 基础版：AES-GCM + PBKDF2(250k) 客户端加密 vault（Rust 仅存密文），主密码不落盘；触发器/自动回复 send-text 支持 {secret:name} 引用（引用解析带测试）；未做浏览器集成/自动填充 |
 | 进度条 escape 序列 | ✅ | OSC 9;4 → Windows 任务栏进度条 + macOS Dock 徽标数字 |
 | Instant Replay | ⚠️ | ⌥⌘B（Ctrl/Cmd+Alt+B）：每 pane 10 秒快照（10 分钟历史）+ 时间滑杆回放只读视图；非全缓冲时间旅行 |
@@ -87,7 +95,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
-| Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；profile 级 ⌾starship 开关：zsh 经 ZDOTDIR 链、bash 经 PROMPT_COMMAND 惰性 init+重链（退出码在 starship 钩子前捕获，OSC 133/7 标记保留，真实 bash 验证）、PowerShell 经 `-NoExit -Command` 注入（在用户 profile 之后运行）；fish 仍需手动 |
+| Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；全局 ⌾starship 开关（Settings → Terminal）：zsh 经 ZDOTDIR 链、bash 经 PROMPT_COMMAND 惰性 init+重链（退出码在 starship 钩子前捕获，OSC 133/7 标记保留，真实 bash 验证）、PowerShell 经 `-NoExit -Command` 注入（在用户 profile 之后运行）；fish 仍需手动 |
 | 官方 preset 画廊 | ✅ | preset 列表 + 一键写入 starship.toml |
 | starship.toml 图形化编辑器 | ⚠️ | 常用项（add_newline / command_timeout）图形控件 + 原始 TOML 编辑（纯 TOML 辅助函数带测试）；完整字段级编辑器暂缓 |
 | 内置分发 (sidecar) | ⚠️ | scripts/fetch-starship.mjs 按平台下载 starship 到 resources 并注册 bundle 配置；运行时优先用捆绑二进制、回退 PATH。默认构建不强制依赖 |

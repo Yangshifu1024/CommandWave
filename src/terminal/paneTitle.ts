@@ -9,14 +9,12 @@
  */
 
 export interface PaneTitleMeta {
-  /** cwd the pane was spawned with (profile setting), may be null. */
+  /** cwd the pane was spawned with (global setting), may be null. */
   spawnCwd: string | null;
   /** Last cwd reported by the shell via OSC 7 / OSC 9;9, may be null. */
   cwd: string | null;
   /** Last window title set by a program via OSC 0/2, may be null. */
   oscTitle: string | null;
-  /** Profile the pane was spawned with; null = the default profile. */
-  profileId: string | null;
 }
 
 let home: string | null = null;
@@ -58,35 +56,27 @@ export function titleFromPath(path: string | null | undefined): string | null {
 /**
  * Parse an OSC 7 payload ("file://host/path" or a plain absolute path) into a
  * filesystem path. Accepts any host: local shells legitimately report their
- * own hostname (bash $HOSTNAME, zsh %m), while a true remote (ssh) only sends
- * OSC 7 if shell integration was installed there too. Returns null for
- * anything that does not look like a path.
+ * own hostname (bash $HOSTNAME, zsh %m). Returns null for anything that does
+ * not look like a path.
  */
 export function parseOscCwd(data: string): string | null {
-  return parseOscLocation(data)?.cwd ?? null;
-}
-
-/** OSC 7 location: host (for profile auto-switch) + cwd. */
-export function parseOscLocation(
-  data: string,
-): { host: string | null; cwd: string | null } | null {
   const raw = data.trim();
   if (!raw) return null;
   if (raw.startsWith("file://")) {
     try {
       const url = new URL(raw);
       let p = decodeURIComponent(url.pathname);
-      if (!p) return { host: url.hostname || null, cwd: null };
+      if (!p) return null;
       // Windows file URLs keep the drive in the path: "/C:/Users" → "C:/Users".
       if (/^\/[A-Za-z]:\//.test(p)) p = p.slice(1);
-      return { host: url.hostname || null, cwd: p };
+      return p;
     } catch {
       return null;
     }
   }
   // Plain absolute paths (POSIX or Windows drive form).
   if (raw.startsWith("/") || /^[A-Za-z]:[\\/]/.test(raw)) {
-    return { host: null, cwd: raw };
+    return raw;
   }
   return null;
 }

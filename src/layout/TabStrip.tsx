@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useAppStore } from "../store/appStore";
-import { useSettingsStore } from "../store/settingsStore";
 import { isTauri, systemStats, type SystemStats } from "../terminal/ipc";
 
 /** Poll CPU/RAM for the sidebar status line. */
@@ -47,25 +45,10 @@ export function TabStrip({ side }: TabStripProps) {
   const setSidebarWidth = useAppStore((s) => s.setSidebarWidth);
   const toggleTabBar = useAppStore((s) => s.toggleTabBar);
   const openSettings = useAppStore((s) => s.openSettings);
-  const profiles = useSettingsStore((s) => s.settings.profiles);
-  const defaultProfileId = useSettingsStore((s) => s.settings.defaultProfileId);
 
   const dragIndex = useRef<number | null>(null);
-  const caretRef = useRef<HTMLButtonElement>(null);
   const vertical = side === "left";
   const renamingTabId = useAppStore((s) => s.renamingTabId);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    if (!profileMenuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement)?.closest?.(".tab-new-group")) {
-        setProfileMenuOpen(false);
-      }
-    };
-    window.addEventListener("mousedown", onDown, true);
-    return () => window.removeEventListener("mousedown", onDown, true);
-  }, [profileMenuOpen]);
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -80,15 +63,6 @@ export function TabStrip({ side }: TabStripProps) {
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  };
-
-  /** Anchor the portal flyout just below the caret, right-aligned to it and
-   * clamped to the window so it never opens off-screen. */
-  const flyoutPos = (caret: HTMLElement): React.CSSProperties => {
-    const r = caret.getBoundingClientRect();
-    const width = 200;
-    const left = Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8));
-    return { position: "fixed", top: r.bottom + 4, left };
   };
 
   return (
@@ -168,52 +142,15 @@ export function TabStrip({ side }: TabStripProps) {
             </button>
           </div>
         ))}
-        <div className="tab-new-group">
-          <button
-            className="tab-new"
-            aria-label="New tab"
-            title="New tab (default profile)"
-            onClick={() => newTab()}
-          >
-            +
-          </button>
-          <button
-            ref={caretRef}
-            className="tab-new-caret"
-            aria-label="New tab with profile"
-            title="New tab with profile…"
-            aria-expanded={profileMenuOpen}
-            onClick={() => setProfileMenuOpen((v) => !v)}
-          >
-            ▾
-          </button>
-        </div>
+        <button
+          className="tab-new"
+          aria-label="New tab"
+          title="New tab"
+          onClick={() => newTab()}
+        >
+          +
+        </button>
       </div>
-      {/* The flyout must live OUTSIDE the .tabs scroll container: an
-          overflow:auto ancestor clips it (invisible menu) and grows a
-          scrollbar (the ▲▼ arrows) the moment the popup exceeds the strip.
-          Fixed positioning anchors it to the caret instead. */}
-      {profileMenuOpen && caretRef.current && createPortal(
-        <div className="profile-flyout profile-flyout-fixed" role="menu" style={flyoutPos(caretRef.current)}>
-          {profiles.map((profile) => (
-            <button
-              key={profile.id}
-              role="menuitem"
-              className="profile-flyout-item"
-              onClick={() => {
-                setProfileMenuOpen(false);
-                newTab(profile.id === defaultProfileId ? undefined : profile.id);
-              }}
-            >
-              {profile.name}
-              {profile.id === defaultProfileId && (
-                <span className="profile-badge">Default</span>
-              )}
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )}
       <div className="tabstrip-actions">
         {vertical && <SystemStatsView />}
         <button

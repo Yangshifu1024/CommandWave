@@ -37,7 +37,7 @@ if [[ $TERM_PROGRAM == "CommandWave" && -z $CW_SHELL_INTEGRATION ]]; then
     builtin printf '\e]133;A\a'
     builtin printf '\e]7;file://%s%s\a' "$HOST" "$PWD"
   }
-  # Optional starship prompt (profile option; idempotent across nested shells).
+  # Optional starship prompt (app setting; idempotent across nested shells).
   if [[ $CW_USE_STARSHIP == 1 && -z $CW_STARSHIP_INITED ]] && command -v starship >/dev/null 2>&1; then
     export CW_STARSHIP_INITED=1
     eval "$(starship init zsh)"
@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn bash_prompt_command_chains_starship() {
         let cmd = BASH_PROMPT_COMMAND_STARSHIP;
-        // Lazy one-time init gated on the profile flag.
+        // Lazy one-time init gated on the starship flag.
         assert!(cmd.contains("CW_USE_STARSHIP == 1"));
         assert!(cmd.contains("starship init bash"));
         // starship's PROMPT_COMMAND takeover is re-chained with our OSC

@@ -24,8 +24,8 @@ function fakeTab(): Tab {
     customTitle: "My Work",
     locked: true,
     paneMeta: {
-      "pane-a": { spawnCwd: "/tmp", cwd: null, oscTitle: null, profileId: "default" },
-      "pane-b": { spawnCwd: null, cwd: null, oscTitle: "vim", profileId: null },
+      "pane-a": { spawnCwd: "/tmp", cwd: null, oscTitle: null },
+      "pane-b": { spawnCwd: null, cwd: null, oscTitle: "vim" },
     },
   };
 }
@@ -60,7 +60,7 @@ describe("remapSnapshot", () => {
       ],
     });
     expect(tab.activePaneId).toBe("pane-y");
-    expect(tab.paneMeta["pane-x"].profileId).toBe("default");
+    expect(tab.paneMeta["pane-x"].spawnCwd).toBe("/tmp");
     expect(tab.paneMeta["pane-a"]).toBeUndefined();
   });
 });

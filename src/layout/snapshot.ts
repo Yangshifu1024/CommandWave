@@ -11,7 +11,6 @@ export interface PaneMetaSnapshot {
   spawnCwd: string | null;
   cwd: string | null;
   oscTitle: string | null;
-  profileId: string | null;
 }
 
 export interface TabSnapshot {
@@ -44,7 +43,6 @@ export function serializeSession(
             spawnCwd: meta.spawnCwd,
             cwd: null, // stale after restore; titles refetch via OSC 7
             oscTitle: meta.oscTitle,
-            profileId: meta.profileId,
           },
         ]),
       ),

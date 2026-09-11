@@ -4,7 +4,7 @@
  * settings preview share one decision.
  */
 
-export interface BackdropProfile {
+export interface BackdropSource {
   backgroundOpacity: number | null | undefined;
   backgroundImage: string | null | undefined;
   backgroundImageOpacity: number | null | undefined;
@@ -50,15 +50,15 @@ export function toCssImage(ref: string): string | null {
 }
 
 /**
- * Resolve a profile's backdrop. Setting a background image implies mild
- * translucency so the image is visible behind the terminal text.
+ * Resolve the backdrop for a settings object. Setting a background image
+ * implies mild translucency so the image is visible behind the terminal text.
  */
-export function resolveBackdrop(profile: BackdropProfile | null | undefined): Backdrop {
-  if (!profile) {
+export function resolveBackdrop(source: BackdropSource | null | undefined): Backdrop {
+  if (!source) {
     return { translucent: false, bgAlpha: 1, imageUrl: null, imageOpacity: 1 };
   }
-  const imageUrl = profile.backgroundImage ? toCssImage(profile.backgroundImage) : null;
-  const opacity = profile.backgroundOpacity ?? (imageUrl ? 0.6 : 1);
+  const imageUrl = source.backgroundImage ? toCssImage(source.backgroundImage) : null;
+  const opacity = source.backgroundOpacity ?? (imageUrl ? 0.6 : 1);
   // Pure see-through needs an OS-transparent window; degrade to opaque
   // otherwise (an opaque window would show white behind the alpha).
   const translucent = opacity < 1 && (windowTransparency || imageUrl !== null);
@@ -66,6 +66,6 @@ export function resolveBackdrop(profile: BackdropProfile | null | undefined): Ba
     translucent,
     bgAlpha: Math.min(1, Math.max(0.1, opacity)),
     imageUrl,
-    imageOpacity: Math.min(1, Math.max(0.05, profile.backgroundImageOpacity ?? 0.35)),
+    imageOpacity: Math.min(1, Math.max(0.05, source.backgroundImageOpacity ?? 0.35)),
   };
 }

@@ -16,7 +16,7 @@ Rust + xterm.js. Runs on **macOS, Windows, and Linux**.
   the tab bar
 - **Split panes** — side-by-side or stacked, arbitrarily nested, draggable
   dividers, per-pane focus highlight
-- **Themes & profiles** — 16 built-in color schemes (8 dark + 8 light:
+- **Themes & appearance** — 16 built-in color schemes (8 dark + 8 light:
   Dracula, Catppuccin Latte, Solarized, Nord, Gruvbox, Ayu, …), live
   font/size/theme switching with UI chrome that adapts to light themes,
   persisted settings
@@ -30,9 +30,8 @@ Rust + xterm.js. Runs on **macOS, Windows, and Linux**.
   the window is unfocused, an OS notification fires (toggleable)
 - **Right-click menus** — panes (copy/paste/search/split/close…) and tabs
   (new/close), with the webview's native menu suppressed
-- **Multiple profiles** — create/duplicate/delete profiles with their own
-  shell, working directory, font and theme; spawn tabs from any profile
-  via the new-tab dropdown; split panes inherit their source profile
+- **Tabbed settings** — one tab per area (Terminal, Appearance, Keyboard,
+  Session, Automation, Integrations, Secrets); changes apply immediately
 - **Customizable shortcuts** — rebinding via click-to-record in Settings
   (with conflict detection); the native macOS menu and the Windows/Linux
   title-bar menu sync automatically
@@ -120,13 +119,13 @@ via OSC 7 (or ConEmu-style OSC 9;9).
 integration automatically (VS Code-style `ZDOTDIR` chaining for zsh,
 `PROMPT_COMMAND` for bash). Emission is guarded on `TERM_PROGRAM ==
 "CommandWave"`, so other terminals and nested shells are unaffected, and
-profile-configured custom shells are never touched.
+custom shells configured in settings are never touched.
 
 Fish needs a manual prompt hook (see the fish docs); if no cwd is
 reported, titles fall back to the program-set window title, then the
-profile's starting directory.
+configured starting directory.
 
-**Starship prompt**: profiles with the “Starship prompt” option enabled
+**Starship prompt**: the “Starship prompt” option (Settings → Terminal)
 auto-init starship for zsh (ZDOTDIR chain), bash (lazy init re-chained
 around starship's PROMPT_COMMAND hook) and PowerShell (`-NoExit
 -Command` after your profile).

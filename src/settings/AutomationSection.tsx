@@ -91,7 +91,7 @@ export function AutomationSection() {
           </label>
           <button
             type="button"
-            className="profile-mini-btn"
+            className="settings-mini-btn"
             aria-label="Delete trigger"
             onClick={() =>
               update((draft) => {
@@ -151,7 +151,7 @@ export function AutomationSection() {
           />
           <button
             type="button"
-            className="profile-mini-btn"
+            className="settings-mini-btn"
             aria-label="Delete auto answer"
             onClick={() =>
               update((draft) => {

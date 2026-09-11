@@ -7,22 +7,6 @@ import { bindingLookup, eventToAccelerator } from "./keybindings";
 import { handleCopyModeKeyEvent } from "../terminal/copyModeController";
 
 /**
- * Per-profile keybinding overrides: the active pane's spawn profile wins
- * over the global map (only overridden actions are replaced).
- */
-function profileKeybindingLookup(): Map<string, string> {
-  const s = useAppStore.getState();
-  const tab = s.tabs.find((t) => t.id === s.activeTabId);
-  if (!tab) return new Map();
-  const profileId = tab.paneMeta[tab.activePaneId]?.profileId;
-  if (!profileId) return new Map();
-  const profile = useSettingsStore
-    .getState()
-    .settings.profiles.find((p) => p.id === profileId);
-  return bindingLookup(profile?.keybindings ?? {});
-}
-
-/**
  * Global keyboard shortcuts, registered with capture so they win over xterm
  * key handling. Actions resolve through the customizable keybindings map
  * (Settings → Keyboard); Cmd/Ctrl+1–9 tabs stay fixed, as does Escape.
@@ -64,8 +48,7 @@ export function useShortcuts() {
       const accel = eventToAccelerator(e);
       if (!accel) return;
       const lookup = bindingLookup(useSettingsStore.getState().settings.keybindings);
-      const override = profileKeybindingLookup().get(accel);
-      const action = override ?? lookup.get(accel);
+      const action = lookup.get(accel);
       if (action) {
         dispatchMenuAction(action);
         e.preventDefault();

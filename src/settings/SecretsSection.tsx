@@ -100,7 +100,7 @@ export function SecretsSection() {
             <button type="button" className="settings-add-btn" onClick={() => void add()}>
               Add secret
             </button>
-            <button type="button" className="profile-mini-btn" title="Lock" onClick={() => { lockVault(); setUnlocked(false); }}>
+            <button type="button" className="settings-mini-btn" title="Lock" onClick={() => { lockVault(); setUnlocked(false); }}>
               🔒
             </button>
           </div>
@@ -112,7 +112,7 @@ export function SecretsSection() {
               </button>
               <button
                 type="button"
-                className="profile-mini-btn"
+                className="settings-mini-btn"
                 aria-label="Delete secret"
                 onClick={() => {
                   void secretsDelete(e.name);

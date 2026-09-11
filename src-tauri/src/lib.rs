@@ -5,7 +5,6 @@ mod pty;
 mod secrets;
 mod settings;
 mod shell_integration;
-mod ssh;
 mod starship;
 mod state;
 
@@ -32,7 +31,6 @@ pub fn run() {
             commands::open_with_editor,
             commands::set_progress,
             commands::system_stats,
-            commands::ssh_hosts,
             commands::starship_detect,
             commands::starship_presets,
             commands::starship_apply_preset,

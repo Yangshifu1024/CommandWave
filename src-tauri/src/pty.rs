@@ -191,7 +191,7 @@ pub fn spawn_session(
         }
     }
     // Inject cwd-reporting integration (OSC 7 → tab titles) for the default
-    // shell only; profile-configured custom shells are left untouched.
+    // shell only; custom shells configured in settings are left untouched.
     if !custom_shell {
         if let Ok(config_dir) = app.path().app_config_dir() {
             if let Some(vars) = shell_integration::env_for_shell(&shell, &config_dir) {

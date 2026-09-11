@@ -453,7 +453,7 @@ export function isDarkTheme(name: string): boolean {
   return (themes.find((t) => t.name === name) ?? themes[0]).dark;
 }
 
-/** Customizable color slots (profile customColors keys). */
+/** Customizable color slots (customColors keys). */
 export const COLOR_KEYS = [
   "background",
   "foreground",
@@ -481,7 +481,7 @@ export const COLOR_KEYS = [
 export type ColorKey = (typeof COLOR_KEYS)[number];
 export type ColorOverrides = Partial<Record<ColorKey, string>>;
 
-/** Built-in theme with the profile's per-slot overrides applied. */
+/** Built-in theme with per-slot custom color overrides applied. */
 export function resolveTheme(name: string, overrides: ColorOverrides | null | undefined): ITheme {
   const base = { ...getTheme(name) };
   if (!overrides) return base;
@@ -493,8 +493,8 @@ export function resolveTheme(name: string, overrides: ColorOverrides | null | un
 }
 
 /**
- * Convert a hex color to rgba with the given alpha (backgroundOpacity
- * profile setting). Invalid input returns null so callers can skip.
+ * Convert a hex color to rgba with the given alpha (the backgroundOpacity
+ * setting). Invalid input returns null so callers can skip.
  */
 export function withAlpha(hex: string, alpha: number): string | null {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
