@@ -658,7 +658,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
       ptyAttach(detachedPane.ptyId, sink);
     } else {
       spawnWithRetry = () => {
-        spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: settings.shell ?? null, env: settings.env ?? null, useStarship: settings.useStarship ?? null }, handleOutput)
+        spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: settings.shell ?? null, env: settings.env ?? null }, handleOutput)
           .then((handle) => {
             if (disposed) {
               ptyClose(handle.ptyId);

@@ -4,7 +4,7 @@ import { clampInt } from "./clamp";
 
 /**
  * Settings tab for the shell/session: shell command, working directory,
- * scrollback, badge, environment, starship and notifications.
+ * scrollback, badge, environment and notifications.
  */
 export function TerminalSection() {
   const settings = useSettingsStore((s) => s.settings);
@@ -44,17 +44,6 @@ export function TerminalSection() {
             />
           </label>
         </div>
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={settings.useStarship ?? false}
-            onChange={(e) => set({ useStarship: e.target.checked })}
-          />
-          <span>
-            Starship prompt — auto-init starship for zsh, bash and PowerShell
-            panes
-          </span>
-        </label>
       </section>
 
       <section className="settings-section">

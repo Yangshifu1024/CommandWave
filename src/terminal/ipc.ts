@@ -13,8 +13,6 @@ export interface PtySpawnOptions {
   args?: string[] | null;
   /** extra environment variables ("KEY=VALUE") */
   env: string[] | null;
-  /** enable starship prompt auto-init for this pane */
-  useStarship: boolean | null;
 }
 
 interface PtyCreated {
@@ -221,31 +219,6 @@ export async function systemStats(): Promise<SystemStats | null> {
   } catch {
     return null;
   }
-}
-
-export function starshipDetect(): Promise<string | null> {
-  if (!isTauri) return Promise.resolve(null);
-  return invoke<string | null>("starship_detect").catch(() => null);
-}
-
-export function starshipPresets(): Promise<string[]> {
-  if (!isTauri) return Promise.resolve([]);
-  return invoke<string[]>("starship_presets").catch(() => []);
-}
-
-export function starshipApplyPreset(name: string): Promise<string | null> {
-  if (!isTauri) return Promise.resolve(null);
-  return invoke<string | null>("starship_apply_preset", { name }).catch(() => null);
-}
-
-export function starshipReadConfig(): Promise<string | null> {
-  if (!isTauri) return Promise.resolve(null);
-  return invoke<string | null>("starship_read_config").catch(() => null);
-}
-
-export function starshipWriteConfig(text: string): Promise<string | null> {
-  if (!isTauri) return Promise.resolve(null);
-  return invoke<string | null>("starship_write_config", { text }).catch(() => null);
 }
 
 /** Whether the window was created with OS transparency (tauri.conf). */

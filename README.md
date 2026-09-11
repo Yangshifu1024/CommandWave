@@ -125,11 +125,6 @@ Fish needs a manual prompt hook (see the fish docs); if no cwd is
 reported, titles fall back to the program-set window title, then the
 configured starting directory.
 
-**Starship prompt**: the “Starship prompt” option (Settings → Terminal)
-auto-init starship for zsh (ZDOTDIR chain), bash (lazy init re-chained
-around starship's PROMPT_COMMAND hook) and PowerShell (`-NoExit
--Command` after your profile).
-
 PowerShell (add to your `$PROFILE`):
 
 ```powershell

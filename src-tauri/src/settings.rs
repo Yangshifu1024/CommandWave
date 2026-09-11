@@ -97,8 +97,6 @@ pub struct Settings {
     pub badge: Option<String>,
     /// extra environment variables ("KEY=VALUE")
     pub env: Option<Vec<String>>,
-    /// auto-init the starship prompt (zsh via ZDOTDIR chain)
-    pub use_starship: Option<bool>,
     // Appearance (None = built-in default).
     pub font_family: Option<String>,
     pub font_size: Option<u16>,
@@ -136,7 +134,6 @@ impl Default for Settings {
             scrollback: None,
             badge: None,
             env: None,
-            use_starship: None,
             font_family: None,
             font_size: None,
             theme_name: None,
@@ -187,7 +184,6 @@ const LEGACY_PROFILE_FIELDS: &[&str] = &[
     "backgroundImage",
     "backgroundImageOpacity",
     "env",
-    "useStarship",
 ];
 
 /// Older builds stored per-profile settings under `profiles` (with

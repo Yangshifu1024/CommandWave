@@ -62,8 +62,6 @@ export interface Settings {
   badge: string | null;
   /** Extra environment variables ("KEY=VALUE"). */
   env: string[] | null;
-  /** Auto-init the starship prompt (zsh). */
-  useStarship: boolean | null;
   // Appearance (null = built-in default).
   fontFamily: string | null;
   fontSize: number | null;
@@ -105,7 +103,6 @@ export const defaultSettings: Settings = {
   scrollback: null,
   badge: null,
   env: null,
-  useStarship: null,
   fontFamily: null,
   fontSize: null,
   themeName: null,

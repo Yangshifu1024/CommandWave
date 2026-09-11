@@ -240,29 +240,3 @@ pub fn system_stats() -> SystemStats {
         total_mem_mb: sys.total_memory() as f64 / 1024.0 / 1024.0,
     }
 }
-
-/// Starship version string, or None when not installed.
-#[tauri::command]
-pub fn starship_detect() -> Option<String> {
-    crate::starship::detect()
-}
-
-#[tauri::command]
-pub fn starship_presets() -> Vec<String> {
-    crate::starship::presets()
-}
-
-#[tauri::command]
-pub fn starship_apply_preset(name: String) -> Result<String, String> {
-    crate::starship::apply_preset(&name)
-}
-
-#[tauri::command]
-pub fn starship_read_config() -> Option<String> {
-    crate::starship::read_config()
-}
-
-#[tauri::command]
-pub fn starship_write_config(text: String) -> Result<String, String> {
-    crate::starship::write_config(&text)
-}

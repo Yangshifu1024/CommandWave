@@ -95,8 +95,6 @@ pub struct PtyCreateOptions {
     pub args: Option<Vec<String>>,
     /// extra environment variables ("KEY=VALUE")
     pub env: Option<Vec<String>>,
-    /// enable starship prompt auto-init for this pane
-    pub use_starship: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -153,24 +151,10 @@ pub fn spawn_session(
     })?;
 
     let custom_shell = options.shell.is_some();
-    let (shell, mut args) = match options.shell {
+    let (shell, args) = match options.shell {
         Some(s) => (s, options.args.unwrap_or_default()),
         None => default_shell(),
     };
-    // PowerShell + starship: start with -NoExit -Command so the starship
-    // init runs after the user's profile without editing $PROFILE.
-    if options.use_starship == Some(true) {
-        let program = shell.rsplit(['/', '\\']).next().unwrap_or(&shell);
-        let is_pwsh = matches!(
-            program.to_ascii_lowercase().as_str(),
-            "powershell" | "powershell.exe" | "pwsh" | "pwsh.exe"
-        );
-        if is_pwsh {
-            let mut starship_args = shell_integration::powershell_starship_args();
-            starship_args.extend(args);
-            args = starship_args;
-        }
-    }
     let mut cmd = CommandBuilder::new(&shell);
     cmd.args(&args);
     if let Some(cwd) = &options.cwd {
@@ -179,10 +163,6 @@ pub fn spawn_session(
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("TERM_PROGRAM", "CommandWave");
-    if options.use_starship == Some(true) {
-        // Consumed by the injected zsh/bash integration; harmless elsewhere.
-        cmd.env("CW_USE_STARSHIP", "1");
-    }
     for pair in options.env.unwrap_or_default() {
         if let Some((key, value)) = pair.split_once('=') {
             if !key.is_empty() {

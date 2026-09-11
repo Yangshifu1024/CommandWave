@@ -54,7 +54,6 @@ class TmuxController {
         shell: "tmux",
         args: ["-CC", "new", "-A", "-s", "commandwave"],
         env: null,
-        useStarship: null,
       },
       (data) => this.onControlOutput(data),
     )

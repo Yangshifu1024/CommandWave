@@ -5,7 +5,6 @@ mod pty;
 mod secrets;
 mod settings;
 mod shell_integration;
-mod starship;
 mod state;
 
 use state::PtyManager;
@@ -31,11 +30,6 @@ pub fn run() {
             commands::open_with_editor,
             commands::set_progress,
             commands::system_stats,
-            commands::starship_detect,
-            commands::starship_presets,
-            commands::starship_apply_preset,
-            commands::starship_read_config,
-            commands::starship_write_config,
             commands::set_window_blur,
             commands::window_is_transparent
         ])

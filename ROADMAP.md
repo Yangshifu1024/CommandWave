@@ -36,7 +36,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 ## Phase 3 — 外观与终端配置 ✅
 
 > 2026-09：profile 概念已移除——原 per-profile 设置（shell、起始目录、
-> 字体、主题、光标、滚动行数、背景、badge、环境变量、starship）全部
+> 字体、主题、光标、滚动行数、背景、badge、环境变量）全部
 > 扁平化为全局设置；设置页改为按 Terminal / Appearance / Keyboard /
 > Session / Automation / Integrations / Secrets 分 tab 展示。旧
 > settings.json 中默认 profile 的取值会在加载时自动迁移到全局字段。
@@ -49,7 +49,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | 光标样式与闪烁配置 | ✅ | block/bar/underline + blink/steady |
 | 字体进阶设置 | ⚠️ | 行高、字间距已实现；连字 (ligatures) 需 xterm.js 渲染器支持（WebGL 不支持，Node-only addon），暂缺 |
 | 透明度与模糊 | ⚠️ | 背景图 + 图片透明度（无需 OS 透明，Windows 验证）；桌面级透明默认关闭——Windows DWM 在透明 WebView2 窗口右缘产生 2-3px 白线（实测复现/修复对照），需在 tauri.conf 开 transparent 后可用，纯透明设置在不透明窗口下自动降级为不透明（防止白底） |
-| 全局终端设置 | ✅ | 滚动行数、环境变量、badge、starship 开关（Settings → Terminal） |
+| 全局终端设置 | ✅ | 滚动行数、环境变量、badge（Settings → Terminal） |
 | Profile 自动切换 | ⬜ | 已随 profile 概念移除 |
 | Dynamic Profiles | ⬜ | 已随 profile 概念移除 |
 | Badge | ✅ | {cwd}/{duration} 占位符，右下角覆盖层 |
@@ -91,15 +91,12 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | 进度条 escape 序列 | ✅ | OSC 9;4 → Windows 任务栏进度条 + macOS Dock 徽标数字 |
 | Instant Replay | ⚠️ | ⌥⌘B（Ctrl/Cmd+Alt+B）：每 pane 10 秒快照（10 分钟历史）+ 时间滑杆回放只读视图；非全缓冲时间旅行 |
 
-## Phase 6.5 — Starship 整合 ⚠️
+## Phase 6.5 — Starship 整合 ⬜ 已移除
 
-| 功能 | 状态 | 说明 |
-|---|---|---|
-| Starship 检测 + 一键启用 | ⚠️ | Settings → Integrations 检测安装；全局 ⌾starship 开关（Settings → Terminal）：zsh 经 ZDOTDIR 链、bash 经 PROMPT_COMMAND 惰性 init+重链（退出码在 starship 钩子前捕获，OSC 133/7 标记保留，真实 bash 验证）、PowerShell 经 `-NoExit -Command` 注入（在用户 profile 之后运行）；fish 仍需手动 |
-| 官方 preset 画廊 | ✅ | preset 列表 + 一键写入 starship.toml |
-| starship.toml 图形化编辑器 | ⚠️ | 常用项（add_newline / command_timeout）图形控件 + 原始 TOML 编辑（纯 TOML 辅助函数带测试）；完整字段级编辑器暂缓 |
-| 内置分发 (sidecar) | ⚠️ | scripts/fetch-starship.mjs 按平台下载 starship 到 resources 并注册 bundle 配置；运行时优先用捆绑二进制、回退 PATH。默认构建不强制依赖 |
-| OSC 133 兼容性测试 | ✅ | starship 只替换 PS1，precmd 钩子由我们注入，功能不受影响；单元测试覆盖标记解析 |
+> 2026-09-11：starship 集成整体移除——检测、preset 画廊、starship.toml
+> 编辑器、捆绑下载脚本（scripts/fetch-starship.mjs）与 `useStarship`
+> 设置全部删除；旧 settings.json 中的 `useStarship` 键在加载时被
+> serde 静默忽略。提示符能力由自研的 Warp 式块模型 prompt 接替。
 
 ## 暂不做 / 需要论证
 
