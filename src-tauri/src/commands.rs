@@ -240,10 +240,3 @@ pub fn system_stats() -> SystemStats {
         total_mem_mb: sys.total_memory() as f64 / 1024.0 / 1024.0,
     }
 }
-
-/// Environment snapshot for the prompt segments (git state + language
-/// versions), detected on demand and cached per directory.
-#[tauri::command]
-pub fn env_info(cwd: String, segments: Vec<String>) -> crate::env_info::EnvInfo {
-    crate::env_info::detect(std::path::Path::new(&cwd), &segments)
-}

@@ -7,13 +7,11 @@ import { KeyboardSection } from "./KeyboardSection";
 import { AutomationSection } from "./AutomationSection";
 import { SessionSection } from "./SessionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
-import { PromptSection } from "./PromptSection";
 import { SecretsSection } from "./SecretsSection";
 
 const TABS = [
   { id: "terminal", label: "Terminal" },
   { id: "appearance", label: "Appearance" },
-  { id: "prompt", label: "Prompt" },
   { id: "keyboard", label: "Keyboard" },
   { id: "session", label: "Session" },
   { id: "automation", label: "Automation" },
@@ -63,7 +61,6 @@ export function SettingsDialog() {
         <div className="settings-body">
           {tab === "terminal" && <TerminalSection />}
           {tab === "appearance" && <AppearanceSection />}
-          {tab === "prompt" && <PromptSection />}
           {tab === "keyboard" && <KeyboardSection />}
           {tab === "session" && <SessionSection />}
           {tab === "automation" && <AutomationSection />}

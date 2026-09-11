@@ -82,35 +82,6 @@ impl Default for AutoLogSettings {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct PromptSettings {
-    /// "blocks" = built-in input card with the shell's own prompt hidden;
-    /// "off" = leave the shell's prompt configuration untouched.
-    pub mode: String,
-    /// Segment ids for the prompt header's left/right areas: cwd | git |
-    /// duration | exit | node | bun | deno | python | go | rust | java |
-    /// ruby | php | dotnet | text:<literal>.
-    pub left: Vec<String>,
-    pub right: Vec<String>,
-    /// Symbol shown before the input line.
-    pub input_symbol: String,
-    /// Per-segment color overrides (segment id → color).
-    pub colors: std::collections::HashMap<String, String>,
-}
-
-impl Default for PromptSettings {
-    fn default() -> Self {
-        Self {
-            mode: "blocks".to_string(),
-            left: vec!["cwd".to_string(), "git".to_string()],
-            right: vec!["duration".to_string(), "exit".to_string()],
-            input_symbol: "\u{276f}".to_string(),
-            colors: std::collections::HashMap::new(),
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -126,8 +97,6 @@ pub struct Settings {
     pub badge: Option<String>,
     /// extra environment variables ("KEY=VALUE")
     pub env: Option<Vec<String>>,
-    /// Prompt rendering for the built-in block model.
-    pub prompt: PromptSettings,
     // Appearance (None = built-in default).
     pub font_family: Option<String>,
     pub font_size: Option<u16>,
@@ -165,7 +134,6 @@ impl Default for Settings {
             scrollback: None,
             badge: None,
             env: None,
-            prompt: PromptSettings::default(),
             font_family: None,
             font_size: None,
             theme_name: None,
@@ -277,9 +245,16 @@ pub fn load(app: &AppHandle) -> Result<Settings> {
     // A corrupt file falls back to defaults rather than failing the app.
     let mut value: serde_json::Value =
         serde_json::from_str(&text).unwrap_or(serde_json::json!({}));
-    if migrate_legacy_profiles(&mut value) {
+    let migrated = migrate_legacy_profiles(&mut value);
+    // The Warp-style "blocks" prompt model was removed; purge any persisted
+    // prompt section so old settings files don't keep dead keys around.
+    let purged = value
+        .as_object_mut()
+        .map(|obj| obj.remove("prompt").is_some())
+        .unwrap_or(false);
+    if migrated || purged {
         let settings: Settings = serde_json::from_value(value).unwrap_or_default();
-        // Persist the migrated shape so the legacy fields don't linger.
+        // Persist the migrated/purged shape so the removed fields don't linger.
         save(app, &settings)?;
         Ok(settings)
     } else {
@@ -359,6 +334,16 @@ mod tests {
                 .unwrap();
         assert_eq!(back.shell.as_deref(), Some("fish"));
         assert_eq!(back.ui.sidebar_width, 300);
+    }
+
+    #[test]
+    fn settings_ignores_persisted_prompt_section() {
+        // The removed "blocks" prompt model must not break older settings files.
+        let back: Settings = serde_json::from_str(
+            r#"{"prompt":{"mode":"blocks","left":["cwd"],"right":[],"inputSymbol":"❯","colors":{}},"shell":"fish"}"#,
+        )
+        .unwrap();
+        assert_eq!(back.shell.as_deref(), Some("fish"));
     }
 
     #[test]

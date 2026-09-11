@@ -150,24 +150,10 @@ pub fn spawn_session(
         pixel_height: 0,
     })?;
 
-    let (shell, mut args) = match options.shell {
+    let (shell, args) = match options.shell {
         Some(s) => (s, options.args.unwrap_or_default()),
         None => default_shell(),
     };
-    // Prompt "blocks" mode: the shell's own prompt is hidden and the app
-    // renders a native input card. Off (or a failed settings read) leaves
-    // the shell's prompt configuration untouched.
-    let blocks = crate::settings::load(&app)
-        .map(|s| s.prompt.mode == "blocks")
-        .unwrap_or(true);
-    // PowerShell integrates through startup args, which must run before the
-    // user's own args.
-    if shell_integration::shell_kind(&shell) == Some("pwsh") {
-        if let Some(mut ps_args) = shell_integration::powershell_args(blocks) {
-            ps_args.extend(args);
-            args = ps_args;
-        }
-    }
     let mut cmd = CommandBuilder::new(&shell);
     cmd.args(&args);
     if let Some(cwd) = &options.cwd {
@@ -183,16 +169,15 @@ pub fn spawn_session(
             }
         }
     }
-    // Shell integration: OSC 7 cwd reports + OSC 133 marks (blocks mode also
-    // hides the shell's own prompt). Injected for supported shell families —
-    // zsh via ZDOTDIR, bash via the environment, PowerShell via the startup
-    // args above; unsupported shells (fish, nu, …) are left untouched.
+    // Shell integration: OSC 7 cwd reports + OSC 133 prompt marks. Injected
+    // for supported shell families — zsh via ZDOTDIR, bash via the
+    // environment; unsupported shells (fish, nu, …) are left untouched.
     if matches!(
         shell_integration::shell_kind(&shell),
         Some("zsh" | "bash")
     ) {
         if let Ok(config_dir) = app.path().app_config_dir() {
-            if let Some(vars) = shell_integration::env_for_shell(&shell, &config_dir, blocks) {
+            if let Some(vars) = shell_integration::env_for_shell(&shell, &config_dir) {
                 for (key, value) in vars {
                     cmd.env(key, value);
                 }

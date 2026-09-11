@@ -192,11 +192,6 @@ export function dispatchMenuAction(action: string): void {
     case "next-mark":
       jumpToPromptMark(1);
       break;
-    case "prompt-focus":
-      window.dispatchEvent(
-        new CustomEvent("cw-focus-prompt", { detail: { paneId: tab?.activePaneId } }),
-      );
-      break;
     case "copy-last-output":
       void copyLastCommandOutput();
       break;
@@ -342,7 +337,6 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { sep: true },
       { label: "Previous Prompt", action: "prev-mark" },
       { label: "Next Prompt", action: "next-mark" },
-      { label: "Focus Prompt", action: "prompt-focus" },
     ],
   },
   {

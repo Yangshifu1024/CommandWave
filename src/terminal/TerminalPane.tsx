@@ -37,8 +37,6 @@ function lastSegment(cwd: string | null): string | null {
   return seg ?? trimmed;
 }
 import { terminalManager } from "./manager";
-import { PromptEditor, type PromptEditorHandle } from "./promptEditor/PromptEditor";
-import { editorVisible } from "./promptEditor/promptModel";
 import { notifyCommandFinished, onPtyExit, openExternal, openWithEditor, ptyAttach, ptyClose, ptyResize, ptyWrite, sendNotification, setProgress, spawnPty, type OutputSink } from "./ipc";
 import { parseFileLink } from "./fileLinks";
 
@@ -64,7 +62,7 @@ interface TerminalPaneProps {
   cwd?: string | null;
   /** tmux control mode: mirror this tmux pane instead of spawning a PTY. */
   tmuxPaneId?: string | null;
-  /** The pane is the focused pane of the active tab (prompt card gate). */
+  /** The pane is the focused pane of the active tab. */
   paneFocused?: boolean;
 }
 
@@ -73,17 +71,10 @@ interface TerminalPaneProps {
  * feeds it. The xterm element is re-parented by the terminal manager, so
  * mounting/unmounting tracks the pane's lifetime, not tab visibility.
  */
-export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalPaneProps) {
+export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const entryRef = useRef<ReturnType<typeof terminalManager.create> | null>(null);
-  // Native prompt card state: suspended covers submit→D and C→D windows;
-  // altScreen tracks TUI apps owning the screen.
-  const [promptSuspended, setPromptSuspended] = useState(false);
-  const [altScreen, setAltScreen] = useState(false);
-  const [ptyExited, setPtyExited] = useState(false);
-  const editorRef = useRef<PromptEditorHandle | null>(null);
-  const promptVisibleRef = useRef(false);
   // One global settings object (stable reference); appearance follows it live.
   const settings = useSettingsStore((s) => s.settings);
   const fontFamily = settings.fontFamily ?? appearanceDefaults.fontFamily;
@@ -117,20 +108,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
   // Badges with {duration} refresh when a command finishes.
   const [, bumpHistory] = useState(0);
   useEffect(() => subscribeCommands(() => bumpHistory((v) => v + 1)), []);
-
-  // The native prompt card owns the keyboard while the shell idles at a
-  // prompt in blocks mode (see promptModel.editorVisible).
-  const promptVisible = editorVisible({
-    mode: settings.prompt?.mode ?? "blocks",
-    paneActive: paneFocused ?? false,
-    running: promptSuspended,
-    altScreen,
-    copyMode: inCopyMode,
-    broadcast: broadcasting,
-    tmuxPane: tmuxPaneId != null,
-    exited: ptyExited,
-  });
-  promptVisibleRef.current = promptVisible;
 
   // Live-apply appearance changes to the existing terminal instance.
   useEffect(() => {
@@ -262,16 +239,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
     });
     observer.observe(container);
 
-    // Track the alternate screen so TUI apps (vim, fzf) keep every key.
-    let altCached = false;
-    const renderDisposable = term.onRender(() => {
-      const alt = term.buffer.active.type === "alternate";
-      if (alt !== altCached) {
-        altCached = alt;
-        setAltScreen(alt);
-      }
-    });
-
     // ⌥/Alt-drag rectangle (column) selection: capture the mousedown before
     // xterm's flow selection, highlight the column block, copy on release.
     const cellMetrics = () => {
@@ -365,22 +332,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
       }
       // Alt+1..3 accept an autocomplete suggestion (ESC-prefixed digit).
       if (/^\x1b[1-3]$/.test(data) && tryAutocompleteKey(data[1])) return;
-      // While the prompt card owns input, keystrokes that still reach xterm
-      // (e.g. after selecting output text) go into the card instead.
-      if (promptVisibleRef.current) {
-        if (data === "\r") {
-          editorRef.current?.submit();
-          return;
-        }
-        if (data === "\x7f") {
-          editorRef.current?.backspace();
-          return;
-        }
-        if (!data.startsWith("\x1b") && /^[ -~\n]+$/.test(data)) {
-          editorRef.current?.append(data);
-          return;
-        }
-      }
       if (useAppStore.getState().broadcast) {
         // Broadcast input: every live pane receives the keystrokes.
         for (const e of terminalManager.allEntries()) {
@@ -539,7 +490,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
       );
     };
     const updateAutocomplete = () => {
-      if (!useSettingsStore.getState().settings.ui.autocomplete || promptVisibleRef.current) {
+      if (!useSettingsStore.getState().settings.ui.autocomplete) {
         acItems = [];
         renderAutocomplete();
         return;
@@ -622,8 +573,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
         if (marker) terminalManager.addMark(paneId, "output", marker);
         entry.runningPrompt = lastPromptMarker;
         entry.runningSince = Date.now();
-        // A command is running: keep the prompt card hidden.
-        setPromptSuspended(true);
         // The prompt line holds the command text being executed.
         if (lastPromptMarker && lastPromptMarker.line >= 0) {
           const line = term.buffer.active.getLine(lastPromptMarker.line);
@@ -657,8 +606,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
         }
         entry.runningPrompt = null;
         entry.runningSince = null;
-        // Back at a prompt: the input card returns.
-        setPromptSuspended(false);
         // Record into the command history (Recent Commands / autocomplete).
         if (runningCommandText) {
           const prompts = entry.marks.filter(
@@ -750,7 +697,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
     onPtyExit((ptyId, exitCode) => {
       if (ptyId !== entry.ptyId) return;
       exited = true;
-      setPtyExited(true);
       term.write(
         `\r\n\x1b[2m[Process completed (exit code ${exitCode})]\x1b[0m\r\n`,
       );
@@ -763,7 +709,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
       clearTimeout(watchdog);
       clearInterval(replayTimer);
       observer.disconnect();
-      renderDisposable.dispose();
       term.element?.removeEventListener("mousedown", onMouseDown, true);
       if (useAppStore.getState().copyModePane === paneId) {
         useAppStore.setState({ copyModePane: null });
@@ -780,14 +725,6 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId, paneFocused }: TerminalP
 
   return (
     <div ref={containerRef} className="terminal-pane">
-      {promptVisible && (
-        <PromptEditor
-          paneId={paneId}
-          cwd={paneCwd ?? cwd ?? null}
-          onSubmitted={() => setPromptSuspended(true)}
-          handleRef={editorRef}
-        />
-      )}
       {inCopyMode && (
         <div className="copy-mode-banner" role="status">
           COPY MODE · hjkl/↑↓ move · ⌃/⌥f/b page · v select · y copy · q quit

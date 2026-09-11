@@ -41,7 +41,6 @@ export const KEYBINDING_ACTIONS: {
   { action: "open-settings", label: "Settings", default: "CmdOrCtrl+," },
   { action: "prev-mark", label: "Previous Prompt", default: "CmdOrCtrl+Up" },
   { action: "next-mark", label: "Next Prompt", default: "CmdOrCtrl+Down" },
-  { action: "prompt-focus", label: "Focus Prompt", default: "CmdOrCtrl+L" },
   { action: "copy-last-output", label: "Copy Last Output", default: "" },
   { action: "clear-buffer", label: "Clear Buffer", default: "" },
   { action: "copy-mode", label: "Copy Mode", default: "Shift+CmdOrCtrl+C" },

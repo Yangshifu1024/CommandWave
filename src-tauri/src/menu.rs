@@ -25,7 +25,6 @@ pub fn default_accelerator(action: &str) -> Option<&'static str> {
         "open-search" => "CmdOrCtrl+F",
         "prev-mark" => "CmdOrCtrl+Up",
         "next-mark" => "CmdOrCtrl+Down",
-        "prompt-focus" => "CmdOrCtrl+L",
         // Menu items without default bindings.
         "copy-last-output" | "clear-buffer" => return None,
         _ => return None,
@@ -108,7 +107,6 @@ pub fn setup(
     view.append(&PredefinedMenuItem::separator(app)?)?;
     view.append(&item("prev-mark", "Previous Prompt")?)?;
     view.append(&item("next-mark", "Next Prompt")?)?;
-    view.append(&item("prompt-focus", "Focus Prompt")?)?;
 
     let window = Submenu::with_id(app, "cw-window", "Window", true)?;
     window.append(&PredefinedMenuItem::minimize(app, None)?)?;

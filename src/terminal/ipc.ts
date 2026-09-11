@@ -15,38 +15,6 @@ export interface PtySpawnOptions {
   env: string[] | null;
 }
 
-export interface GitInfo {
-  branch: string;
-  dirtyCount: number;
-}
-
-export interface LanguageVersion {
-  id: string;
-  version: string;
-}
-
-export interface EnvInfo {
-  git: GitInfo | null;
-  languages: LanguageVersion[];
-}
-
-/**
- * Environment snapshot for the prompt segments (git state + language
- * versions), detected on demand and cached per directory. Null outside
- * Tauri (browser mock has no process access).
- */
-export async function envInfo(
-  cwd: string,
-  segments: string[],
-): Promise<EnvInfo | null> {
-  if (!isTauri) return null;
-  try {
-    return await invoke<EnvInfo>("env_info", { cwd, segments });
-  } catch {
-    return null;
-  }
-}
-
 interface PtyCreated {
   ptyId: number;
 }

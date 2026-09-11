@@ -1,6 +1,5 @@
 mod api_server;
 mod commands;
-mod env_info;
 mod menu;
 mod pty;
 mod secrets;
@@ -31,7 +30,6 @@ pub fn run() {
             commands::open_with_editor,
             commands::set_progress,
             commands::system_stats,
-            commands::env_info,
             commands::set_window_blur,
             commands::window_is_transparent
         ])
