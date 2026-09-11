@@ -48,6 +48,31 @@ export interface AutoLogSettings {
   directory: string | null;
 }
 
+/**
+ * Prompt rendering for the built-in block model. Segment ids: cwd | git |
+ * duration | exit | node | bun | deno | python | go | rust | java | ruby |
+ * php | dotnet | text:<literal> — keep in sync with Rust `PromptSettings`.
+ */
+export interface PromptSettings {
+  /** "blocks" = native input card, shell prompt hidden; "off" = untouched. */
+  mode: "blocks" | "off";
+  /** Segment ids for the prompt header's left/right areas. */
+  left: string[];
+  right: string[];
+  /** Symbol shown before the input line. */
+  inputSymbol: string;
+  /** Per-segment color overrides (segment id → CSS color). */
+  colors: Record<string, string>;
+}
+
+export const defaultPromptSettings: PromptSettings = {
+  mode: "blocks",
+  left: ["cwd", "git"],
+  right: ["duration", "exit"],
+  inputSymbol: "\u276f",
+  colors: {},
+};
+
 export interface Settings {
   version: number;
   // Shell / session (null = built-in default).
@@ -62,6 +87,8 @@ export interface Settings {
   badge: string | null;
   /** Extra environment variables ("KEY=VALUE"). */
   env: string[] | null;
+  /** Prompt rendering for the built-in block model. */
+  prompt: PromptSettings;
   // Appearance (null = built-in default).
   fontFamily: string | null;
   fontSize: number | null;
@@ -103,6 +130,7 @@ export const defaultSettings: Settings = {
   scrollback: null,
   badge: null,
   env: null,
+  prompt: defaultPromptSettings,
   fontFamily: null,
   fontSize: null,
   themeName: null,

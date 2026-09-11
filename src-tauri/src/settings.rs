@@ -82,6 +82,35 @@ impl Default for AutoLogSettings {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PromptSettings {
+    /// "blocks" = built-in input card with the shell's own prompt hidden;
+    /// "off" = leave the shell's prompt configuration untouched.
+    pub mode: String,
+    /// Segment ids for the prompt header's left/right areas: cwd | git |
+    /// duration | exit | node | bun | deno | python | go | rust | java |
+    /// ruby | php | dotnet | text:<literal>.
+    pub left: Vec<String>,
+    pub right: Vec<String>,
+    /// Symbol shown before the input line.
+    pub input_symbol: String,
+    /// Per-segment color overrides (segment id → color).
+    pub colors: std::collections::HashMap<String, String>,
+}
+
+impl Default for PromptSettings {
+    fn default() -> Self {
+        Self {
+            mode: "blocks".to_string(),
+            left: vec!["cwd".to_string(), "git".to_string()],
+            right: vec!["duration".to_string(), "exit".to_string()],
+            input_symbol: "\u{276f}".to_string(),
+            colors: std::collections::HashMap::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
@@ -97,6 +126,8 @@ pub struct Settings {
     pub badge: Option<String>,
     /// extra environment variables ("KEY=VALUE")
     pub env: Option<Vec<String>>,
+    /// Prompt rendering for the built-in block model.
+    pub prompt: PromptSettings,
     // Appearance (None = built-in default).
     pub font_family: Option<String>,
     pub font_size: Option<u16>,
@@ -134,6 +165,7 @@ impl Default for Settings {
             scrollback: None,
             badge: None,
             env: None,
+            prompt: PromptSettings::default(),
             font_family: None,
             font_size: None,
             theme_name: None,
