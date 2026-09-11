@@ -8,7 +8,7 @@ export default defineConfig({
   // Vite options tailored for Tauri development
   clearScreen: false,
   server: {
-    port: 1420,
+    port: 8000,
     strictPort: true,
     watch: {
       ignored: ["**/src-tauri/**"],

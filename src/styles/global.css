@@ -446,11 +446,15 @@ body {
 }
 
 /* Padding lives on .pane (the xterm element's actual parent); FitAddon
- * measures this box, so text keeps its breathing room at any size. */
+ * measures this box, so text keeps its breathing room at any size.
+ * Must stay content-box: FitAddon reads computed height, which under
+ * border-box includes the padding — the last rendered row then lands in
+ * the bottom padding and gets clipped. */
 .pane {
   position: absolute;
   inset: 0;
   padding: 10px 14px;
+  box-sizing: content-box;
 }
 
 .pane-active {

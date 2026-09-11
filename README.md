@@ -89,7 +89,7 @@ cargo test            # Rust tests (PTY core, settings) — run in src-tauri/
 ```
 
 The frontend also runs in a plain browser (`pnpm dev` →
-<http://localhost:1420>) with a mock PTY, which is handy for layout work.
+<http://localhost:8000>) with a mock PTY, which is handy for layout work.
 
 ## Keyboard shortcuts
 
