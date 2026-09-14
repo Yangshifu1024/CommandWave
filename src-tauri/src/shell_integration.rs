@@ -114,7 +114,10 @@ pub fn env_for_shell(program: &str, base: &Path) -> Option<Vec<(String, String)>
             let zdotdir = write_integration_files(base).ok()?;
             let orig = std::env::var("ZDOTDIR").unwrap_or_default();
             Some(vec![
-                ("ZDOTDIR".to_string(), zdotdir.to_string_lossy().into_owned()),
+                (
+                    "ZDOTDIR".to_string(),
+                    zdotdir.to_string_lossy().into_owned(),
+                ),
                 ("CW_ORIG_ZDOTDIR".to_string(), orig),
             ])
         }
@@ -185,7 +188,10 @@ mod tests {
         assert_eq!(shell_kind("/bin/zsh"), Some("zsh"));
         assert_eq!(shell_kind("/usr/bin/bash"), Some("bash"));
         assert_eq!(shell_kind("pwsh"), Some("pwsh"));
-        assert_eq!(shell_kind("C:\\Program Files\\PowerShell\\7\\pwsh.exe"), Some("pwsh"));
+        assert_eq!(
+            shell_kind("C:\\Program Files\\PowerShell\\7\\pwsh.exe"),
+            Some("pwsh")
+        );
         assert_eq!(shell_kind("powershell.exe"), Some("pwsh"));
         assert_eq!(shell_kind("/usr/bin/fish"), None);
         assert_eq!(shell_kind("nu"), None);

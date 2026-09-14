@@ -29,7 +29,12 @@ pub fn pty_write(state: State<PtyManager>, pty_id: u32, data: String) -> Result<
 }
 
 #[tauri::command]
-pub fn pty_resize(state: State<PtyManager>, pty_id: u32, rows: u16, cols: u16) -> Result<(), String> {
+pub fn pty_resize(
+    state: State<PtyManager>,
+    pty_id: u32,
+    rows: u16,
+    cols: u16,
+) -> Result<(), String> {
     state
         .sessions
         .lock()
@@ -72,7 +77,10 @@ pub fn show_main_window(app: AppHandle) -> Result<(), String> {
 
 /// Rebuild the native menu with customized accelerators.
 #[tauri::command]
-pub fn rebuild_menu(app: AppHandle, keybindings: std::collections::HashMap<String, String>) -> Result<(), String> {
+pub fn rebuild_menu(
+    app: AppHandle,
+    keybindings: std::collections::HashMap<String, String>,
+) -> Result<(), String> {
     crate::menu::setup(&app, &keybindings).map_err(|e| e.to_string())
 }
 
@@ -169,7 +177,6 @@ pub fn set_progress(app: AppHandle, value: Option<f64>) -> Result<(), String> {
     let _ = app;
     Ok(())
 }
-
 
 /// Whether the main window was created with OS transparency (from the
 /// embedded tauri.conf.json). Transparent WebView2 windows show a thin

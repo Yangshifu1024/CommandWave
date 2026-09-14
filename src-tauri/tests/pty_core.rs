@@ -1,11 +1,16 @@
 //! Headless tests for the PTY core: exercises the same portable-pty calls
 //! used by `pty::spawn_session` without needing a running Tauri app.
 
+#[cfg(unix)]
 use std::io::Read;
+#[cfg(unix)]
 use std::time::{Duration, Instant};
 
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+#[cfg(unix)]
+use portable_pty::CommandBuilder;
+use portable_pty::{native_pty_system, PtySize};
 
+#[cfg(unix)]
 #[test]
 fn pty_echoes_command_output() {
     let pty_system = native_pty_system();

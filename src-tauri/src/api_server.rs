@@ -11,13 +11,8 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::PtyManager;
 
-pub struct ApiHandle {
-    pub port: u16,
-    pub token: String,
-}
-
-/// Start the API server; returns its address for discovery-file writes.
-pub fn start(app: AppHandle) -> std::io::Result<ApiHandle> {
+/// Start the API server; the address is written to the discovery file.
+pub fn start(app: AppHandle) -> std::io::Result<()> {
     let listener = TcpListener::bind(("127.0.0.1", 0))?;
     let port = listener.local_addr()?.port();
     let token = format!("{:016x}", rand_u64());
@@ -30,7 +25,7 @@ pub fn start(app: AppHandle) -> std::io::Result<ApiHandle> {
             std::thread::spawn(move || serve_conn(app, stream));
         }
     });
-    Ok(ApiHandle { port, token })
+    Ok(())
 }
 
 fn rand_u64() -> u64 {
@@ -103,7 +98,7 @@ fn current_token() -> String {
 }
 
 thread_local! {
-    static TOKEN: std::cell::RefCell<String> = std::cell::RefCell::new(String::new());
+    static TOKEN: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
 }
 
 use std::net::TcpStream;

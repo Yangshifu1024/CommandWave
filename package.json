@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "A cross-platform terminal emulator inspired by iTerm2",
   "type": "module",
+  "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
