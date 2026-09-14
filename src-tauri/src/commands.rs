@@ -177,8 +177,10 @@ pub fn agent_attention_update(
     count: u32,
 ) -> Result<(), String> {
     crate::tray::update(&app, &items, count).map_err(|e| e.to_string())?;
+    // macOS: mirror the count as a Dock badge (no tray title elsewhere).
     #[cfg(target_os = "macos")]
     {
+        use tauri::Manager;
         if let Some(window) = app.get_webview_window("main") {
             let badge = if count == 0 { None } else { Some(count as i64) };
             let _ = window.set_badge_count(badge);
