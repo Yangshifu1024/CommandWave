@@ -1,16 +1,17 @@
+use tauri::AppHandle as BaseAppHandle;
+#[cfg(not(target_os = "macos"))]
+use tauri::Wry;
 #[cfg(target_os = "macos")]
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     Emitter, Manager, Wry,
 };
-use tauri::AppHandle as BaseAppHandle;
-#[cfg(not(target_os = "macos"))]
-use tauri::Wry;
 
 use std::collections::HashMap;
 
 /// Built-in accelerators, used whenever the settings carry no override for
 /// an action. Must stay in sync with `src/hooks/keybindings.ts`.
+#[cfg(target_os = "macos")]
 pub fn default_accelerator(action: &str) -> Option<&'static str> {
     Some(match action {
         "open-settings" => "CmdOrCtrl+,",
@@ -31,6 +32,7 @@ pub fn default_accelerator(action: &str) -> Option<&'static str> {
     })
 }
 
+#[cfg(target_os = "macos")]
 fn accel(overrides: &HashMap<String, String>, action: &str) -> Option<String> {
     if let Some(custom) = overrides.get(action) {
         if custom.is_empty() {
@@ -49,26 +51,13 @@ fn accel(overrides: &HashMap<String, String>, action: &str) -> Option<String> {
 /// the custom in-window title bar menu instead, so no native menu is
 /// attached there (see `TitleBar.tsx`).
 #[cfg(target_os = "macos")]
-pub fn setup(
-    app: &BaseAppHandle<Wry>,
-    keybindings: &HashMap<String, String>,
-) -> tauri::Result<()> {
+pub fn setup(app: &BaseAppHandle<Wry>, keybindings: &HashMap<String, String>) -> tauri::Result<()> {
     let item = |id: &str, label: &str| -> tauri::Result<MenuItem<Wry>> {
-        MenuItem::with_id(
-            app,
-            id,
-            label,
-            true,
-            accel(keybindings, id),
-        )
+        MenuItem::with_id(app, id, label, true, accel(keybindings, id))
     };
 
     let app_submenu = Submenu::with_id(app, "cw-app", "CommandWave", true)?;
-    app_submenu.append(&PredefinedMenuItem::about(
-        app,
-        Some("CommandWave"),
-        None,
-    )?)?;
+    app_submenu.append(&PredefinedMenuItem::about(app, Some("CommandWave"), None)?)?;
     app_submenu.append(&PredefinedMenuItem::separator(app)?)?;
     app_submenu.append(&item("open-settings", "Settings…")?)?;
     app_submenu.append(&PredefinedMenuItem::separator(app)?)?;

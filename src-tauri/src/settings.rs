@@ -66,20 +66,11 @@ pub struct AutoAnswer {
     pub enabled: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AutoLogSettings {
     pub enabled: bool,
     pub directory: Option<String>,
-}
-
-impl Default for AutoLogSettings {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            directory: None,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -243,8 +234,7 @@ pub fn load(app: &AppHandle) -> Result<Settings> {
     }
     let text = fs::read_to_string(&path).context("reading settings.json")?;
     // A corrupt file falls back to defaults rather than failing the app.
-    let mut value: serde_json::Value =
-        serde_json::from_str(&text).unwrap_or(serde_json::json!({}));
+    let mut value: serde_json::Value = serde_json::from_str(&text).unwrap_or(serde_json::json!({}));
     let migrated = migrate_legacy_profiles(&mut value);
     // The Warp-style "blocks" prompt model was removed; purge any persisted
     // prompt section so old settings files don't keep dead keys around.
@@ -298,7 +288,7 @@ mod tests {
         assert_eq!(back.ui.tab_bar_position, "top");
         assert_eq!(back.shell, None);
         assert_eq!(back.ui.font_size_delta, 0);
-        assert_eq!(back.auto_log.enabled, false);
+        assert!(!back.auto_log.enabled);
     }
 
     #[test]
@@ -324,14 +314,15 @@ mod tests {
         assert_eq!(back.triggers[0].regex, "error");
         assert!(back.triggers[0].case_sensitive);
         assert_eq!(back.auto_answers[0].reply, "y");
-        assert_eq!(back.auto_log.enabled, false);
+        assert!(!back.auto_log.enabled);
     }
 
     #[test]
     fn settings_parse_uses_camel_case_keys() {
-        let back: Settings =
-            serde_json::from_str(r#"{"shell":"fish","ui":{"tabBarPosition":"left","sidebarWidth":300}}"#)
-                .unwrap();
+        let back: Settings = serde_json::from_str(
+            r#"{"shell":"fish","ui":{"tabBarPosition":"left","sidebarWidth":300}}"#,
+        )
+        .unwrap();
         assert_eq!(back.shell.as_deref(), Some("fish"));
         assert_eq!(back.ui.sidebar_width, 300);
     }

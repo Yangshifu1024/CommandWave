@@ -54,10 +54,9 @@ mod tests {
     fn secrets_file_parses_empty_and_entries() {
         let f: SecretsFile = serde_json::from_str("{}").unwrap();
         assert!(f.entries.is_empty());
-        let f: SecretsFile = serde_json::from_str(
-            r#"{"entries":[{"name":"pw","salt":"s","iv":"i","data":"d"}]}"#,
-        )
-        .unwrap();
+        let f: SecretsFile =
+            serde_json::from_str(r#"{"entries":[{"name":"pw","salt":"s","iv":"i","data":"d"}]}"#)
+                .unwrap();
         assert_eq!(f.entries[0].name, "pw");
         assert_eq!(f.entries[0].data, "d");
     }

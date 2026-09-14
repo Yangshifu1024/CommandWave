@@ -1,0 +1,161 @@
+name: release
+
+# Packaging pipeline: runs only on v* tags.
+# Builds the Tauri bundles on macOS, Windows and Linux and attaches them to a
+# draft GitHub release, which a maintainer reviews and publishes manually.
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  prepare-release:
+    name: Prepare release
+    runs-on: ubuntu-22.04
+    outputs:
+      release_id: ${{ steps.create.outputs.id }}
+      release_notes: ${{ steps.notes.outputs.body }}
+    steps:
+      # Full history + tags so the notes step can diff against the previous tag.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      # generate_release_notes only lists merged PRs; this repo pushes release
+      # commits directly, so list every commit between the previous tag and
+      # this one; the same text feeds tauri-action's releaseBody below.
+      - name: Build release notes
+        id: notes
+        run: |
+          prev_tag=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          {
+            echo "## What's Changed"
+            if [ -n "$prev_tag" ]; then
+              git log --format='- %h %s' "${prev_tag}..${GITHUB_REF_NAME}"
+              echo
+              echo "Full Changelog: https://github.com/${GITHUB_REPOSITORY}/compare/${prev_tag}...${GITHUB_REF_NAME}"
+            else
+              echo "- First tagged release"
+            fi
+          } > release-notes.md
+          {
+            echo "body<<NOTES_EOF"
+            cat release-notes.md
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+      # draft: tauri-action uploads artifacts but never publishes — a human
+      # reviews assets/notes and hits publish manually.
+      - name: Create draft release
+        id: create
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          body_path: release-notes.md
+
+  build-macos:
+    name: Build (macOS)
+    needs: prepare-release
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      # pnpm version is read from the root package.json `packageManager` field.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+      # Builds an ad-hoc signed dmg (no Developer ID certificate configured).
+      - name: Tauri build
+        uses: tauri-apps/tauri-action@action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          releaseId: ${{ needs.prepare-release.outputs.release_id }}
+          releaseBody: ${{ needs.prepare-release.outputs.release_notes }}
+          args: --verbose
+
+  build-linux:
+    name: Build (Linux)
+    needs: prepare-release
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install Tauri Linux deps
+        run: |
+          # The runner image ships Google's Chrome apt source, which
+          # intermittently fails `apt-get update` with a hash mismatch;
+          # it is irrelevant to this job, so drop it before updating.
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.*
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libxdo-dev \
+            libayatana-appindicator3-dev \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            patchelf
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+      - name: Tauri build
+        uses: tauri-apps/tauri-action@action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          releaseId: ${{ needs.prepare-release.outputs.release_id }}
+          releaseBody: ${{ needs.prepare-release.outputs.release_notes }}
+          args: --verbose
+
+  build-windows:
+    name: Build (Windows)
+    needs: prepare-release
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+      - name: Tauri build
+        uses: tauri-apps/tauri-action@action-v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          releaseId: ${{ needs.prepare-release.outputs.release_id }}
+          releaseBody: ${{ needs.prepare-release.outputs.release_notes }}
+          args: --verbose

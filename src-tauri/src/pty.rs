@@ -6,8 +6,8 @@ use std::time::Duration;
 use anyhow::Result;
 use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager};
 use tauri::ipc::Channel;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::shell_integration;
 use crate::state::PtyManager;
@@ -172,10 +172,7 @@ pub fn spawn_session(
     // Shell integration: OSC 7 cwd reports + OSC 133 prompt marks. Injected
     // for supported shell families — zsh via ZDOTDIR, bash via the
     // environment; unsupported shells (fish, nu, …) are left untouched.
-    if matches!(
-        shell_integration::shell_kind(&shell),
-        Some("zsh" | "bash")
-    ) {
+    if matches!(shell_integration::shell_kind(&shell), Some("zsh" | "bash")) {
         if let Ok(config_dir) = app.path().app_config_dir() {
             if let Some(vars) = shell_integration::env_for_shell(&shell, &config_dir) {
                 for (key, value) in vars {
@@ -200,11 +197,7 @@ pub fn spawn_session(
         closed: AtomicBool::new(false),
         router: OutputRouter::new(on_output),
     });
-    manager
-        .sessions
-        .lock()
-        .unwrap()
-        .insert(id, session.clone());
+    manager.sessions.lock().unwrap().insert(id, session.clone());
 
     // Session log: tee all PTY output to a file when auto-log is enabled.
     let log_file = logging_file_for(&app, id);
