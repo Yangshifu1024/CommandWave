@@ -127,6 +127,66 @@ pub fn secrets_delete(app: AppHandle, name: String) -> Result<(), String> {
     crate::secrets::save(&app, &file).map_err(|e| e.to_string())
 }
 
+// ---------- Agent notifications (Tier 3 integrations + attention) ----------
+
+/// Every known agent with detection + install state, for the Integrations UI.
+#[tauri::command]
+pub fn agent_registry(app: AppHandle) -> Vec<crate::agent::AgentInfo> {
+    crate::agent::list(&app)
+}
+
+/// Install CommandWave's hooks into an agent's config (with backup/preview).
+#[tauri::command]
+pub fn agent_install(
+    app: AppHandle,
+    agent_id: String,
+) -> Result<crate::agent::InstallOutcome, String> {
+    let outcome = crate::agent::install(&app, &agent_id)?;
+    set_agent_installed(&app, &agent_id, true)?;
+    Ok(outcome)
+}
+
+/// Remove CommandWave's hooks / restore the backed-up config.
+#[tauri::command]
+pub fn agent_uninstall(
+    app: AppHandle,
+    agent_id: String,
+) -> Result<crate::agent::InstallOutcome, String> {
+    let outcome = crate::agent::uninstall(&app, &agent_id)?;
+    set_agent_installed(&app, &agent_id, false)?;
+    Ok(outcome)
+}
+
+fn set_agent_installed(app: &AppHandle, agent_id: &str, installed: bool) -> Result<(), String> {
+    let mut settings = settings::load(app).map_err(|e| e.to_string())?;
+    settings.notifications.integrations.insert(
+        agent_id.to_string(),
+        crate::settings::IntegrationState {
+            enabled: installed,
+            installed,
+        },
+    );
+    settings::save(app, &settings).map_err(|e| e.to_string())
+}
+
+/// Push the current attention set to the tray and the macOS Dock badge.
+#[tauri::command]
+pub fn agent_attention_update(
+    app: AppHandle,
+    items: Vec<crate::tray::AttentionItem>,
+    count: u32,
+) -> Result<(), String> {
+    crate::tray::update(&app, &items, count).map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(window) = app.get_webview_window("main") {
+            let badge = if count == 0 { None } else { Some(count as i64) };
+            let _ = window.set_badge_count(badge);
+        }
+    }
+    Ok(())
+}
+
 /// Open a file with the user's editor command ("code {file}" etc.).
 #[tauri::command]
 pub fn open_with_editor(editor_command: String, file: String) -> Result<(), String> {

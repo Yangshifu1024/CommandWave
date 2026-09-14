@@ -1,6 +1,16 @@
 import { useSettingsStore, type Settings } from "../store/settingsStore";
 import { scrollbackLines } from "../store/settingsStore";
+import { requestAttention, sendNotification } from "../notifications/backend";
 import { clampInt } from "./clamp";
+
+/** Verify permission + toast style from the settings dialog. */
+async function sendTestNotification(): Promise<void> {
+  await sendNotification({
+    title: "CommandWave",
+    body: "Test notification — agent alerts are working.",
+  });
+  void requestAttention();
+}
 
 /**
  * Settings tab for the shell/session: shell command, working directory,
@@ -106,18 +116,93 @@ export function TerminalSection() {
         <label className="check-row">
           <input
             type="checkbox"
-            checked={settings.notifications.commandCompletion}
+            checked={settings.notifications.events.finished}
             onChange={(e) =>
               update((draft) => {
-                draft.notifications.commandCompletion = e.target.checked;
+                draft.notifications.events.finished = e.target.checked;
               })
             }
           />
           <span>
-            Command finished — notify when a command that ran ≥ 2s finishes
-            while the window is not focused
+            Finished — a command or agent turn completed while you were away
           </span>
         </label>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={settings.notifications.events.needsConfirmation}
+            onChange={(e) =>
+              update((draft) => {
+                draft.notifications.events.needsConfirmation = e.target.checked;
+              })
+            }
+          />
+          <span>Needs confirmation — an agent is waiting for your answer</span>
+        </label>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={settings.notifications.events.error}
+            onChange={(e) =>
+              update((draft) => {
+                draft.notifications.events.error = e.target.checked;
+              })
+            }
+          />
+          <span>Error — an agent or command failed</span>
+        </label>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={settings.notifications.taskbarAttention}
+            onChange={(e) =>
+              update((draft) => {
+                draft.notifications.taskbarAttention = e.target.checked;
+              })
+            }
+          />
+          <span>Flash the taskbar / Dock when an agent needs you</span>
+        </label>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={settings.notifications.titleDetection}
+            onChange={(e) =>
+              update((draft) => {
+                draft.notifications.titleDetection = e.target.checked;
+              })
+            }
+          />
+          <span>
+            Detect agent state from window titles (Claude, Gemini, Codex…)
+          </span>
+        </label>
+        <div className="field-row">
+          <label className="field field-narrow">
+            <span>Idle threshold (seconds)</span>
+            <input
+              type="number"
+              min={1}
+              max={60}
+              step={1}
+              value={Math.round(settings.notifications.idleThresholdMs / 1000)}
+              onChange={(e) =>
+                update((draft) => {
+                  draft.notifications.idleThresholdMs =
+                    clampInt(e.target.value, 1, 60, 5) * 1000;
+                })
+              }
+            />
+          </label>
+          <button
+            className="settings-button"
+            onClick={() => {
+              void sendTestNotification();
+            }}
+          >
+            Send test notification
+          </button>
+        </div>
       </section>
     </>
   );

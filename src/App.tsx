@@ -25,6 +25,8 @@ import { setWindowBlur, windowIsTransparent } from "./terminal/ipc";
 import { terminalManager } from "./terminal/manager";
 import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
+import { initAgentRuntime } from "./agent/runtime";
+import { AgentOnboarding } from "./agent/AgentOnboarding";
 
 /** Detached-pane window: a single pane hosted outside the main window. */
 function DetachedPaneWindow() {
@@ -172,6 +174,9 @@ function MainApp() {
     );
   }, []);
 
+  // Agent notifications: hook events, notification clicks, tray, idle sweep.
+  useEffect(() => initAgentRuntime(), []);
+
   // Once the home directory is known, tab titles can render it as "~".
   useEffect(() => {
     if (!isTauri) return;
@@ -257,6 +262,7 @@ function MainApp() {
         </div>
       </div>
       {settingsOpen && <SettingsDialog />}
+      <AgentOnboarding />
       <ContextMenu />
       <PasteConfirm />
       <Expose />

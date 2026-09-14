@@ -13,6 +13,8 @@ export interface PtySpawnOptions {
   args?: string[] | null;
   /** extra environment variables ("KEY=VALUE") */
   env: string[] | null;
+  /** Frontend pane id; exposed to the shell so agent hooks can report back. */
+  paneId?: string | null;
 }
 
 interface PtyCreated {
@@ -150,47 +152,26 @@ export async function rebuildNativeMenu(
 }
 
 /**
- * OS notification for a finished command. No-op outside Tauri or when the
- * system denies notification permission.
+ * OS notification for a finished command. Routed through the shared
+ * notification backend so permission handling and the plugin live in one
+ * place. No-op outside Tauri or when the system denies permission.
  */
 export async function notifyCommandFinished(
   exitCode: number,
   context: string,
 ): Promise<void> {
-  if (!isTauri) return;
-  try {
-    const mod = await import("@tauri-apps/plugin-notification");
-    let granted = await mod.isPermissionGranted();
-    if (!granted) {
-      granted = (await mod.requestPermission()) === "granted";
-    }
-    if (!granted) return;
-    mod.sendNotification({
-      title:
-        exitCode === 0
-          ? "Command finished"
-          : `Command failed (exit ${exitCode})`,
-      body: context,
-    });
-  } catch {
-    // notification plugin unavailable — silently skip
-  }
+  const { sendNotification: send } = await import("../notifications/backend");
+  await send({
+    title:
+      exitCode === 0 ? "Command finished" : `Command failed (exit ${exitCode})`,
+    body: context,
+  });
 }
 
 /** Generic OS notification (trigger notifications etc.). */
 export async function sendNotification(title: string, body: string): Promise<void> {
-  if (!isTauri) return;
-  try {
-    const mod = await import("@tauri-apps/plugin-notification");
-    let granted = await mod.isPermissionGranted();
-    if (!granted) {
-      granted = (await mod.requestPermission()) === "granted";
-    }
-    if (!granted) return;
-    mod.sendNotification({ title, body });
-  } catch {
-    // notification plugin unavailable — silently skip
-  }
+  const { sendNotification: send } = await import("../notifications/backend");
+  await send({ title, body });
 }
 
 /** Open a file with the configured editor command ("code {file}"). */

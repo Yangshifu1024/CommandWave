@@ -15,11 +15,37 @@ export interface UiSettings {
   autocomplete: boolean;
 }
 
+/** Per-event toggles for the three agent lifecycle events. */
+export interface EventNotificationSettings {
+  /** Agent is waiting on the user to confirm / answer. */
+  needsConfirmation: boolean;
+  /** Agent finished a turn, or its command exited cleanly. */
+  finished: boolean;
+  /** Agent (or the command it ran) failed. */
+  error: boolean;
+}
+
+/** Tier-3 install state for one agent integration. */
+export interface IntegrationState {
+  enabled: boolean;
+  installed: boolean;
+}
+
 export interface NotificationSettings {
-  /** OS notification when a long command finishes while unfocused. */
-  commandCompletion: boolean;
   /** Confirm before pasting multi-line / large / destructive text. */
   pasteWarning: boolean;
+  /** Per-event agent / command notification toggles. */
+  events: EventNotificationSettings;
+  /** Flash the taskbar / Dock when an agent needs the user. */
+  taskbarAttention: boolean;
+  /** Parse OSC 0/2 window titles to infer agent state (Tier 1). */
+  titleDetection: boolean;
+  /** Output-idle threshold (ms) for the tier-0 heuristic. */
+  idleThresholdMs: number;
+  /** Extra regexes treated as agent errors (Tier 1). */
+  errorPatterns: string[];
+  /** agent id -> Tier-3 install state. */
+  integrations: Record<string, IntegrationState>;
 }
 
 /** iTerm2-style trigger: regex over printed lines firing an action. */
@@ -115,7 +141,23 @@ export const defaultSettings: Settings = {
   backgroundImage: null,
   backgroundImageOpacity: null,
   ui: { tabBarPosition: "top", sidebarWidth: 180, fontSizeDelta: 0, restoreSessionOnStart: true, autocomplete: true },
-  notifications: { commandCompletion: true, pasteWarning: true },
+  notifications: {
+    pasteWarning: true,
+    events: { needsConfirmation: true, finished: true, error: true },
+    taskbarAttention: true,
+    titleDetection: true,
+    idleThresholdMs: 5000,
+    errorPatterns: [
+      "rate limit",
+      "overloaded",
+      "api error",
+      "authentication failed",
+      "context length",
+      "quota exceeded",
+      "connection error",
+    ],
+    integrations: {},
+  },
   triggers: [
     {
       id: "trigger-password",
@@ -170,7 +212,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           ...defaultSettings,
           ...loaded,
           ui: { ...defaultSettings.ui, ...loaded.ui },
-          notifications: { ...defaultSettings.notifications, ...loaded.notifications },
+          notifications: {
+            ...defaultSettings.notifications,
+            ...loaded.notifications,
+            events: {
+              ...defaultSettings.notifications.events,
+              ...loaded.notifications?.events,
+            },
+            integrations: {
+              ...defaultSettings.notifications.integrations,
+              ...loaded.notifications?.integrations,
+            },
+          },
           autoLog: { ...defaultSettings.autoLog, ...loaded.autoLog },
           triggers: loaded.triggers ?? defaultSettings.triggers,
           autoAnswers: loaded.autoAnswers ?? defaultSettings.autoAnswers,

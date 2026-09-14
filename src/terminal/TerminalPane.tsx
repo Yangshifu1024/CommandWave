@@ -39,6 +39,16 @@ function lastSegment(cwd: string | null): string | null {
 import { terminalManager } from "./manager";
 import { notifyCommandFinished, onPtyExit, openExternal, openWithEditor, ptyAttach, ptyClose, ptyResize, ptyWrite, sendNotification, setProgress, spawnPty, type OutputSink } from "./ipc";
 import { parseFileLink } from "./fileLinks";
+import { matchAgent } from "../agent/recognition";
+import {
+  forgetPane,
+  reportActivity,
+  reportAgentDetected,
+  reportAttentionSignal,
+  reportHookEvent,
+  reportTitle,
+} from "../agent/statusController";
+import { paneStatus } from "../agent/statusStore";
 
 /** Short beep via WebAudio (trigger "sound" action). */
 let audioCtx: AudioContext | null = null;
@@ -397,6 +407,8 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
     };
     const handleTriggerChunk = (chunk: Uint8Array | string) => {
       const text = typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true });
+      // Agent activity: only tracked once a known agent is recognised.
+      reportActivity(paneId, stripAnsi(text));
       const { lines, rest } = feedLines(triggerBuf, text);
       triggerBuf = rest;
       for (const line of lines) evaluateLine(line);
@@ -532,7 +544,12 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
 
     term.onTitleChange((title) => {
       useAppStore.getState().onPaneTitle(paneId, title);
+      // Tier 1: the agent's OSC 0/2 title encodes busy / ready / needs-input.
+      reportTitle(paneId, title);
     });
+
+    // BEL: many agents ring once when they want the user (aider's default).
+    term.onBell(() => reportAttentionSignal(paneId));
 
     // Shell integration: OSC 7 ("file://host/path") and ConEmu-style OSC 9;9
     // both report the shell's working directory; use them for tab titles.
@@ -551,6 +568,14 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
       if (progress) {
         setProgress(Number.parseFloat(progress[1]));
       }
+      // Plain OSC 9 is the ConEmu/kitty desktop-notification form (Codex,
+      // Gemini and others emit it when an action is required).
+      if (!data.startsWith("9;")) reportAttentionSignal(paneId, data);
+      return false;
+    });
+    // rxvt/urxvt desktop notification ("notify;title;body").
+    term.parser.registerOscHandler(777, (data) => {
+      reportAttentionSignal(paneId, data);
       return false;
     });
 
@@ -578,6 +603,11 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
           const line = term.buffer.active.getLine(lastPromptMarker.line);
           runningCommandText = line ? line.translateToString(true).trim() : null;
         }
+        // Tier 1: recognise a known agent from the command line.
+        if (runningCommandText) {
+          const agent = matchAgent(runningCommandText);
+          if (agent) reportAgentDetected(paneId, agent);
+        }
       } else if (parsed.kind === "finish") {
         if (parsed.exitCode !== 0 && entry.runningPrompt && entry.runningPrompt.line >= 0) {
           try {
@@ -591,18 +621,24 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
             // decoration API unavailable — skip highlight
           }
         }
-        // Notify when a non-trivial command finished while unfocused.
         const ranMs = entry.runningSince !== null ? Date.now() - entry.runningSince : 0;
-        const notify =
-          useSettingsStore.getState().settings.notifications.commandCompletion;
-        if (notify && ranMs >= 2000 && !document.hasFocus()) {
-          const tab = useAppStore
-            .getState()
-            .tabs.find((t) => paneId in t.paneMeta);
-          void notifyCommandFinished(
-            parsed.exitCode,
-            tab?.title ?? "CommandWave",
-          );
+        if (paneStatus(paneId)) {
+          // A recognised agent's foreground command returned to the shell:
+          // report the process-level finish / failure.
+          reportHookEvent(paneId, parsed.exitCode === 0 ? "finished" : "error");
+        } else {
+          // Ordinary command: notify when it finished while unfocused.
+          const notify =
+            useSettingsStore.getState().settings.notifications.events.finished;
+          if (notify && ranMs >= 2000 && !document.hasFocus()) {
+            const tab = useAppStore
+              .getState()
+              .tabs.find((t) => paneId in t.paneMeta);
+            void notifyCommandFinished(
+              parsed.exitCode,
+              tab?.title ?? "CommandWave",
+            );
+          }
         }
         entry.runningPrompt = null;
         entry.runningSince = null;
@@ -660,7 +696,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
       ptyAttach(detachedPane.ptyId, sink);
     } else {
       spawnWithRetry = () => {
-        spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: settings.shell ?? null, env: settings.env ?? null }, handleOutput)
+        spawnPty({ rows: term.rows, cols: term.cols, cwd: cwd ?? null, shell: settings.shell ?? null, env: settings.env ?? null, paneId }, handleOutput)
           .then((handle) => {
             if (disposed) {
               ptyClose(handle.ptyId);
@@ -720,6 +756,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
       }
       terminalManager.dispose(paneId);
       clearReplay(paneId);
+      forgetPane(paneId);
     };
   }, [paneId, cwd]);
 

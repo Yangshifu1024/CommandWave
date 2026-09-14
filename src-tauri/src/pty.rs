@@ -95,6 +95,8 @@ pub struct PtyCreateOptions {
     pub args: Option<Vec<String>>,
     /// extra environment variables ("KEY=VALUE")
     pub env: Option<Vec<String>>,
+    /// Frontend pane id, exposed to agent hooks via the environment.
+    pub pane_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -162,6 +164,15 @@ pub fn spawn_session(
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("TERM_PROGRAM", "CommandWave");
+    // Agent-hook plumbing: the pane id plus the loopback endpoint/secret so
+    // an installed agent hook can report lifecycle events back to this app.
+    if let Some(pane_id) = options.pane_id.as_deref() {
+        cmd.env(crate::agent::ENV_PANE_ID, pane_id);
+    }
+    if let Some((port, token)) = crate::api_server::hook_endpoint() {
+        cmd.env(crate::agent::ENV_API_PORT, port.to_string());
+        cmd.env(crate::agent::ENV_HOOK_TOKEN, token);
+    }
     for pair in options.env.unwrap_or_default() {
         if let Some((key, value)) = pair.split_once('=') {
             if !key.is_empty() {
