@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store/appStore";
 import { isTauri, systemStats, type SystemStats } from "../terminal/ipc";
+import { collectPaneIds } from "./paneTree";
+import { tabAttentionState, useAgentStore } from "../agent/statusStore";
 
 /** Poll CPU/RAM for the sidebar status line. */
 function useSystemStats(): SystemStats | null {
@@ -49,6 +51,11 @@ export function TabStrip({ side }: TabStripProps) {
   const dragIndex = useRef<number | null>(null);
   const vertical = side === "left";
   const renamingTabId = useAppStore((s) => s.renamingTabId);
+  // Agent attention: highest-urgency state among each tab's panes.
+  const agentPanes = useAgentStore((s) => s.panes);
+  const attentionByTab = new Map(
+    tabs.map((tab) => [tab.id, tabAttentionState(tab.root, agentPanes, collectPaneIds)]),
+  );
 
   const startResize = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -125,6 +132,16 @@ export function TabStrip({ side }: TabStripProps) {
               />
             ) : (
               <span className="tab-title">
+                {(() => {
+                  const attention = attentionByTab.get(tab.id);
+                  return attention ? (
+                    <span
+                      className={`tab-dot tab-dot-${attention}`}
+                      title={`Agent ${attention}`}
+                      aria-label={`Agent ${attention}`}
+                    />
+                  ) : null;
+                })()}
                 {tab.locked && <span className="tab-lock" title="Locked">🔒</span>}
                 {tab.customTitle ?? tab.title}
               </span>

@@ -109,12 +109,12 @@ importers:
 
   .:
     dependencies:
+      '@choochmeque/tauri-plugin-notifications-api':
+        specifier: 0.5.0-rc.13
+        version: 0.5.0-rc.13
       '@tauri-apps/api':
         specifier: ^2.11.1
         version: 2.11.1
-      '@tauri-apps/plugin-notification':
-        specifier: ^2.4.0
-        version: 2.4.0
       '@tauri-apps/plugin-opener':
         specifier: ^2.5.5
         version: 2.5.5
@@ -166,6 +166,9 @@ importers:
         version: 5.0.0(vite@8.2.2)
 
 packages:
+
+  '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.13':
+    resolution: {integrity: sha512-F+zQGsJuElZSyKi1RBSaOI5WydoNeJb4/KfrsyOT4SQMM2E/SNEhiknVmyiyGUYIAQKuMjmk++n4Jj82H9aQtQ==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -357,9 +360,6 @@ packages:
     resolution: {integrity: sha512-R8xGtMpwyetawSqm9kYOuMmEqkhUbvcUy8n0aNXIxollKBLESUu5f4Fx+64hgASYm1H+jSWq6jCW6zqTnH6hqQ==}
     engines: {node: '>= 10'}
     hasBin: true
-
-  '@tauri-apps/plugin-notification@2.4.0':
-    resolution: {integrity: sha512-xlJXMcUoKOjNupzDue5wrEsa1wytf+l/2gCAPhafHyP683Y3N7J/8clUWLZ3vpnwkpT2C1zcLMMQFjjecIG2xg==}
 
   '@tauri-apps/plugin-opener@2.5.5':
     resolution: {integrity: sha512-xvzGai5aQds8j8R8RsUK/lW6pGG50YgOYIPLzvkqmkwAj7dfySOD7sGtejRzvVdMmv1EQfKVEFh1MvmDp8QR0g==}
@@ -838,6 +838,10 @@ packages:
 
 snapshots:
 
+  '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.13':
+    dependencies:
+      '@tauri-apps/api': 2.11.1
+
   '@jridgewell/resolve-uri@3.1.2': {}
 
   '@jridgewell/sourcemap-codec@1.6.0': {}
@@ -944,10 +948,6 @@ snapshots:
       '@tauri-apps/cli-win32-arm64-msvc': 2.11.4
       '@tauri-apps/cli-win32-ia32-msvc': 2.11.4
       '@tauri-apps/cli-win32-x64-msvc': 2.11.4
-
-  '@tauri-apps/plugin-notification@2.4.0':
-    dependencies:
-      '@tauri-apps/api': 2.11.1
 
   '@tauri-apps/plugin-opener@2.5.5':
     dependencies:

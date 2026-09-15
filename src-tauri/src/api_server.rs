@@ -6,10 +6,19 @@
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
+use std::sync::OnceLock;
 
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::state::PtyManager;
+
+/// Loopback endpoint + stable hook secret, published for PTY env injection.
+static HOOK: OnceLock<(u16, String)> = OnceLock::new();
+
+/// The (port, hook secret) tuple once the API server is up.
+pub fn hook_endpoint() -> Option<(u16, String)> {
+    HOOK.get().cloned()
+}
 
 /// Start the API server; the address is written to the discovery file.
 pub fn start(app: AppHandle) -> std::io::Result<()> {
@@ -17,6 +26,11 @@ pub fn start(app: AppHandle) -> std::io::Result<()> {
     let port = listener.local_addr()?.port();
     let token = format!("{:016x}", rand_u64());
     write_discovery(&app, port, &token);
+    // Agent hooks use a stable secret persisted across launches so the
+    // installer can write it into config files once (the API token above
+    // rotates every launch and is only for interactive scripting).
+    let hook_token = load_or_create_hook_token(&app);
+    let _ = HOOK.set((port, hook_token));
 
     let app2 = app.clone();
     std::thread::spawn(move || {
@@ -41,6 +55,26 @@ fn rand_u64() -> u64 {
     z ^ (z >> 31)
 }
 
+/// Stable per-install hook secret, persisted in `<config>/hook.json` so it
+/// survives restarts (agent configs embed it once at install time).
+fn load_or_create_hook_token(app: &AppHandle) -> String {
+    let Ok(dir) = app.path().app_config_dir() else {
+        return format!("{:016x}", rand_u64());
+    };
+    let path = dir.join("hook.json");
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(t) = v["token"].as_str().filter(|s| !s.is_empty()) {
+                return t.to_string();
+            }
+        }
+    }
+    let token = format!("{:016x}", rand_u64());
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(&path, format!("{{\"token\":\"{token}\"}}"));
+    token
+}
+
 fn write_discovery(app: &AppHandle, port: u16, token: &str) {
     if let Ok(dir) = app.path().app_config_dir() {
         let _ = std::fs::create_dir_all(&dir);
@@ -56,6 +90,8 @@ struct Request {
     path: String,
     body: String,
     token_ok: bool,
+    /// Validated against the stable hook secret (agent hooks only).
+    hook_token_ok: bool,
 }
 
 fn read_request(stream: &mut TcpStream) -> Option<Request> {
@@ -85,11 +121,13 @@ fn read_request(stream: &mut TcpStream) -> Option<Request> {
     if content_length > 0 {
         reader.read_exact(&mut body).ok()?;
     }
+    let hook_token = HOOK.get().map(|(_, t)| t.clone()).unwrap_or_default();
     Some(Request {
         method,
         path,
         body: String::from_utf8_lossy(&body).into_owned(),
         token_ok: !token.is_empty() && token == current_token(),
+        hook_token_ok: !token.is_empty() && !hook_token.is_empty() && token == hook_token,
     })
 }
 
@@ -128,6 +166,18 @@ fn read_token(app: &AppHandle) -> String {
 }
 
 fn route(app: &AppHandle, req: &Request) -> (&'static str, String) {
+    // Agent hooks carry the stable hook secret instead of the rotating API
+    // token, and only ever report lifecycle events.
+    if req.path == "/agent-event" {
+        if !req.hook_token_ok {
+            return ("401 Unauthorized", r#"{"error":"bad hook token"}"#.into());
+        }
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(&req.body) else {
+            return ("400 Bad Request", r#"{"error":"bad json"}"#.into());
+        };
+        let _ = app.emit("agent-event", v);
+        return ("200 OK", r#"{"ok":true}"#.into());
+    }
     if !req.token_ok {
         return ("401 Unauthorized", r#"{"error":"bad token"}"#.into());
     }

@@ -1,3 +1,4 @@
+mod agent;
 mod api_server;
 mod commands;
 mod menu;
@@ -6,13 +7,21 @@ mod secrets;
 mod settings;
 mod shell_integration;
 mod state;
+mod tray;
 
 use state::PtyManager;
 
 pub fn run() {
+    // Agent hooks run this same binary with `--agent-event <event>`: report
+    // the event to the running instance and exit without starting the GUI.
+    let args: Vec<String> = std::env::args().collect();
+    if agent::run_event_cli(&args) {
+        return;
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notifications::init())
         .manage(PtyManager::new())
         .invoke_handler(tauri::generate_handler![
             commands::pty_create,
@@ -31,7 +40,11 @@ pub fn run() {
             commands::set_progress,
             commands::system_stats,
             commands::set_window_blur,
-            commands::window_is_transparent
+            commands::window_is_transparent,
+            commands::agent_registry,
+            commands::agent_install,
+            commands::agent_uninstall,
+            commands::agent_attention_update
         ])
         .setup(|app| {
             // Build the native menu with the persisted keybindings; a failed
@@ -40,6 +53,10 @@ pub fn run() {
                 .map(|s| s.keybindings)
                 .unwrap_or_default();
             menu::setup(app.handle(), &keybindings)?;
+            // System tray: always present, carries the agent attention count.
+            if let Err(e) = tray::setup(app.handle()) {
+                eprintln!("tray setup failed: {e}");
+            }
             // Local scripting API (loopback HTTP; port/token in api.json).
             if let Err(e) = api_server::start(app.handle().clone()) {
                 eprintln!("api server failed to start: {e}");
