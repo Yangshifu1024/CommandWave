@@ -127,6 +127,24 @@ pub struct AutoAnswer {
     pub enabled: bool,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase", default)]
+pub struct UpdateSettings {
+    /// Silently check for a new release a few seconds after launch.
+    pub auto_check: bool,
+    /// Versions the user explicitly skipped; they never prompt again.
+    pub skipped_versions: Vec<String>,
+}
+
+impl Default for UpdateSettings {
+    fn default() -> Self {
+        Self {
+            auto_check: true,
+            skipped_versions: Vec::new(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AutoLogSettings {
@@ -163,6 +181,7 @@ pub struct Settings {
     pub background_image_opacity: Option<f64>,
     pub ui: UiSettings,
     pub notifications: NotificationSettings,
+    pub updates: UpdateSettings,
     pub triggers: Vec<Trigger>,
     pub auto_answers: Vec<AutoAnswer>,
     pub auto_log: AutoLogSettings,
@@ -199,6 +218,7 @@ impl Default for Settings {
             background_image_opacity: None,
             ui: UiSettings::default(),
             notifications: NotificationSettings::default(),
+            updates: UpdateSettings::default(),
             triggers: vec![Trigger {
                 id: "trigger-password".to_string(),
                 regex: "(password|passphrase)\\s*[:：]\\s*$".to_string(),
@@ -482,6 +502,53 @@ mod tests {
         assert!(back.notifications.taskbar_attention);
         assert_eq!(back.notifications.idle_threshold_ms, 5000);
         assert!(!back.notifications.error_patterns.is_empty());
+    }
+
+    #[test]
+    fn update_settings_default_to_auto_check_enabled() {
+        // 0.2.2 settings files predate the `updates` group entirely.
+        let back: Settings = serde_json::from_str(r#"{"shell":"fish"}"#).unwrap();
+        assert!(back.updates.auto_check);
+        assert!(back.updates.skipped_versions.is_empty());
+    }
+
+    #[test]
+    fn update_settings_parse_camel_case_keys() {
+        let back: Settings = serde_json::from_str(
+            r#"{"updates":{"autoCheck":false,"skippedVersions":["0.3.0","0.3.1"]}}"#,
+        )
+        .unwrap();
+        assert!(!back.updates.auto_check);
+        assert_eq!(back.updates.skipped_versions, vec!["0.3.0", "0.3.1"]);
+    }
+
+    #[test]
+    fn update_settings_roundtrip() {
+        let settings = Settings {
+            updates: UpdateSettings {
+                auto_check: false,
+                skipped_versions: vec!["0.4.0".to_string()],
+            },
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("\"autoCheck\":false"));
+        assert!(json.contains("\"skippedVersions\":[\"0.4.0\"]"));
+        let back: Settings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.updates.auto_check, settings.updates.auto_check);
+        assert_eq!(
+            back.updates.skipped_versions,
+            settings.updates.skipped_versions
+        );
+    }
+
+    #[test]
+    fn update_settings_partial_group_backfills_missing_keys() {
+        // An `updates` group written by an older build may miss one of the keys.
+        let back: Settings =
+            serde_json::from_str(r#"{"updates":{"skippedVersions":["1.0.0"]}}"#).unwrap();
+        assert!(back.updates.auto_check);
+        assert_eq!(back.updates.skipped_versions, vec!["1.0.0"]);
     }
 
     #[test]

@@ -185,15 +185,61 @@ pnpm tauri build
 
 Artifacts:
 
-- macOS: `src-tauri/target/release/bundle/dmg/*.dmg` (ad-hoc signed; add a
-  Developer ID certificate for distribution)
-- Windows: `.../bundle/msi/*.msi` and `.../bundle/nsis/*-setup.exe`
-- Linux: `.../bundle/deb/*.deb` and `.../bundle/appimage/*.AppImage`
+- macOS: `src-tauri/target/release/bundle/dmg/*.dmg`, plus the updater bundle
+  `.../bundle/macos/*.app.tar.gz` and its `.sig`
+- Windows: `.../bundle/msi/*.msi` and `.../bundle/nsis/*-setup.exe`, each with a
+  `.sig` next to it
+- Linux: `.../bundle/deb/*.deb` and `.../bundle/appimage/*.AppImage`, each with a
+  `.sig` next to it
+
+`bundle.createUpdaterArtifacts` is enabled, so a release build also signs the
+updater bundles. Signing needs the private key, and the password variable has to
+be *set* even when the key has no password — otherwise the bundler tries to
+prompt and fails:
+
+```bash
+export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/commandwave-updater.key)"
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+pnpm tauri build
+```
 
 App icons are generated from `scripts/app-icon.png` via `pnpm tauri icon`.
 
+## Auto-update
+
+CommandWave updates itself with the Tauri updater plugin. On launch, and on
+demand from **Settings → Updates** or **Check for Updates…**, it fetches
+
+```
+https://github.com/Yangshifu1024/CommandWave/releases/latest/download/latest.json
+```
+
+and offers to download and install a newer version when the manifest advertises
+one. Downloads are verified against the minisign public key in
+`src-tauri/tauri.conf.json`, so a build is only installable when its artifacts
+were signed with the matching private key (`TAURI_SIGNING_PRIVATE_KEY` — keep a
+backup: losing it means existing installs can never be updated again).
+
+`latest.json` is generated once per release by `scripts/updater-manifest.sh`,
+after all three platform builds, and checked by the `verify-updater-manifest`
+job: it must carry `darwin-aarch64`, `windows-x86_64` and `linux-x86_64` entries
+whose inline signatures verify against those bundles.
+
+Worth knowing:
+
+- Releases are created as **drafts**. The updater reads `releases/latest`, so
+  updates only reach users once a maintainer publishes the draft — and a release
+  marked as a pre-release is skipped by `latest` entirely.
+- Windows updates use the NSIS `-setup.exe`; an MSI install does not self-update.
+- macOS builds are Apple Silicon only (`darwin-aarch64`).
+- Versions below 0.3.0 ship no updater: install 0.3.0 once by hand from the
+  releases page and later versions arrive on their own.
+
 ## Known limitations
 
-- macOS builds are ad-hoc signed; Gatekeeper warns on other machines.
+- CI builds macOS with a Developer ID certificate and notarizes them; a local
+  `pnpm tauri build` is only ad-hoc signed, so Gatekeeper warns on other
+  machines.
+- macOS builds are Apple Silicon only.
 - Windows and Linux packages are configured but only buildable on their
   target platforms (see CI or the packaging section above).

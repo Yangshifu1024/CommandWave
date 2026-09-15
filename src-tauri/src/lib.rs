@@ -22,6 +22,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notifications::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(PtyManager::new())
         .invoke_handler(tauri::generate_handler![
             commands::pty_create,
@@ -44,7 +45,9 @@ pub fn run() {
             commands::agent_registry,
             commands::agent_install,
             commands::agent_uninstall,
-            commands::agent_attention_update
+            commands::agent_attention_update,
+            commands::restart_app,
+            commands::active_session_count
         ])
         .setup(|app| {
             // Build the native menu with the persisted keybindings; a failed

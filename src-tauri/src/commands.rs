@@ -189,6 +189,28 @@ pub fn agent_attention_update(
     Ok(())
 }
 
+// ---------- In-app auto-update ----------
+
+/// Relaunch the app after the user accepted an update. `AppHandle::restart`
+/// diverges (returns `!`), so this command never returns normally.
+#[tauri::command]
+pub fn restart_app(app: AppHandle) {
+    app.restart();
+}
+
+/// Live PTY session count, used by the updater dialog to warn the user about
+/// how many sessions a restart would tear down.
+#[tauri::command]
+pub fn active_session_count(state: State<PtyManager>) -> usize {
+    state
+        .sessions
+        .lock()
+        .unwrap()
+        .values()
+        .filter(|session| !session.is_closed())
+        .count()
+}
+
 /// Open a file with the user's editor command ("code {file}" etc.).
 #[tauri::command]
 pub fn open_with_editor(editor_command: String, file: String) -> Result<(), String> {

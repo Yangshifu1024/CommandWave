@@ -6,6 +6,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import { terminalManager } from "../terminal/manager";
 import { isTauri } from "../terminal/ipc";
 import { acceleratorToDisplay } from "../hooks/keybindings";
+import { requestUpdateCheck } from "../updater";
 import { linesBetween, nextPromptLine } from "../terminal/paneMarks";
 import { inspectPaste } from "../terminal/pasteGuard";
 import { enterCopyModeForActivePane, exitCopyMode } from "../terminal/copyModeController";
@@ -120,6 +121,9 @@ export function dispatchMenuAction(action: string): void {
   switch (action) {
     case "open-settings":
       s.openSettings();
+      break;
+    case "check-for-updates":
+      requestUpdateCheck();
       break;
     case "cycle-tab-prev":
       s.cycleTab(-1);
@@ -345,6 +349,10 @@ const MENUS: { label: string; items: MenuEntry[] }[] = [
       { label: "Minimize", action: "window-minimize" },
       { label: "Maximize", action: "window-toggle-maximize" },
     ],
+  },
+  {
+    label: "Help",
+    items: [{ label: "Check for Updates…", action: "check-for-updates" }],
   },
 ];
 

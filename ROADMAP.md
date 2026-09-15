@@ -7,6 +7,10 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 
 > 2026-09 更新：Phase 1–5 与 Phase 6/6.5 的主体功能已实现（commit
 > `1c43326`…`c799eb1`）。以下如实标注了简化实现与暂缓项。
+>
+> 2026-09 追加：应用内自动更新已落地（Tauri updater + CI 产出签名更新包与
+> `latest.json`，启动静默检查 + 设置页/菜单手动入口）。发版与更新机制见
+> README「Auto-update」与 `.agents/skills/commandwave-release/SKILL.md`。
 
 ---
 

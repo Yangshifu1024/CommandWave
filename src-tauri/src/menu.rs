@@ -59,6 +59,8 @@ pub fn setup(app: &BaseAppHandle<Wry>, keybindings: &HashMap<String, String>) ->
     let app_submenu = Submenu::with_id(app, "cw-app", "CommandWave", true)?;
     app_submenu.append(&PredefinedMenuItem::about(app, Some("CommandWave"), None)?)?;
     app_submenu.append(&PredefinedMenuItem::separator(app)?)?;
+    app_submenu.append(&item("check-for-updates", "Check for Updates…")?)?;
+    app_submenu.append(&PredefinedMenuItem::separator(app)?)?;
     app_submenu.append(&item("open-settings", "Settings…")?)?;
     app_submenu.append(&PredefinedMenuItem::separator(app)?)?;
     app_submenu.append(&PredefinedMenuItem::hide(app, None)?)?;

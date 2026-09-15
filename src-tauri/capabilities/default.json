@@ -22,6 +22,7 @@
     "core:webview:allow-set-webview-focus",
     "core:webview:allow-create-webview-window",
     "opener:default",
-    "notifications:default"
+    "notifications:default",
+    "updater:default"
   ]
 }

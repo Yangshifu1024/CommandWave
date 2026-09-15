@@ -1,11 +1,24 @@
 name: release
 
-# Packaging pipeline: runs only on v* tags.
-# Builds the Tauri bundles on macOS, Windows and Linux and attaches them to a
-# draft GitHub release, which a maintainer reviews and publishes manually.
+# Packaging pipeline: runs on v* tags (or a manual dispatch for an existing tag).
+# Builds the Tauri bundles on macOS, Windows and Linux, signs the updater
+# artifacts, writes the updater manifest and attaches everything to a draft
+# GitHub release, which a maintainer reviews and publishes manually.
+#
+# Publishing is not optional: the in-app updater reads
+# `releases/latest/download/latest.json`, and `latest` only resolves to a
+# published, non-prerelease release.
 on:
   push:
     tags: ["v*"]
+  # Retry a failed release, or re-cut one, without moving the tag. The tag must
+  # already exist; every job below builds from that ref.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build (for example v0.3.0)"
+        required: true
+        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,8 +28,55 @@ permissions:
   contents: write
 
 jobs:
+  # Gatekeeper for the whole pipeline: the updater compares the version baked
+  # into the app against the version in latest.json, so a tag that disagrees with
+  # the manifests would ship an app that never updates (or updates in a loop).
+  # Failing here costs seconds instead of three 45-minute platform builds.
+  verify-version:
+    name: Verify release version
+    runs-on: ubuntu-22.04
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Resolve tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          tag="${INPUT_TAG:-$REF_NAME}"
+          if [ -z "$tag" ]; then
+            echo "::error::no tag resolved; pass one through the workflow_dispatch 'tag' input"
+            exit 1
+          fi
+          if [ "${tag#v}" = "$tag" ]; then
+            echo "::error::release tags must start with 'v' (got '$tag')"
+            exit 1
+          fi
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+      - name: Tag, manifests and lockfile must agree
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: bash scripts/release-version-check.sh "$TAG"
+      # Without the signing key the bundles are still built, but no .sig is
+      # produced and the updater rejects every download. Fail loudly here rather
+      # than publishing a release nobody can install.
+      - name: Require the updater signing key
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY is not set. Configure it with:"
+            echo "::error::gh secret set TAURI_SIGNING_PRIVATE_KEY < path/to/commandwave-updater.key"
+            exit 1
+          fi
+
   prepare-release:
     name: Prepare release
+    needs: verify-version
     runs-on: ubuntu-22.04
     outputs:
       release_id: ${{ steps.create.outputs.id }}
@@ -25,21 +85,25 @@ jobs:
       # Full history + tags so the notes step can diff against the previous tag.
       - uses: actions/checkout@v7
         with:
+          ref: ${{ needs.verify-version.outputs.tag }}
           fetch-depth: 0
           fetch-tags: true
       # generate_release_notes only lists merged PRs; this repo pushes release
       # commits directly, so list every commit between the previous tag and
-      # this one; the same text feeds tauri-action's releaseBody below.
+      # this one; the same text feeds tauri-action's releaseBody below and ends
+      # up as the `notes` in latest.json (i.e. what the update dialog shows).
       - name: Build release notes
         id: notes
+        env:
+          TAG: ${{ needs.verify-version.outputs.tag }}
         run: |
-          prev_tag=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          prev_tag=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
           {
             echo "## What's Changed"
             if [ -n "$prev_tag" ]; then
-              git log --format='- %h %s' "${prev_tag}..${GITHUB_REF_NAME}"
+              git log --format='- %h %s' "${prev_tag}..${TAG}"
               echo
-              echo "Full Changelog: https://github.com/${GITHUB_REPOSITORY}/compare/${prev_tag}...${GITHUB_REF_NAME}"
+              echo "Full Changelog: https://github.com/${GITHUB_REPOSITORY}/compare/${prev_tag}...${TAG}"
             else
               echo "- First tagged release"
             fi
@@ -56,11 +120,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
+          tag_name: ${{ needs.verify-version.outputs.tag }}
           body_path: release-notes.md
 
   build-macos:
     name: Build (macOS)
-    needs: prepare-release
+    needs: [verify-version, prepare-release]
     runs-on: macos-latest
     timeout-minutes: 45
     env:
@@ -68,6 +133,31 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify-version.outputs.tag }}
+      # The updater replaces the installed .app, so the replacement has to be
+      # signed and notarized or Gatekeeper refuses to relaunch it. Guard the
+      # secrets here so a half-configured repo fails the build instead of
+      # silently shipping an update that macOS blocks.
+      - name: Require the macOS signing secrets
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          missing=""
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_P8; do
+            if [ -z "${!name}" ]; then
+              missing="$missing $name"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::macOS signing is not configured; missing secret(s):$missing"
+            exit 1
+          fi
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -80,11 +170,6 @@ jobs:
           cache: pnpm
       - name: pnpm install
         run: pnpm install --frozen-lockfile
-      # macOS signing/notarization secrets are all optional. The bundler treats
-      # a "present but empty" env var as configured, and an empty
-      # APPLE_CERTIFICATE crashes at keychain import, so only non-empty secrets
-      # are exported; with none configured the build still emits an unsigned
-      # .app/.dmg that needs a right-click -> Open on first launch.
       - name: Export optional macOS signing envs
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -118,9 +203,21 @@ jobs:
           fi
       - name: Tauri build
         uses: tauri-apps/tauri-action@action-v1.0.0
+        env:
+          # Signs the updater bundles so the app accepts the download. The
+          # password must be *set*, even when empty: without it the CLI tries to
+          # prompt and fails on a runner with no TTY.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           releaseBody: ${{ needs.prepare-release.outputs.release_notes }}
+          # latest.json is written once, after all three platforms, by the
+          # updater-manifest job below; letting each job write it here would race.
+          uploadUpdaterJson: false
+          # Prefer the NSIS installer for Windows updates: it upgrades in place
+          # without an msiexec dialog, and the MSI path cannot self-update.
+          updaterJsonPreferNsis: true
           args: --verbose
       # The bundler notarizes and staples the .app but only codesigns the dmg,
       # so the dmg carries no notarization ticket on its own and Gatekeeper
@@ -128,12 +225,14 @@ jobs:
       # and replace the uploaded asset. Skipped when no notarization credentials
       # are configured.
       - name: Notarize and staple dmg
+        env:
+          TAG: ${{ needs.verify-version.outputs.tag }}
         run: |
           if [ -z "$APPLE_API_KEY" ]; then
             echo "No notarization credentials configured; skipping dmg notarization"
             exit 0
           fi
-          gh release download "${GITHUB_REF_NAME}" --pattern '*.dmg' --clobber
+          gh release download "$TAG" --pattern '*.dmg' --clobber
           dmg=$(ls *.dmg | head -1)
           xcrun notarytool submit "$dmg" \
             --key "$APPLE_API_KEY_PATH" \
@@ -142,15 +241,17 @@ jobs:
             --wait
           xcrun stapler staple "$dmg"
           xcrun stapler validate "$dmg"
-          gh release upload "${GITHUB_REF_NAME}" "$dmg" --clobber
+          gh release upload "$TAG" "$dmg" --clobber
 
   build-linux:
     name: Build (Linux)
-    needs: prepare-release
+    needs: [verify-version, prepare-release]
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify-version.outputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -185,18 +286,25 @@ jobs:
         uses: tauri-apps/tauri-action@action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # Must be set even when the key has no password; see build-macos.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           releaseBody: ${{ needs.prepare-release.outputs.release_notes }}
+          uploadUpdaterJson: false
+          updaterJsonPreferNsis: true
           args: --verbose
 
   build-windows:
     name: Build (Windows)
-    needs: prepare-release
+    needs: [verify-version, prepare-release]
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify-version.outputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -212,7 +320,139 @@ jobs:
         uses: tauri-apps/tauri-action@action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # Must be set even when the key has no password; see build-macos.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           releaseBody: ${{ needs.prepare-release.outputs.release_notes }}
+          uploadUpdaterJson: false
+          updaterJsonPreferNsis: true
           args: --verbose
+
+  # tauri-action can write latest.json itself, but every platform job would then
+  # read -> merge -> delete -> upload the same release asset concurrently, and a
+  # slow job can read a stale copy and drop another platform's entry. Building it
+  # once from the uploaded assets makes the result deterministic.
+  updater-manifest:
+    name: Build latest.json
+    needs: [verify-version, prepare-release, build-macos, build-linux, build-windows]
+    runs-on: ubuntu-22.04
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.verify-version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify-version.outputs.tag }}
+      - name: Generate and upload latest.json
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash scripts/updater-manifest.sh "$TAG"
+
+  # Reads the manifest back out of the release and checks it the way a client
+  # would: three platforms present, version matching the tag, and every inline
+  # signature verifies against the bundle it points at.
+  verify-updater-manifest:
+    name: Verify updater manifest
+    needs: [verify-version, updater-manifest]
+    runs-on: ubuntu-22.04
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.verify-version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify-version.outputs.tag }}
+      - name: Check the manifest structure
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          gh release download "$TAG" --pattern 'latest.json' --dir manifest --clobber
+          manifest=manifest/latest.json
+          jq . "$manifest"
+          for key in darwin-aarch64 windows-x86_64 linux-x86_64; do
+            jq -e --arg k "$key" '.platforms[$k].signature and .platforms[$k].url' "$manifest" >/dev/null || {
+              echo "::error::latest.json has no usable entry for $key"
+              exit 1
+            }
+          done
+          got=$(jq -r '.version' "$manifest")
+          if [ "$got" != "$version" ]; then
+            echo "::error::latest.json says version $got but the tag is $version"
+            exit 1
+          fi
+          echo "OK: latest.json declares $version for darwin-aarch64, windows-x86_64 and linux-x86_64"
+      - name: Verify signatures against the uploaded bundles
+        run: |
+          set -euo pipefail
+          manifest=manifest/latest.json
+          mkdir -p artifacts
+          status=0
+
+          # A draft release hides its assets from anonymous requests, so the URLs
+          # in latest.json only start working once a maintainer publishes. Check
+          # that each URL names a real asset instead of fetching it.
+          gh release view "$TAG" --json assets --jq '.assets[].name' > artifacts/assets.txt
+
+          for key in darwin-aarch64 windows-x86_64 linux-x86_64; do
+            url=$(jq -r --arg k "$key" '.platforms[$k].url' "$manifest")
+            bundle="${url##*/}"
+            # The URL has to name the payload the updater unpacks for that
+            # platform; the signature check below then proves the pair matches.
+            ok=1
+            case "$key" in
+              darwin-aarch64) case "$bundle" in *.app.tar.gz) ;; *) ok=0 ;; esac ;;
+              windows-x86_64) case "$bundle" in *-setup.exe) ;; *) ok=0 ;; esac ;;
+              linux-x86_64) case "$bundle" in *.AppImage | *.AppImage.tar.gz) ;; *) ok=0 ;; esac ;;
+            esac
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::$key points at $bundle, which is not an updater payload for that platform"
+              status=1
+              continue
+            fi
+            if ! grep -Fxq "$bundle" artifacts/assets.txt; then
+              echo "::error::$key points at $bundle, which is not an asset of release $TAG"
+              status=1
+              continue
+            fi
+            gh release download "$TAG" --pattern "$bundle" --dir artifacts --clobber
+            jq -r --arg k "$key" '.platforms[$k].signature' "$manifest" > "artifacts/$bundle.sig"
+            echo "  $key -> $bundle ($(wc -c <"artifacts/$bundle") bytes)"
+          done
+
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+
+          # The updater verifies bundles with minisign; do the same here so a
+          # wrong or rotated key is caught before users are.
+          if ! command -v minisign >/dev/null; then
+            sudo apt-get update -qq >/dev/null 2>&1 || true
+            sudo apt-get install -y -qq minisign >/dev/null 2>&1 || true
+          fi
+          if ! command -v minisign >/dev/null; then
+            echo "::warning::minisign is unavailable; signatures were NOT verified (structure and asset names were)"
+            exit 0
+          fi
+
+          # Two levels of encoding: `plugins.updater.pubkey` is the base64 of
+          # the minisign public key file, and each `.sig` asset is the base64 of
+          # a minisign signature. minisign itself wants the decoded forms.
+          pubkey=$(jq -r '.plugins.updater.pubkey' src-tauri/tauri.conf.json | base64 -d | sed -n 2p)
+          for key in darwin-aarch64 windows-x86_64 linux-x86_64; do
+            bundle=$(jq -r --arg k "$key" '.platforms[$k].url' "$manifest")
+            bundle="${bundle##*/}"
+            base64 -d <"artifacts/$bundle.sig" >"artifacts/$bundle.minisig"
+            if ! minisign -Vm "artifacts/$bundle" -x "artifacts/$bundle.minisig" -P "$pubkey"; then
+              echo "::error::$key signature does not match the tauri.conf.json pubkey"
+              status=1
+            fi
+          done
+          if [ "$status" -ne 0 ]; then
+            exit 1
+          fi
+          echo "OK: all three signatures verify against the configured pubkey"
+      - name: Remind the maintainer to publish
+        run: |
+          echo "::notice::Release $TAG is still a draft. The in-app updater reads releases/latest/download/latest.json, which does not resolve until you publish this release (do not mark it as a pre-release)."
