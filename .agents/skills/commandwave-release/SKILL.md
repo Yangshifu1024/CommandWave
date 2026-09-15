@@ -9,7 +9,7 @@ A release is: bump the version in the three manifests → commit on `main` → p
 
 **This skill always stops before pushing.** The tag push triggers the builds and produces the artifacts users download. Invoking this skill is the user's explicit request to bump / commit, but never push `main` or a tag without the user's explicit yes — not even with every check green.
 
-macOS artifacts are currently **ad-hoc signed** (no Developer ID certificate configured); Windows and Linux packages are unsigned. The first launch needs right-click → Open on macOS and a SmartScreen "More info → Run anyway" on Windows. Do not promise a signed/notarized dmg.
+macOS artifacts are **Developer ID signed and notarized** (the six `APPLE_*` secrets are configured, and `release.yml` re-notarizes + staples the dmg); if those secrets are ever cleared the build falls back to an unsigned dmg needing right-click → Open. Windows and Linux packages are unsigned — a SmartScreen "More info → Run anyway" is needed on Windows.
 
 ## 1. Determine the version
 
@@ -72,7 +72,7 @@ Show the user, concretely:
 
 - The version and the commits going out since the previous tag
 - What release CI will build once the tag lands: a **draft** release with macOS dmg, Windows msi + NSIS setup, Linux deb + AppImage + rpm
-- That macOS is ad-hoc signed (right-click → Open on first launch) and Windows/Linux are unsigned
+- That macOS is Developer ID signed + notarized (opens cleanly) and Windows/Linux are unsigned
 - That the dmg / installers only reach users when a maintainer publishes the draft
 
 Then ask, and wait: "Push main + tag vX.Y.Z now?" A yes to the summary is consent to push; silence or anything ambiguous is not.

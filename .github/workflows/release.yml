@@ -63,6 +63,9 @@ jobs:
     needs: prepare-release
     runs-on: macos-latest
     timeout-minutes: 45
+    env:
+      # Needed by tauri-action to upload assets and by `gh` in the dmg step.
+      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -77,15 +80,69 @@ jobs:
           cache: pnpm
       - name: pnpm install
         run: pnpm install --frozen-lockfile
-      # Builds an ad-hoc signed dmg (no Developer ID certificate configured).
+      # macOS signing/notarization secrets are all optional. The bundler treats
+      # a "present but empty" env var as configured, and an empty
+      # APPLE_CERTIFICATE crashes at keychain import, so only non-empty secrets
+      # are exported; with none configured the build still emits an unsigned
+      # .app/.dmg that needs a right-click -> Open on first launch.
+      - name: Export optional macOS signing envs
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_API_ISSUER APPLE_API_KEY; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              echo "$name=$value" >> "$GITHUB_ENV"
+            fi
+          done
+          # tauri-action does not write the .p8 file itself, so create it here.
+          # APPLE_API_KEY_PATH must be absolute: the bundler invokes notarytool
+          # from a temp dir, where a relative path fails with
+          # "The file couldn't be opened".
+          if [ -n "$APPLE_API_KEY" ]; then
+            printf '%s\n' "$APPLE_API_KEY_P8" > AuthKey.p8
+            grep -q '^-----BEGIN PRIVATE KEY-----$' AuthKey.p8 || {
+              echo "::error::APPLE_API_KEY_P8 is missing the BEGIN PRIVATE KEY line; reset it with: gh secret set APPLE_API_KEY_P8 < AuthKey_XXX.p8"
+              exit 1
+            }
+            grep -q '^-----END PRIVATE KEY-----$' AuthKey.p8 || {
+              echo "::error::APPLE_API_KEY_P8 is missing the END PRIVATE KEY line; reset it with: gh secret set APPLE_API_KEY_P8 < AuthKey_XXX.p8"
+              exit 1
+            }
+            echo "APPLE_API_KEY_PATH=${{ github.workspace }}/AuthKey.p8" >> "$GITHUB_ENV"
+          fi
       - name: Tauri build
         uses: tauri-apps/tauri-action@action-v1.0.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         with:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           releaseBody: ${{ needs.prepare-release.outputs.release_notes }}
           args: --verbose
+      # The bundler notarizes and staples the .app but only codesigns the dmg,
+      # so the dmg carries no notarization ticket on its own and Gatekeeper
+      # reports "Unnotarized Developer ID". Re-notarize + staple the dmg here
+      # and replace the uploaded asset. Skipped when no notarization credentials
+      # are configured.
+      - name: Notarize and staple dmg
+        run: |
+          if [ -z "$APPLE_API_KEY" ]; then
+            echo "No notarization credentials configured; skipping dmg notarization"
+            exit 0
+          fi
+          gh release download "${GITHUB_REF_NAME}" --pattern '*.dmg' --clobber
+          dmg=$(ls *.dmg | head -1)
+          xcrun notarytool submit "$dmg" \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
+          gh release upload "${GITHUB_REF_NAME}" "$dmg" --clobber
 
   build-linux:
     name: Build (Linux)
