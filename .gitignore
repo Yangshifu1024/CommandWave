@@ -21,3 +21,4 @@ Thumbs.db
 
 # Generated
 *.tsbuildinfo
+.codewave/
