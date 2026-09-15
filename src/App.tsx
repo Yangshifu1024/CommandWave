@@ -27,6 +27,7 @@ import { getTheme, isDarkTheme } from "./terminal/themes";
 import { isTauri, onMenuAction, onPtyExit } from "./terminal/ipc";
 import { initAgentRuntime } from "./agent/runtime";
 import { AgentOnboarding } from "./agent/AgentOnboarding";
+import { UpdateProvider } from "./updater/index";
 
 /** Detached-pane window: a single pane hosted outside the main window. */
 function DetachedPaneWindow() {
@@ -58,7 +59,14 @@ function DetachedPaneWindow() {
 
 export default function App() {
   // A detached pane window renders one pane and nothing else.
-  return detachedPane ? <DetachedPaneWindow /> : <MainApp />;
+  // The updater only lives in the main window; it also renders its own dialog.
+  return detachedPane ? (
+    <DetachedPaneWindow />
+  ) : (
+    <UpdateProvider>
+      <MainApp />
+    </UpdateProvider>
+  );
 }
 
 function MainApp() {

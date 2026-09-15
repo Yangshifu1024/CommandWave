@@ -74,6 +74,14 @@ export interface AutoLogSettings {
   directory: string | null;
 }
 
+/** In-app updater preferences (see src/updater). */
+export interface UpdateSettings {
+  /** Silently check for a new release a few seconds after launch. */
+  autoCheck: boolean;
+  /** Versions the user explicitly skipped; they never prompt again. */
+  skippedVersions: string[];
+}
+
 export interface Settings {
   version: number;
   // Shell / session (null = built-in default).
@@ -111,6 +119,7 @@ export interface Settings {
   triggers: Trigger[];
   autoAnswers: AutoAnswer[];
   autoLog: AutoLogSettings;
+  updates: UpdateSettings;
   /** Saved window arrangements: name → serialized session snapshot JSON. */
   arrangements: Record<string, string>;
   /** Last session snapshot (autosaved) for restore-on-launch. */
@@ -170,6 +179,7 @@ export const defaultSettings: Settings = {
   ],
   autoAnswers: [],
   autoLog: { enabled: false, directory: null },
+  updates: { autoCheck: true, skippedVersions: [] },
   arrangements: {},
   session: null,
   editorCommand: null,
@@ -225,6 +235,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
             },
           },
           autoLog: { ...defaultSettings.autoLog, ...loaded.autoLog },
+          updates: {
+            ...defaultSettings.updates,
+            ...loaded.updates,
+            skippedVersions:
+              loaded.updates?.skippedVersions ??
+              defaultSettings.updates.skippedVersions,
+          },
           triggers: loaded.triggers ?? defaultSettings.triggers,
           autoAnswers: loaded.autoAnswers ?? defaultSettings.autoAnswers,
           keybindings: { ...defaultSettings.keybindings, ...loaded.keybindings },

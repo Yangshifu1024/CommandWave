@@ -22,6 +22,7 @@ anyhow = "1"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 toml_edit = "0.22"
 tauri-plugin-notifications = "=0.5.0-rc.13"
+tauri-plugin-updater = "2"
 
 [profile.release]
 codegen-units = 1

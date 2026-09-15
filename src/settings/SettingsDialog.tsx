@@ -7,6 +7,7 @@ import { KeyboardSection } from "./KeyboardSection";
 import { AutomationSection } from "./AutomationSection";
 import { SessionSection } from "./SessionSection";
 import { IntegrationsSection } from "./IntegrationsSection";
+import { UpdatesSection } from "./UpdatesSection";
 import { SecretsSection } from "./SecretsSection";
 
 const TABS = [
@@ -16,6 +17,7 @@ const TABS = [
   { id: "session", label: "Session" },
   { id: "automation", label: "Automation" },
   { id: "integrations", label: "Integrations" },
+  { id: "updates", label: "Updates" },
   { id: "secrets", label: "Secrets" },
 ] as const;
 
@@ -65,6 +67,7 @@ export function SettingsDialog() {
           {tab === "session" && <SessionSection />}
           {tab === "automation" && <AutomationSection />}
           {tab === "integrations" && <IntegrationsSection />}
+          {tab === "updates" && <UpdatesSection />}
           {tab === "secrets" && <SecretsSection />}
         </div>
       </div>
