@@ -45,7 +45,7 @@ function DetachedPaneWindow() {
         <div className="main">
           <div className="content">
             <div className="tab-layer tab-layer-active">
-              <div className="pane pane-active">
+              <div className="pane">
                 <TerminalPane paneId={info.paneId} cwd={info.cwd} paneFocused />
               </div>
             </div>

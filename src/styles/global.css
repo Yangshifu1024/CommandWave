@@ -264,6 +264,7 @@ body {
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 2px 0;
 }
 
 .tab {
@@ -284,10 +285,15 @@ body {
   margin: 4px 0;
 }
 
+/* Vertical tabs read as full-width rows: no side gutters and no rounding, so
+ * the active row highlights edge to edge instead of a sliver at the left. */
 .tabstrip-v .tab {
   max-width: none;
-  margin: 2px 6px;
-  width: calc(100% - 12px);
+  margin: 0;
+  padding: 0 12px;
+  width: 100%;
+  height: 30px;
+  border-radius: 0;
   min-width: 0;
 }
 
@@ -303,7 +309,7 @@ body {
 }
 
 .tabstrip-v .tab.active {
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 0 -1px 0 var(--accent);
 }
 
 .tab-title {
@@ -457,6 +463,9 @@ body {
   box-sizing: content-box;
 }
 
+/* Focus ring for the active pane. PaneView only applies the class when the
+ * tab actually hosts ≥2 panes, so a lone pane shows no frame around the
+ * content area. */
 .pane-active {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
 }
