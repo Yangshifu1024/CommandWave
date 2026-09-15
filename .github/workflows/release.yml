@@ -428,11 +428,16 @@ jobs:
           # The updater verifies bundles with minisign; do the same here so a
           # wrong or rotated key is caught before users are.
           if ! command -v minisign >/dev/null; then
-            sudo apt-get update -qq >/dev/null 2>&1 || true
-            sudo apt-get install -y -qq minisign >/dev/null 2>&1 || true
+            # The runner image ships Google's Chrome apt source, which
+            # intermittently fails `apt-get update` with a hash mismatch (the
+            # other jobs drop it for the same reason); without this the install
+            # below silently fails and the signatures go unchecked.
+            sudo rm -f /etc/apt/sources.list.d/google-chrome.* || true
+            sudo apt-get update || true
+            sudo apt-get install -y minisign || true
           fi
           if ! command -v minisign >/dev/null; then
-            echo "::warning::minisign is unavailable; signatures were NOT verified (structure and asset names were)"
+            echo "::warning::minisign is unavailable, so the signatures were NOT verified (the platform keys and asset names were)"
             exit 0
           fi
 
