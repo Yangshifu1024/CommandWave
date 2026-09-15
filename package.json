@@ -1,7 +1,7 @@
 {
   "name": "commandwave",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A cross-platform terminal emulator inspired by iTerm2",
   "type": "module",
   "packageManager": "pnpm@12.3.4",
