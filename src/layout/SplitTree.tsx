@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef } from "react";
 import { useAppStore, type Tab } from "../store/appStore";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { terminalManager } from "../terminal/manager";
-import type { PaneNode, SplitDir } from "./paneTree";
+import { collectPaneIds, type PaneNode, type SplitDir } from "./paneTree";
 
 interface SplitTreeProps {
   tab: Tab;
@@ -12,29 +12,34 @@ interface SplitTreeProps {
 
 export function SplitTree({ tab, active }: SplitTreeProps) {
   const maximizedPaneId = useAppStore((s) => (active ? s.maximizedPaneId : null));
+  // A focus ring only helps telling split panes apart, so it stays off while a
+  // tab shows a single pane (maximize included).
+  const focusRing = collectPaneIds(tab.root).length > 1;
   // Maximized pane (⌘⇧Enter): render only that pane; the others stay alive
   // in the terminal pool.
   if (maximizedPaneId && tab.root.type !== "pane") {
-    return <PaneView tab={tab} paneId={maximizedPaneId} active={active} />;
+    return <PaneView tab={tab} paneId={maximizedPaneId} active={active} focusRing={false} />;
   }
-  return <NodeView node={tab.root} tab={tab} active={active} path={[]} />;
+  return <NodeView node={tab.root} tab={tab} active={active} path={[]} focusRing={focusRing} />;
 }
 
 function NodeView({
   node,
   tab,
   active,
+  focusRing,
   path,
 }: {
   node: PaneNode;
   tab: Tab;
   active: boolean;
+  focusRing: boolean;
   path: number[];
 }) {
   const splitRef = useRef<HTMLDivElement>(null);
 
   if (node.type === "pane") {
-    return <PaneView tab={tab} paneId={node.id} active={active} />;
+    return <PaneView tab={tab} paneId={node.id} active={active} focusRing={focusRing} />;
   }
 
   return (
@@ -56,7 +61,13 @@ function NodeView({
               }
             />
           )}
-          <NodeView node={child} tab={tab} active={active} path={[...path, i]} />
+          <NodeView
+            node={child}
+            tab={tab}
+            active={active}
+            focusRing={focusRing}
+            path={[...path, i]}
+          />
         </div>
       ))}
     </div>
@@ -137,10 +148,12 @@ function PaneView({
   tab,
   paneId,
   active,
+  focusRing,
 }: {
   tab: Tab;
   paneId: string;
   active: boolean;
+  focusRing: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const isActivePane = tab.activePaneId === paneId;
@@ -160,7 +173,7 @@ function PaneView({
   return (
     <div
       ref={ref}
-      className={`pane${isActivePane && active ? " pane-active" : ""}`}
+      className={`pane${focusRing && isActivePane && active ? " pane-active" : ""}`}
       onMouseDown={() => useAppStore.getState().selectPane(tab.id, paneId)}
       onContextMenu={(e) => {
         e.preventDefault();
