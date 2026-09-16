@@ -93,6 +93,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | SSH 配置文件集成 | ⬜ | 已随 profile 概念移除（原为导入 ~/.ssh/config 生成 SSH profiles） |
 | 密码 / API Key 管理器 | ⚠️ | 基础版：AES-GCM + PBKDF2(250k) 客户端加密 vault（Rust 仅存密文），主密码不落盘；触发器/自动回复 send-text 支持 {secret:name} 引用（引用解析带测试）；未做浏览器集成/自动填充 |
 | 进度条 escape 序列 | ✅ | OSC 9;4 → Windows 任务栏进度条 + macOS Dock 徽标数字 |
+| 明暗主题同步（color scheme reporting） | ⚠️ | TUI 用 DECSET 2031 订阅后，切主题时手推送 `CSI ? 997;1n`（暗）/ `;2n`（明），`CSI ? 996 n` 查询即应答（xterm.js 不实现该协议，在 `src/terminal/colorScheme.ts` + TerminalPane 的 parser handler 层自行接管，带单元测试）；未覆盖 tmux 镜像 pane |
 | Instant Replay | ⚠️ | ⌥⌘B（Ctrl/Cmd+Alt+B）：每 pane 10 秒快照（10 分钟历史）+ 时间滑杆回放只读视图；非全缓冲时间旅行 |
 
 ## Phase 6.5 — Starship 整合 ⬜ 已移除

@@ -32,6 +32,10 @@ export interface TerminalEntry {
   copyMode: CopyModeState | null;
   /** highlight decorations for Copy Mode (cursor line / selection) */
   copyModeDecos: { deco: IDecoration; marker: IMarker }[];
+  /** DECSET 2031: the program asked for light/dark polarity reports */
+  colorSchemeWatched: boolean;
+  /** polarity of the last CSI ? 997 report sent, null when none was sent */
+  reportedDark: boolean | null;
 }
 
 /** Cap for tracked marks — markers pin trimmed scrollback lines. */
@@ -79,6 +83,8 @@ class TerminalManager {
       tmuxPaneId: null,
       copyMode: null,
       copyModeDecos: [],
+      colorSchemeWatched: false,
+      reportedDark: null,
     };
     this.entries.set(paneId, entry);
     return entry;
