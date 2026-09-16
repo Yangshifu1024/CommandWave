@@ -20,7 +20,7 @@ serde_json = "1"
 portable-pty = "0.9"
 anyhow = "1"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
-toml_edit = "0.22"
+toml_edit = "0.25"
 tauri-plugin-notifications = "=0.5.0-rc.13"
 tauri-plugin-updater = "2"
 
