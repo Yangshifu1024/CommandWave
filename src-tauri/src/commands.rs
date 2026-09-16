@@ -170,6 +170,9 @@ fn set_agent_installed(app: &AppHandle, agent_id: &str, installed: bool) -> Resu
 }
 
 /// Push the current attention set to the tray and the macOS Dock badge.
+///
+/// The Dock badge is the agent-attention surface exclusively; terminal progress
+/// has its own (see `set_progress`).
 #[tauri::command]
 pub fn agent_attention_update(
     app: AppHandle,
@@ -177,7 +180,7 @@ pub fn agent_attention_update(
     count: u32,
 ) -> Result<(), String> {
     crate::tray::update(&app, &items, count).map_err(|e| e.to_string())?;
-    // macOS: mirror the count as a Dock badge (no tray title elsewhere).
+    // macOS: the count is the Dock badge (the tray carries it as menu-bar text).
     #[cfg(target_os = "macos")]
     {
         use tauri::Manager;
@@ -231,7 +234,8 @@ pub fn open_with_editor(editor_command: String, file: String) -> Result<(), Stri
 }
 
 /// Show a progress value (0–100) on the taskbar/dock; None clears it.
-/// OSC 9;4 from the terminal feeds this. Windows taskbar only for now.
+/// OSC 9;4 from the terminal feeds this. Windows taskbar, GTK panels with
+/// libunity, and the macOS Dock's progress indicator.
 #[tauri::command]
 pub fn set_progress(app: AppHandle, value: Option<f64>) -> Result<(), String> {
     use tauri::Manager;
@@ -252,13 +256,11 @@ pub fn set_progress(app: AppHandle, value: Option<f64>) -> Result<(), String> {
         },
     };
     let _ = window.set_progress_bar(state);
-    // macOS: mirror the value as a Dock badge (no taskbar progress there).
-    #[cfg(target_os = "macos")]
-    {
-        let _ = window.set_badge_count(value.map(|v| v.clamp(0.0, 100.0) as i64));
-    }
-    #[cfg(not(target_os = "macos"))]
-    let _ = app;
+    // The Dock badge is deliberately left untouched here. macOS draws this
+    // progress in the Dock's own progress indicator (above), and the badge
+    // belongs to agent attention. Mirroring the percent into the badge used to
+    // overwrite the attention count, and then clear the badge when the command
+    // finished -- even with panes still waiting on the user.
     Ok(())
 }
 
@@ -329,5 +331,56 @@ pub fn system_stats() -> SystemStats {
         cpu_percent: sys.global_cpu_usage(),
         used_mem_mb: sys.used_memory() as f64 / 1024.0 / 1024.0,
         total_mem_mb: sys.total_memory() as f64 / 1024.0 / 1024.0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// Collect every Rust source file under `dir`, recursively.
+    fn rust_sources(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("backend source dir") {
+            let path = entry.expect("dir entry").path();
+            if path.is_dir() {
+                rust_sources(&path, out);
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                out.push(path);
+            }
+        }
+    }
+
+    /// The Dock badge is a single-number surface, so it must have exactly one
+    /// writer. A second one silently overwrites the first: `set_progress` used
+    /// to stamp the terminal's progress percent into the badge, which wiped the
+    /// agent attention count and then cleared the badge when the command
+    /// finished, even with panes still waiting on the user. Progress has its own
+    /// surface (the Dock progress indicator that `set_progress_bar` drives, the
+    /// taskbar elsewhere), so nothing but attention belongs in the badge.
+    #[test]
+    fn dock_badge_has_a_single_writer() {
+        // Split, so this test's own text is not counted as a call site.
+        let call = concat!(".set_badge", "_count(");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut sources = Vec::new();
+        rust_sources(&root, &mut sources);
+        assert!(sources.len() > 5, "expected to walk the backend sources");
+
+        let mut writers = Vec::new();
+        for path in &sources {
+            let text = std::fs::read_to_string(path).expect("readable source");
+            for (index, line) in text.lines().enumerate() {
+                // Prose may name the API; only code counts.
+                if line.trim_start().starts_with("//") || !line.contains(call) {
+                    continue;
+                }
+                writers.push(format!("{}:{}", path.display(), index + 1));
+            }
+        }
+        assert_eq!(
+            writers.len(),
+            1,
+            "the Dock badge must have a single writer (agent attention), found \
+             {}: {writers:?}",
+            writers.len()
+        );
     }
 }
