@@ -204,7 +204,14 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 pnpm tauri build
 ```
 
-App icons are generated from `scripts/app-icon.png` via `pnpm tauri icon`.
+App icons are generated from `scripts/app-icon.png` via
+`pnpm tauri icon scripts/app-icon.png` (the CLI's default input is
+`./app-icon.png` at the repo root, so the path has to be explicit).
+
+The menu-bar/tray glyph is the same mark as the app icon: its geometry mirrors the
+signed-distance primitives in `scripts/gen_icon.py`, and `cargo test` fails if the
+two drift apart. It is drawn as a macOS template image, so the system recolours it
+for a light or dark menu bar.
 
 ## Auto-update
 
