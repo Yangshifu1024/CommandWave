@@ -19,7 +19,8 @@ Rust + xterm.js. Runs on **macOS, Windows, and Linux**.
 - **Themes & appearance** — 16 built-in color schemes (8 dark + 8 light:
   Dracula, Catppuccin Latte, Solarized, Nord, Gruvbox, Ayu, …), live
   font/size/theme switching with UI chrome that adapts to light themes,
-  persisted settings
+  persisted settings, and light/dark reporting (DECSET 2031 + `CSI ? 996/997`)
+  so a running TUI (opencode, neovim, …) repaints the moment you flip themes
 - **In-terminal search** — <kbd>Cmd/Ctrl+F</kbd> with case sensitivity and
   regex modes, match highlights + overview ruler markers
 - **Prompt marks (OSC 133)** — jump between shell prompts with
@@ -243,3 +244,8 @@ Worth knowing:
 - macOS builds are Apple Silicon only.
 - Windows and Linux packages are configured but only buildable on their
   target platforms (see CI or the packaging section above).
+- Light/dark reports only reach programs that run directly in a pane. A pane
+  mirrored from tmux (control mode) leaves them to tmux itself.
+- The theme is a persisted choice (`CommandWave Dark` by default), not an
+  automatic "follow the system appearance" switch. Programs ask the terminal
+  for its polarity, so pick a light theme to make light themes stick.

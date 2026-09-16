@@ -27,7 +27,13 @@ import { secretsList } from "./ipc";
 import { tmuxController } from "./tmuxController";
 import { parseOsc133, linesBetween } from "./paneMarks";
 import { recordCommand } from "./commandHistory";
-import { resolveTheme, withAlpha } from "./themes";
+import { resolveTheme, isDarkTheme, withAlpha } from "./themes";
+import {
+  colorSchemeReport,
+  isColorSchemeQuery,
+  isColorSchemeReportMode,
+  schemeReport,
+} from "./colorScheme";
 
 /** Last path segment of a directory string, for badge placeholders. */
 function lastSegment(cwd: string | null): string | null {
@@ -36,7 +42,7 @@ function lastSegment(cwd: string | null): string | null {
   const seg = trimmed.split(/[\\/]/).filter(Boolean).pop();
   return seg ?? trimmed;
 }
-import { terminalManager } from "./manager";
+import { terminalManager, type TerminalEntry } from "./manager";
 import { notifyCommandFinished, onPtyExit, openExternal, openWithEditor, ptyAttach, ptyClose, ptyResize, ptyWrite, sendNotification, setProgress, spawnPty, type OutputSink } from "./ipc";
 import { parseFileLink } from "./fileLinks";
 import { matchAgent } from "../agent/recognition";
@@ -67,6 +73,19 @@ function playBeep(): void {
   }
 }
 
+/**
+ * Push a CSI ? 997 polarity report when the pane's program subscribed to them
+ * (DECSET 2031). Edge-triggered: an unchanged polarity says nothing, so font
+ * or cursor changes never emit bytes.
+ */
+function reportColorScheme(entry: TerminalEntry, dark: boolean): void {
+  if (entry.ptyId === null) return;
+  const report = schemeReport(entry.colorSchemeWatched, entry.reportedDark, dark);
+  if (!report) return;
+  entry.reportedDark = dark;
+  ptyWrite(entry.ptyId, report);
+}
+
 interface TerminalPaneProps {
   paneId: string;
   cwd?: string | null;
@@ -93,6 +112,10 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
     (settings.fontSize ?? appearanceDefaults.fontSize) + settings.ui.fontSizeDelta,
   );
   const themeName = settings.themeName ?? appearanceDefaults.themeName;
+  // The escape-sequence handlers outlive the render that registered them, so
+  // they read the polarity from this ref instead of closing over the theme.
+  const darkRef = useRef(isDarkTheme(themeName));
+  darkRef.current = isDarkTheme(themeName);
   const inCopyMode = useAppStore((s) => s.copyModePane === paneId);
   const broadcasting = useAppStore((s) => s.broadcast);
   const backdrop = useMemo(() => resolveBackdrop(settings), [settings]);
@@ -135,6 +158,9 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
     if (settings.letterSpacing) term.options.letterSpacing = settings.letterSpacing;
     if (settings.scrollback) term.options.scrollback = settings.scrollback;
     entry.doFit();
+    // A program that subscribed to polarity reports (DECSET 2031) has to hear
+    // about a theme flip, otherwise it keeps the colors it queried at startup.
+    reportColorScheme(entry, darkRef.current);
   }, [fontFamily, fontSize, themeName, settings]);
 
   useLayoutEffect(() => {
@@ -577,6 +603,35 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
     term.parser.registerOscHandler(777, (data) => {
       reportAttentionSignal(paneId, data);
       return false;
+    });
+
+    // Color-scheme reporting (DECSET 2031): the program subscribes to be told
+    // when the terminal's light/dark polarity changes, and CSI ? 996 n asks for
+    // the current polarity. xterm.js implements neither, so the mode is tracked
+    // here and the answer travels over the ordinary PTY write path.
+    term.parser.registerCsiHandler({ prefix: "?", final: "h" }, (params) => {
+      if (!isColorSchemeReportMode(params)) return false;
+      entry.colorSchemeWatched = true;
+      // A fresh subscriber gets the current polarity right away.
+      reportColorScheme(entry, darkRef.current);
+      return false;
+    });
+    term.parser.registerCsiHandler({ prefix: "?", final: "l" }, (params) => {
+      if (!isColorSchemeReportMode(params)) return false;
+      entry.colorSchemeWatched = false;
+      // Forget the last report: a later re-subscribe must answer again.
+      entry.reportedDark = null;
+      return false;
+    });
+    term.parser.registerCsiHandler({ prefix: "?", final: "n" }, (params) => {
+      if (!isColorSchemeQuery(params)) return false;
+      if (entry.ptyId !== null) {
+        // An explicit question is always answered, flipped polarity or not.
+        entry.reportedDark = darkRef.current;
+        ptyWrite(entry.ptyId, colorSchemeReport(darkRef.current));
+      }
+      // Swallow it: xterm's device-status handler would drop 996 unanswered.
+      return true;
     });
 
     // Shell integration: OSC 133 prompt marks (A=prompt, C=command running,
