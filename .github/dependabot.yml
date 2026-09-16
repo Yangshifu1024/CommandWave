@@ -1,0 +1,95 @@
+# Dependabot version updates for CommandWave.
+#
+# Three ecosystems, matching the three dependency sets this repo actually has:
+#   npm            -> package.json + pnpm-lock.yaml (repository root)
+#   cargo          -> src-tauri/Cargo.toml + src-tauri/Cargo.lock
+#   github-actions -> .github/workflows/*.yml
+#
+# Runs daily, staggered so the three ecosystems do not all wake up at once.
+# Groups keep the noise down: related packages move in one PR instead of N.
+#
+# Dependabot only reads this file from the default branch (main), so it takes
+# effect once this lands there -- opening the PR alone changes nothing.
+version: 2
+updates:
+  # ------------------------------------------------------------------ frontend
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # The addons are built against the core package; keep them on one minor.
+      xterm:
+        patterns:
+          - "@xterm/*"
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+      # Tauri's JS packages and its CLI ship in lockstep with the Rust crates of
+      # the same major version, so they travel together.
+      tauri-js:
+        patterns:
+          - "@tauri-apps/*"
+          - "@choochmeque/*"
+      build-tooling:
+        patterns:
+          - typescript
+          - vite
+          - vitest
+          - "@vitejs/*"
+    ignore:
+      # Pinned to the exact rc that pairs with the Rust side
+      # (`tauri-plugin-notifications = "=0.5.0-rc.13"` in src-tauri/Cargo.toml),
+      # so a minor bump would point here at an rc the crate side has not adopted.
+      - dependency-name: "@choochmeque/tauri-plugin-notifications-api"
+        update-types:
+          - version-update:semver-minor
+
+  # ---------------------------------------------------------------------- rust
+  - package-ecosystem: cargo
+    directory: "/src-tauri"
+    schedule:
+      interval: daily
+      time: "09:30"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      # tauri, tauri-build and every tauri-plugin-* must agree on the core major
+      # version; one PR keeps them from drifting apart mid-week.
+      tauri:
+        patterns:
+          - "tauri*"
+
+  # ----------------------------------------------------------------- workflows
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: daily
+      time: "10:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns:
+          - "*"
