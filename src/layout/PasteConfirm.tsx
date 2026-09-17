@@ -9,11 +9,16 @@ import { pastePreview } from "../terminal/pasteGuard";
 export function PasteConfirm() {
   const confirm = useAppStore((s) => s.pasteConfirm);
   if (!confirm) return null;
-  const cancel = () => useAppStore.setState({ pasteConfirm: null });
-  const accept = () => {
+  // Either way the dialog unmounts: hand the keyboard back to the terminal so
+  // the user can keep typing without clicking the pane again.
+  const close = (paste: boolean) => {
     useAppStore.setState({ pasteConfirm: null });
-    terminalManager.get(confirm.paneId)?.term.paste(confirm.text);
+    const entry = terminalManager.get(confirm.paneId);
+    if (paste) entry?.term.paste(confirm.text);
+    entry?.term.focus();
   };
+  const cancel = () => close(false);
+  const accept = () => close(true);
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={cancel}>
       <div

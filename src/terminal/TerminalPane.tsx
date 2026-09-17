@@ -55,6 +55,16 @@ import {
   reportTitle,
 } from "../agent/statusController";
 import { paneStatus } from "../agent/statusStore";
+import {
+  copySelectionToClipboard,
+  pasteTextIntoPane,
+  writeClipboardText,
+} from "./clipboard";
+
+/** Primary-modifier platform: Cmd/Ctrl+C/V map to copy/paste on mac/others. */
+const isMacPlatform =
+  typeof navigator !== "undefined" &&
+  /Mac/i.test(navigator.platform ?? navigator.userAgent ?? "");
 
 /** Short beep via WebAudio (trigger "sound" action). */
 let audioCtx: AudioContext | null = null;
@@ -204,6 +214,39 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
     const entry = terminalManager.create(paneId, term, fit);
     entry.search = search;
     entryRef.current = entry;
+
+    // Ctrl/Cmd+C copies the selection; Ctrl/Cmd+V lets the browser's native
+    // paste event through (its clipboardData needs no permission prompt).
+    // Returning false stops xterm from sending the raw control bytes to the
+    // shell. With no selection Ctrl+C is left alone so it still interrupts
+    // the foreground job; a focused input never reaches xterm at all.
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== "keydown") return true;
+      const primary = isMacPlatform ? e.metaKey : e.ctrlKey;
+      if (!primary || e.altKey || e.shiftKey) return true;
+      const key = e.key.toLowerCase();
+      if (key === "c") {
+        if (!copySelectionToClipboard(entry)) return true;
+        e.preventDefault();
+        return false;
+      }
+      if (key === "v") return false;
+      return true;
+    });
+
+    // Route the browser's paste event through the paste guard, so multi-line /
+    // large / destructive text confirms first. Using the event's clipboardData
+    // (rather than the async clipboard API) avoids the first-paste permission
+    // prompt, and stopping propagation keeps xterm from pasting twice.
+    const onPaste = (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      if (!text) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      pasteTextIntoPane(entry, text);
+    };
+    term.element?.addEventListener("paste", onPaste, true);
+
     entry.doFit = () => {
       try {
         fit.fit();
@@ -349,7 +392,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
           const text = rectText(term.buffer.active, {
             x1: rectStart.x, y1: rectStart.y, x2: rectCur.x, y2: rectCur.y,
           });
-          if (text) void navigator.clipboard?.writeText(text).catch(() => {});
+          if (text) void writeClipboardText(text).catch(() => {});
         }
         rectStart = null;
         rectCur = null;
@@ -801,6 +844,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
       clearInterval(replayTimer);
       observer.disconnect();
       term.element?.removeEventListener("mousedown", onMouseDown, true);
+      term.element?.removeEventListener("paste", onPaste, true);
       if (useAppStore.getState().copyModePane === paneId) {
         useAppStore.setState({ copyModePane: null });
       }

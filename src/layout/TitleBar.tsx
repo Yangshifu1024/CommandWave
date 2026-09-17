@@ -8,7 +8,11 @@ import { isTauri } from "../terminal/ipc";
 import { acceleratorToDisplay } from "../hooks/keybindings";
 import { requestUpdateCheck } from "../updater";
 import { linesBetween, nextPromptLine } from "../terminal/paneMarks";
-import { inspectPaste } from "../terminal/pasteGuard";
+import {
+  copySelectionToClipboard,
+  pasteClipboardIntoPane,
+  writeClipboardText,
+} from "../terminal/clipboard";
 import { enterCopyModeForActivePane, exitCopyMode } from "../terminal/copyModeController";
 
 export const isMac = /Mac/.test(navigator.platform);
@@ -51,20 +55,15 @@ async function copyLastCommandOutput(): Promise<void> {
   const text = linesBetween(entry.term.buffer.active, from, lastPrompt);
   if (!text) return;
   try {
-    await navigator.clipboard?.writeText(text);
+    await writeClipboardText(text);
   } catch {
     document.execCommand("copy");
   }
 }
 
 function copySelection(): void {
-  const selection = activePaneTerminal()?.term.getSelection() ?? "";
-  if (selection) {
-    void navigator.clipboard?.writeText(selection).catch(() => {
-      document.execCommand("copy");
-    });
-    return;
-  }
+  const entry = activePaneTerminal();
+  if (entry && copySelectionToClipboard(entry)) return;
   // Fall back to native copy for regular inputs (settings dialog, search…).
   document.execCommand("copy");
 }
@@ -76,23 +75,9 @@ async function pasteIntoTerminal(): Promise<void> {
     document.execCommand("paste");
     return;
   }
-  let text = "";
-  try {
-    text = await navigator.clipboard.readText();
-  } catch {
-    return; // clipboard unavailable — nothing sensible to paste
-  }
-  if (!text) return;
   const entry = activePaneTerminal();
   if (!entry) return;
-  const warn = useSettingsStore.getState().settings.notifications.pasteWarning;
-  const warning = warn ? inspectPaste(text) : null;
-  if (warning) {
-    // Queue for the confirmation dialog; nothing reaches the shell yet.
-    useAppStore.setState({ pasteConfirm: { text, paneId: entry.paneId } });
-    return;
-  }
-  entry.term.paste(text);
+  await pasteClipboardIntoPane(entry);
 }
 
 /** ⌘+/- zoom: nudge the global font size delta, clamped to a sane range. */
