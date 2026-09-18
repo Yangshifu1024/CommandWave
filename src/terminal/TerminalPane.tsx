@@ -91,8 +91,6 @@ interface TerminalPaneProps {
   cwd?: string | null;
   /** tmux control mode: mirror this tmux pane instead of spawning a PTY. */
   tmuxPaneId?: string | null;
-  /** The pane is the focused pane of the active tab. */
-  paneFocused?: boolean;
 }
 
 /**
