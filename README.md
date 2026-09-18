@@ -109,30 +109,18 @@ All of these are customizable in **Settings → Keyboard** (defaults below).
 | Search                          | ⌘F           | Ctrl+F          |
 | Settings                        | ⌘,           | Ctrl+,          |
 | Previous / next prompt          | ⌘↑ / ⌘↓      | Ctrl+↑ / Ctrl+↓ |
-| Focus prompt                    | ⌘L           | Ctrl+L          |
 
-## Prompt (block model)
+## Prompt
 
-By default CommandWave renders its own Warp-style prompt: a bottom-pinned
-input card with a segment header (working directory, git branch + dirty
-count, command duration, exit code on failure, optional language versions)
-above a multi-line input area. While the shell idles at a prompt the card
-owns the keyboard (full IME support); when a command runs or a TUI app
-takes over (vim, fzf), the card collapses and every key passes through to
-the terminal, like a classic emulator.
+CommandWave leaves the shell's own prompt untouched: whatever starship,
+oh-my-zsh, your `$PROFILE` or `.bashrc` draws is what you see, and your
+keystrokes go straight from xterm.js to the shell's readline/zle — a classic
+terminal, with no separate input card.
 
-The prompt is customizable in **Settings → Prompt**: switch the block model
-off entirely (keeping starship / oh-my-zsh / whatever your shell already
-configures), pick and reorder header segments (left/right), add custom
-text segments, choose per-segment colors and the input symbol. Changes
-apply to newly opened tabs; existing shells keep the prompt they were
-spawned with.
-
-PowerShell is integrated in block-model mode out of the box (a
-`PSConsoleHostReadLine`/`Prompt` pair injected at spawn — no `$PROFILE`
-edits). zsh and bash get the same treatment via the shell integration
-below. Unsupported shells (fish, nu, …) are left untouched and keep their
-own prompt.
+The features that need to know about prompts come from the shell integration
+below (OSC 7/133): tab titles track the cwd, <kbd>Cmd/Ctrl+↑/↓</kbd> jump
+between prompts, failed commands get a red marker on their prompt line, and
+*Copy Last Output* grabs the previous command's output.
 
 ## Shell integration (tab titles track your cwd)
 
@@ -140,29 +128,19 @@ Tab titles show the current directory's last segment (`CommandWave`) and
 update as you `cd`. This relies on the shell reporting its working directory
 via OSC 7 (or ConEmu-style OSC 9;9).
 
-**zsh and bash need no setup**: on spawn, CommandWave injects a small
-integration automatically (VS Code-style `ZDOTDIR` chaining for zsh,
-`PROMPT_COMMAND` for bash). Emission is guarded on `TERM_PROGRAM ==
-"CommandWave"`, so other terminals and nested shells are unaffected, and
-shells other than the zsh/bash/PowerShell family are never touched.
+**zsh, bash and PowerShell need no setup**: on spawn, CommandWave injects a
+small integration automatically — VS Code-style `ZDOTDIR` chaining for zsh,
+`PROMPT_COMMAND` + `PS0` for bash, and a `-NoExit -Command` wrapper around
+`Prompt`/`PSConsoleHostReadLine` for PowerShell (no `$PROFILE` edits). The
+shell's own prompt is never modified.
 
-Fish needs a manual prompt hook (see the fish docs); if no cwd is
-reported, titles fall back to the program-set window title, then the
-configured starting directory.
+Emission is guarded on `TERM_PROGRAM == "CommandWave"`, so other terminals
+and nested shells are unaffected, and shells outside the zsh/bash/PowerShell
+family are never touched.
 
-PowerShell (add to your `$PROFILE`):
-
-```powershell
-function prompt {
-  $loc = $executionContext.SessionState.Path.CurrentLocation
-  if ($Host.UI.SupportsVirtualTerminal) {
-    $path = $loc.ProviderPath -replace "\\", "/"
-    if ($path -notmatch "^/") { $path = "/$path" }  # C:/... -> /C:/...
-    Write-Host -NoNewline "`e]7;file://$env:COMPUTERNAME$path`a"
-  }
-  "PS $loc> "
-}
-```
+Fish needs a manual prompt hook (see the fish docs); if no cwd is reported,
+titles fall back to the program-set window title, then the configured
+starting directory. Manual equivalents for bash and zsh, for reference:
 
 bash (add to `~/.bashrc`):
 

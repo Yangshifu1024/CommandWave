@@ -12,8 +12,9 @@
 //!   OSC 7 + OSC 133.
 //! - bash: `PROMPT_COMMAND` and `PS0` are set in the environment
 //!   (interactive bash honors inherited values).
-//! - PowerShell: no injection — its native `Prompt` function is left
-//!   untouched (OSC marks are only provided for zsh and bash).
+//! - PowerShell: `-NoExit -Command` boots a wrapper around the native
+//!   `Prompt` function and `PSConsoleHostReadLine` that emits the same marks,
+//!   with no `$PROFILE` edits. The user's own prompt is preserved.
 //!
 //! Emission is guarded on `TERM_PROGRAM == "CommandWave"` so nested shells
 //! and other terminals are unaffected. The shell's own prompt configuration
@@ -78,6 +79,36 @@ const BASH_PS0: &str = "\x1b]133;C\x07";
 /// clobber $? before the D mark reports it.
 const BASH_PROMPT_COMMAND: &str = "__CW_E=$?; printf '\\e]133;D;%d\\a' \"$__CW_E\"; printf '\\e]133;A\\a'; printf '\\e]7;file://%s%s\\a' \"${HOSTNAME%%.*}\" \"$PWD\"";
 
+/// PowerShell: a `-NoExit -Command` startup script that wraps the native
+/// `Prompt` function (captured first, so the user's prompt is preserved) and
+/// `PSConsoleHostReadLine` (emits the C mark once a line is accepted). `Prompt`
+/// reports the previous exit code (D), the prompt start (A) and the cwd
+/// (OSC 7). `[char]27`/`[char]7` are used instead of escape literals so it
+/// also works on Windows PowerShell 5.1.
+const PWSH_INTEGRATION: &str = r#"$E=[char]27; $B=[char]7; $CWOP=$function:Prompt; function global:Prompt { $x=$global:LASTEXITCODE; if ($null -eq $x) { $x=0 }; $p=$PWD.ToString().Replace('\','/'); if ($p -notmatch '^/') { $p='/'+$p }; Write-Host -NoNewline ($E+']133;D;'+$x+$B+$E+']133;A'+$B+$E+']7;file://'+$env:COMPUTERNAME+$p+$B); if ($CWOP) { & $CWOP } else { 'PS '+$p+'> ' } }; function global:PSConsoleHostReadLine { $l=[Microsoft.PowerShell.PSConsoleReadLine]::ReadLine($Host.Runspace,$ExecutionContext); Write-Host -NoNewline ($E+']133;C'+$B); return $l }"#;
+
+/// PowerShell startup arguments carrying the OSC 7/133 integration. Returns
+/// `None` when the caller already supplied a `-Command`/`-File`, so a user's
+/// own startup command is never clobbered.
+pub fn powershell_args(args: &[String]) -> Option<Vec<String>> {
+    let has_command = args.iter().any(|arg| {
+        let lower = arg.to_ascii_lowercase();
+        matches!(
+            lower.as_str(),
+            "-command" | "-c" | "-file" | "-f" | "/command" | "/file"
+        ) || lower.starts_with("-command:")
+            || lower.starts_with("/command:")
+    });
+    if has_command {
+        return None;
+    }
+    Some(vec![
+        "-NoExit".to_string(),
+        "-Command".to_string(),
+        PWSH_INTEGRATION.to_string(),
+    ])
+}
+
 /// Shell family for integration purposes, from the program basename.
 /// Explicitly configured shells of a supported family are integrated too;
 /// unsupported shells (fish, nu, …) are left untouched.
@@ -107,7 +138,8 @@ pub fn write_integration_files(base: &Path) -> Result<PathBuf, anyhow::Error> {
 }
 
 /// Prepare environment for the given shell program. Returns the env vars to
-/// set (`None` when the shell needs no / unsupported integration).
+/// set (`None` when the shell needs no / unsupported integration). PowerShell
+/// is integrated through [`powershell_args`] instead of the environment.
 pub fn env_for_shell(program: &str, base: &Path) -> Option<Vec<(String, String)>> {
     match shell_kind(program)? {
         "zsh" => {
@@ -227,5 +259,32 @@ mod tests {
         assert!(env_for_shell("pwsh", &dir).is_none());
         assert!(env_for_shell("/usr/bin/fish", &dir).is_none());
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn powershell_args_carry_marks_and_keep_the_prompt() {
+        let args = powershell_args(&[]).expect("pwsh integration");
+        assert_eq!(args[0], "-NoExit");
+        assert_eq!(args[1], "-Command");
+        let script = args[2].as_str();
+        assert!(script.contains("133;D;"));
+        assert!(script.contains("133;A"));
+        assert!(script.contains("133;C"));
+        assert!(script.contains("]7;file://"));
+        // The user's prompt function is captured and re-invoked, not replaced.
+        assert!(script.contains("$CWOP=$function:Prompt"));
+        assert!(script.contains("& $CWOP"));
+        // `[char]` escapes keep it working on Windows PowerShell 5.1.
+        assert!(script.contains("[char]27"));
+    }
+
+    #[test]
+    fn powershell_args_respect_a_user_supplied_command() {
+        let command = vec!["-Command".to_string(), "Write-Host hi".to_string()];
+        assert!(powershell_args(&command).is_none());
+        let file = vec!["-File".to_string(), "setup.ps1".to_string()];
+        assert!(powershell_args(&file).is_none());
+        let no_exit = vec!["-NoExit".to_string()];
+        assert!(powershell_args(&no_exit).is_some());
     }
 }
