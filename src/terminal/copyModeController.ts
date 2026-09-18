@@ -7,6 +7,7 @@
 
 import { useAppStore } from "../store/appStore";
 import { terminalManager, type TerminalEntry } from "./manager";
+import { writeClipboardText } from "./clipboard";
 import { linesBetween } from "./paneMarks";
 import {
   applyCopyModeInput,
@@ -100,7 +101,7 @@ async function copyAndExit(entry: TerminalEntry): Promise<void> {
       const text = linesBetween(entry.term.buffer.active, range.from, range.to);
       if (text) {
         try {
-          await navigator.clipboard.writeText(text);
+          await writeClipboardText(text);
         } catch {
           // clipboard denied — still leave copy mode
         }
