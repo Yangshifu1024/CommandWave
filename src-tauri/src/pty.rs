@@ -158,6 +158,14 @@ pub fn spawn_session(
     };
     let mut cmd = CommandBuilder::new(&shell);
     cmd.args(&args);
+    // PowerShell integration rides on the command line (`-NoExit -Command`)
+    // rather than the environment; skipped if the user passed their own
+    // `-Command`/`-File` so their startup command is never clobbered.
+    if shell_integration::shell_kind(&shell) == Some("pwsh") {
+        if let Some(extra) = shell_integration::powershell_args(&args) {
+            cmd.args(&extra);
+        }
+    }
     if let Some(cwd) = &options.cwd {
         cmd.cwd(cwd);
     }
