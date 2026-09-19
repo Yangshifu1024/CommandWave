@@ -1,0 +1,138 @@
+/* About window. Builds on the shared `.dialog-backdrop` / `.dialog` primitives
+   in styles/global.css (same look as the updater and paste-confirm dialogs);
+   only the About-specific pieces live here. The backdrop selector keeps the
+   specificity on par with `.dialog-backdrop .dialog`. */
+
+.dialog-backdrop .about-dialog {
+  width: 520px;
+}
+
+/* ---------- Identity: icon, name, version, build time ---------- */
+
+.about-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-icon {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.about-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.about-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 11.5px;
+  color: var(--fg-dim);
+}
+
+.about-value {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Labelled rows: license, repository, issues ---------- */
+
+.about-license,
+.about-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.about-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.about-label {
+  flex: none;
+  width: 84px;
+  color: var(--fg-dim);
+}
+
+.about-link {
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-align: left;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+/* ---------- Third-party list ---------- */
+
+.about-credits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.about-credits h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.about-credits-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.about-credit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  border-top: 1px solid var(--border);
+}
+
+.about-credit:first-child {
+  border-top: none;
+}
+
+.about-credit-name {
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.about-credit-version {
+  color: var(--fg-dim);
+  font-family: var(--font-mono, monospace);
+}
+
+.about-credit-license {
+  min-width: 130px;
+  text-align: right;
+  color: var(--fg-dim);
+}

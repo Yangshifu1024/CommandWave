@@ -11,6 +11,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { JSX, ReactNode } from "react";
 
+import i18n from "../i18n";
 import { useSettingsStore } from "../store/settingsStore";
 import {
   activeSessionCount,
@@ -160,12 +161,12 @@ export function UpdateProvider({ children }: { children: ReactNode }): JSX.Eleme
         pendingRef.current = null;
         setUpdate(null);
         if (outcome.status === "error" && kind === "manual") {
-          setError(errorMessage(outcome.error, "Could not check for updates."));
+          setError(errorMessage(outcome.error, i18n.t("updates.errors.check")));
           apply("fail");
           return;
         }
         if (outcome.status === "unavailable" && kind === "manual") {
-          setError("Update checks are not available in this environment.");
+          setError(i18n.t("updates.errors.unavailable"));
           apply("fail");
           return;
         }
@@ -211,7 +212,7 @@ export function UpdateProvider({ children }: { children: ReactNode }): JSX.Eleme
       if (outcome.ok) {
         apply("install-done");
       } else {
-        setError(errorMessage(outcome.error, "The update could not be installed."));
+        setError(errorMessage(outcome.error, i18n.t("updates.errors.install")));
         apply("fail");
       }
     } finally {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAppStore } from "../store/appStore";
 import { replaySnapshots, snapshotForAge } from "../terminal/instantReplay";
@@ -8,6 +9,7 @@ import { replaySnapshots, snapshotForAge } from "../terminal/instantReplay";
  * buffer snapshots, shown read-only.
  */
 export function InstantReplay() {
+  const { t } = useTranslation();
   const open = useAppStore((s) => s.replayOpen);
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
@@ -27,14 +29,14 @@ export function InstantReplay() {
       <div
         className="dialog replay-dialog"
         role="dialog"
-        aria-label="Instant replay"
+        aria-label={t("dialogs.instantReplay.label")}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <h2>Instant Replay</h2>
+        <h2>{t("dialogs.instantReplay.title")}</h2>
         {snap ? (
           <>
             <div className="replay-controls">
-              <span>now</span>
+              <span>{t("dialogs.instantReplay.now")}</span>
               <input
                 type="range"
                 min={0}
@@ -42,7 +44,7 @@ export function InstantReplay() {
                 value={Math.min(ageSec, maxAge)}
                 onChange={(e) => setAgeSec(Number(e.target.value))}
               />
-              <span>-{Math.min(ageSec, maxAge)}s</span>
+              <span>{t("dialogs.instantReplay.age", { seconds: Math.min(ageSec, maxAge) })}</span>
               <span className="replay-time">
                 {new Date(snap.at).toLocaleTimeString()}
               </span>
@@ -50,11 +52,11 @@ export function InstantReplay() {
             <pre className="replay-text">{snap.text}</pre>
           </>
         ) : (
-          <p className="dialog-text">No snapshots yet for this pane (captured every 10s).</p>
+          <p className="dialog-text">{t("dialogs.instantReplay.empty")}</p>
         )}
         <div className="dialog-actions">
           <button type="button" onClick={close}>
-            Close
+            {t("common.close")}
           </button>
         </div>
       </div>

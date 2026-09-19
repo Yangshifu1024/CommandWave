@@ -54,6 +54,29 @@ export function matchAutoAnswer(line: string, answers: AutoAnswer[]): AutoAnswer
   return null;
 }
 
+/**
+ * The built-in password trigger: its id and the `param` shipped as the default
+ * (settingsStore and the Rust settings default both write this exact English
+ * string). It is our text, not the user's, so it follows the UI language.
+ */
+export const PASSWORD_TRIGGER_ID = "trigger-password";
+export const PASSWORD_TRIGGER_DEFAULT_TITLE = "Password prompt detected";
+
+/**
+ * Notification title for a `notify` trigger. A `param` the user typed is shown
+ * exactly as typed; the two fallbacks are ours and come from the language pack.
+ */
+export function triggerNotifyTitle(
+  def: Pick<Trigger, "id"> & { param?: string | null },
+  texts: { fired: string; passwordPrompt: string },
+): string {
+  const param = def.param ?? "";
+  if (def.id === PASSWORD_TRIGGER_ID && param === PASSWORD_TRIGGER_DEFAULT_TITLE) {
+    return texts.passwordPrompt;
+  }
+  return param || texts.fired;
+}
+
 /** Strip ANSI CSI/OSC/other escape sequences from raw PTY text. */
 export function stripAnsi(text: string): string {
   // eslint-disable-next-line no-control-regex

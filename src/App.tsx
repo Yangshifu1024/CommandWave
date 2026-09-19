@@ -12,6 +12,7 @@ import { InstantReplay } from "./layout/InstantReplay";
 import { TitleBar, dispatchMenuAction, isMac } from "./layout/TitleBar";
 import { SearchBar } from "./search/SearchBar";
 import { SettingsDialog } from "./settings/SettingsDialog";
+import { AboutDialog } from "./about/AboutDialog";
 import { useAppStore } from "./store/appStore";
 import { appearanceDefaults, useSettingsStore } from "./store/settingsStore";
 import { useShortcuts } from "./hooks/useShortcuts";
@@ -74,6 +75,7 @@ function MainApp() {
   const activeTabId = useAppStore((s) => s.activeTabId);
   const tabBarPosition = useAppStore((s) => s.tabBarPosition);
   const settingsOpen = useAppStore((s) => s.settingsOpen);
+  const aboutOpen = useAppStore((s) => s.aboutOpen);
   const historySemantic = useAppStore((s) => s.historySemantic);
   useShortcuts();
 
@@ -270,6 +272,7 @@ function MainApp() {
         </div>
       </div>
       {settingsOpen && <SettingsDialog />}
+      {aboutOpen && <AboutDialog />}
       <AgentOnboarding />
       <ContextMenu />
       <PasteConfirm />

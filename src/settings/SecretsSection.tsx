@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   decryptSecret,
@@ -16,6 +17,7 @@ import { secretsDelete, secretsList, secretsUpsert } from "../terminal/ipc";
  * / auto-answer payloads via {secret:name}.
  */
 export function SecretsSection() {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<SecretBlob[]>([]);
   const [unlocked, setUnlocked] = useState(false);
   const [master, setMaster] = useState("");
@@ -31,7 +33,7 @@ export function SecretsSection() {
 
   const unlock = async () => {
     const ok = await unlockVault(master, entries);
-    setError(ok ? null : "wrong master password");
+    setError(ok ? null : t("settings.secrets.wrongMaster"));
     setUnlocked(ok);
     setMaster("");
   };
@@ -53,7 +55,7 @@ export function SecretsSection() {
     try {
       const plain = await decryptSecret(blob);
       await navigator.clipboard.writeText(plain);
-      setError(`"${blob.name}" copied to clipboard`);
+      setError(t("settings.secrets.copied", { name: blob.name }));
     } catch (e) {
       setError(String(e));
     }
@@ -61,23 +63,21 @@ export function SecretsSection() {
 
   return (
     <section className="settings-section">
-      <h3>Secrets Vault</h3>
-      <p className="section-hint">
-        AES-GCM encrypted in the app config dir; the master password is
-        never stored. Reference secrets in trigger/auto-answer send-text as
-        {" {secret:name}"}.
-      </p>
+      <h3>{t("settings.secrets.title")}</h3>
+      <p className="section-hint">{t("settings.secrets.hint")}</p>
       {!unlocked ? (
         <div className="trigger-row">
           <input
             type="password"
-            placeholder="master password"
+            placeholder={t("settings.secrets.masterPlaceholder")}
             value={master}
             onChange={(e) => setMaster(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void unlock()}
           />
           <button type="button" className="settings-add-btn" onClick={() => void unlock()}>
-            {entries.length === 0 ? "Create vault" : "Unlock"}
+            {entries.length === 0
+              ? t("settings.secrets.createVault")
+              : t("settings.secrets.unlock")}
           </button>
         </div>
       ) : (
@@ -85,22 +85,27 @@ export function SecretsSection() {
           <div className="trigger-row">
             <input
               type="text"
-              placeholder="name"
+              placeholder={t("settings.secrets.namePlaceholder")}
               value={name}
               spellCheck={false}
               onChange={(e) => setName(e.target.value)}
             />
             <input
               type="password"
-              placeholder="value"
+              placeholder={t("settings.secrets.valuePlaceholder")}
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && void add()}
             />
             <button type="button" className="settings-add-btn" onClick={() => void add()}>
-              Add secret
+              {t("settings.secrets.addSecret")}
             </button>
-            <button type="button" className="settings-mini-btn" title="Lock" onClick={() => { lockVault(); setUnlocked(false); }}>
+            <button
+              type="button"
+              className="settings-mini-btn"
+              title={t("settings.secrets.lock")}
+              onClick={() => { lockVault(); setUnlocked(false); }}
+            >
               🔒
             </button>
           </div>
@@ -108,12 +113,12 @@ export function SecretsSection() {
             <div key={e.name} className="trigger-row">
               <span className="arrangement-name">{e.name}</span>
               <button type="button" className="settings-add-btn" onClick={() => void reveal(e)}>
-                Copy value
+                {t("settings.secrets.copyValue")}
               </button>
               <button
                 type="button"
                 className="settings-mini-btn"
-                aria-label="Delete secret"
+                aria-label={t("settings.secrets.deleteAria")}
                 onClick={() => {
                   void secretsDelete(e.name);
                   setEntries((list) => list.filter((x) => x.name !== e.name));

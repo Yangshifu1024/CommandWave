@@ -1,6 +1,7 @@
 mod agent;
 mod api_server;
 mod commands;
+mod i18n;
 mod menu;
 mod pty;
 mod secrets;
@@ -25,6 +26,8 @@ pub fn run() {
         .plugin(tauri_plugin_notifications::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(PtyManager::new())
+        // Keybindings + language of the last menu build (see `menu::MenuState`).
+        .manage(menu::MenuState::default())
         .invoke_handler(tauri::generate_handler![
             commands::pty_create,
             commands::pty_write,
@@ -38,6 +41,7 @@ pub fn run() {
             commands::settings_save,
             commands::show_main_window,
             commands::rebuild_menu,
+            commands::set_ui_locale,
             commands::open_with_editor,
             commands::set_progress,
             commands::set_window_blur,
@@ -50,14 +54,31 @@ pub fn run() {
             commands::active_session_count
         ])
         .setup(|app| {
-            // Build the native menu with the persisted keybindings; a failed
-            // settings read falls back to built-in accelerators.
-            let keybindings = settings::load(app.handle())
-                .map(|s| s.keybindings)
+            use tauri::Manager;
+            // Build the native menu with the persisted keybindings and UI
+            // language; a failed settings read falls back to built-in
+            // accelerators and the system language. The webview pushes the
+            // resolved language again on mount (`set_ui_locale`), which is what
+            // covers a language change without a restart.
+            let stored = settings::load(app.handle()).ok();
+            let keybindings = stored
+                .as_ref()
+                .map(|s| s.keybindings.clone())
                 .unwrap_or_default();
-            menu::setup(app.handle(), &keybindings)?;
+            let locale = i18n::resolve_locale(stored.as_ref().and_then(|s| s.language.as_deref()));
+            // Remember both halves, so a rebuild triggered by either one has
+            // the other (`rebuild_menu`, `set_ui_locale`).
+            let menu_state = app.state::<menu::MenuState>();
+            menu_state.set_keybindings(keybindings.clone());
+            menu_state.set_locale(locale);
+            menu::setup(app.handle(), &keybindings, locale)?;
+            // The menu event route is registered once for the app's lifetime:
+            // `menu::setup` runs on every rebuild, and `on_menu_event` appends
+            // a handler per call, so registering it there delivered each click
+            // once per rebuild.
+            menu::route_events(app.handle());
             // System tray: always present, carries the agent attention count.
-            if let Err(e) = tray::setup(app.handle()) {
+            if let Err(e) = tray::setup(app.handle(), locale) {
                 eprintln!("tray setup failed: {e}");
             }
             // Local scripting API (loopback HTTP; port/token in api.json).
@@ -68,7 +89,6 @@ pub fn run() {
             // webview); macOS keeps native chrome with an overlaid title.
             #[cfg(not(target_os = "macos"))]
             {
-                use tauri::Manager;
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.set_decorations(false);
                     let _ = window.show();

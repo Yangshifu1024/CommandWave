@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { useAppStore } from "../store/appStore";
 import { computeTabTitle } from "../terminal/paneTitle";
 
@@ -6,6 +8,7 @@ import { computeTabTitle } from "../terminal/paneTitle";
  * title/cwd; clicking one activates its tab + pane. Escape closes.
  */
 export function Expose() {
+  const { t } = useTranslation();
   const open = useAppStore((s) => s.exposeOpen);
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
@@ -16,7 +19,7 @@ export function Expose() {
     <div
       className="expose-backdrop"
       role="dialog"
-      aria-label="Exposé all panes"
+      aria-label={t("dialogs.expose.label")}
       onClick={() => setExposeOpen(false)}
       onKeyDown={(e) => e.key === "Escape" && setExposeOpen(false)}
     >
@@ -36,7 +39,9 @@ export function Expose() {
               >
                 <span className="expose-title">{computeTabTitle(meta)}</span>
                 <span className="expose-detail">{meta.cwd ?? meta.spawnCwd ?? "—"}</span>
-                <span className="expose-tab">{tab.customTitle ?? `Tab ${tab.title}`}</span>
+                <span className="expose-tab">
+                  {tab.customTitle ?? t("dialogs.expose.tabLabel", { title: tab.title })}
+                </span>
               </button>
             );
           }),

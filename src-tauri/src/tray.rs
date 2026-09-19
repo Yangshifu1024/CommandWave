@@ -7,6 +7,10 @@
 //! (`set_title`); on Windows/Linux the count becomes a badge dot on the glyph
 //! plus the tooltip (Linux shows neither, so the menu is the surface). The menu
 //! lists the panes currently waiting on the user and focuses one on click.
+//!
+//! Everything the tray renders as text (menu labels, the state words, the
+//! tooltip) follows the UI language: `setup` takes the language at launch and
+//! `set_locale` rebuilds the menu and the tooltip when it changes.
 
 use std::sync::Mutex;
 
@@ -15,6 +19,8 @@ use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Theme, WindowEvent, Wry};
+
+use crate::i18n::{self, t};
 
 pub const TRAY_ID: &str = "commandwave-tray";
 
@@ -78,6 +84,21 @@ const BADGE_GAP: f64 = 1.5;
 /// What the tray is showing, so repainting can be skipped when nothing changed
 /// and a theme flip can repaint from the state that is already up.
 static SHOWN: Mutex<Option<(u32, [u8; 3])>> = Mutex::new(None);
+
+/// The language the tray renders in. Kept here rather than handed to `update`
+/// on every call, because the tray is repainted from agent events that know
+/// nothing about the UI language; `set_locale` is what changes it.
+static LOCALE: Mutex<&'static str> = Mutex::new(i18n::EN);
+
+/// The attention set the tray currently shows. A language switch has to rebuild
+/// the same menu (and the same tooltip count) in the new language, so the last
+/// update is remembered next to the locale.
+static LAST: Mutex<Option<(Vec<AttentionItem>, u32)>> = Mutex::new(None);
+
+/// The language the tray renders in.
+fn current_locale() -> &'static str {
+    *LOCALE.lock().expect("tray locale mutex")
+}
 
 /// Clamp to 0..1; mirrors `clamp` in `scripts/gen_icon.py`.
 fn clamp01(v: f64) -> f64 {
@@ -247,13 +268,14 @@ fn draw_icon(count: u32, ink: [u8; 3]) -> Image<'static> {
     Image::new_owned(rgba, ICON_PX, ICON_PX)
 }
 fn build_menu(app: &AppHandle, items: &[AttentionItem]) -> tauri::Result<Menu<Wry>> {
+    let locale = current_locale();
     let menu = Menu::new(app)?;
     if items.is_empty() {
-        let idle = MenuItem::with_id(app, "idle", "No agents need you", false, None::<&str>)?;
+        let idle = MenuItem::with_id(app, "idle", t(locale, "tray.idle"), false, None::<&str>)?;
         menu.append(&idle)?;
     } else {
         for item in items {
-            let label = format!("{}  ·  {}", item.label, state_word(&item.state));
+            let label = format!("{}  ·  {}", item.label, state_word(locale, &item.state));
             let mi = MenuItem::with_id(
                 app,
                 format!("pane:{}", item.pane_id),
@@ -265,22 +287,36 @@ fn build_menu(app: &AppHandle, items: &[AttentionItem]) -> tauri::Result<Menu<Wr
         }
     }
     menu.append(&PredefinedMenuItem::separator(app)?)?;
-    let show = MenuItem::with_id(app, "show", "Show CommandWave", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit CommandWave", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", t(locale, "tray.show"), true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", t(locale, "tray.quit"), true, None::<&str>)?;
     menu.append(&show)?;
     menu.append(&PredefinedMenuItem::separator(app)?)?;
     menu.append(&quit)?;
     Ok(menu)
 }
 
-fn state_word(state: &str) -> &'static str {
+/// One pane's state, as the single word shown next to its label.
+fn state_word(locale: &str, state: &str) -> &'static str {
     match state {
-        "needs-you" => "needs you",
-        "error" => "error",
-        "working" => "working",
-        "done" => "done",
-        _ => "waiting",
+        "needs-you" => t(locale, "tray.state.needsYou"),
+        "error" => t(locale, "tray.state.error"),
+        "working" => t(locale, "tray.state.working"),
+        "done" => t(locale, "tray.state.done"),
+        _ => t(locale, "tray.state.waiting"),
     }
+}
+
+/// What hovering the tray icon says: the brand alone when nothing needs the
+/// user, otherwise the sentence with the count in it.
+///
+/// `format!` needs a literal template, so the table carries a `{count}`
+/// placeholder and it is filled in here: the sentence shape lives in the
+/// translation table, only the number is decided at the call site.
+fn tooltip_text(locale: &str, count: u32) -> String {
+    if count == 0 {
+        return t(locale, "tray.tooltip.idle").to_string();
+    }
+    t(locale, "tray.tooltip.needsYou").replace("{count}", &count.to_string())
 }
 
 fn focus_pane(app: &AppHandle, pane_id: &str) {
@@ -319,13 +355,19 @@ fn paint(app: &AppHandle, count: u32) -> tauri::Result<()> {
     Ok(())
 }
 
-pub fn setup(app: &AppHandle) -> tauri::Result<()> {
+/// Build the tray icon: the brand glyph, the translated menu and tooltip, and
+/// the click handlers (which are registered once here and stay put when the
+/// menu is replaced later by `set_locale`).
+pub fn setup(app: &AppHandle, locale: &str) -> tauri::Result<()> {
+    // Only the resolved tag is kept; `current_locale()` is what the builders
+    // read from here on.
+    *LOCALE.lock().expect("tray locale mutex") = i18n::resolve_locale(Some(locale));
     let menu = build_menu(app, &[])?;
     let ink = ink_for(panel_theme(app));
     let tray = TrayIconBuilder::with_id(TRAY_ID)
         .icon(draw_icon(0, ink))
         .icon_as_template(true)
-        .tooltip("CommandWave")
+        .tooltip(tooltip_text(current_locale(), 0))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| {
@@ -379,8 +421,38 @@ pub fn setup(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Switch the tray's language and rebuild the text it shows: menu labels and
+/// the tooltip.
+///
+/// The icon is already registered, so `set_menu` / `set_tooltip` replace just
+/// the translated parts: the menu-event handler and the glyph stay attached to
+/// the same tray icon and no second icon appears. A replacement menu is
+/// supported on all three platforms (the menu is a value handed to the tray,
+/// not something fixed at creation), so a language switch takes effect on the
+/// running app without a restart.
+pub fn set_locale(app: &AppHandle, locale: &str) -> tauri::Result<()> {
+    // Resolved once more here: `set_ui_locale` already resolved the settings
+    // value, and this keeps a bogus tag out of the cached locale either way.
+    *LOCALE.lock().expect("tray locale mutex") = i18n::resolve_locale(Some(locale));
+    let (items, count) = LAST
+        .lock()
+        .expect("tray items mutex")
+        .clone()
+        .unwrap_or_default();
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return Ok(());
+    };
+    let menu = build_menu(app, &items)?;
+    tray.set_menu(Some(menu))?;
+    tray.set_tooltip(Some(tooltip_text(current_locale(), count)))?;
+    Ok(())
+}
+
 /// Push the current attention set into the tray (menu, tooltip, macOS title).
 pub fn update(app: &AppHandle, items: &[AttentionItem], count: u32) -> tauri::Result<()> {
+    // Remember what is on screen, so a language switch can rebuild this same
+    // menu (and this same count) in the new language.
+    *LAST.lock().expect("tray items mutex") = Some((items.to_vec(), count));
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return Ok(());
     };
@@ -389,12 +461,7 @@ pub fn update(app: &AppHandle, items: &[AttentionItem], count: u32) -> tauri::Re
     // Repaint only when the badge or the panel ink changes, so agent-status
     // churn does not rebuild the bitmap on every event.
     paint(app, count)?;
-    let tooltip = if count == 0 {
-        "CommandWave".to_string()
-    } else {
-        format!("CommandWave — {count} agent(s) need you")
-    };
-    let _ = tray.set_tooltip(Some(&tooltip));
+    let _ = tray.set_tooltip(Some(tooltip_text(current_locale(), count)));
     #[cfg(target_os = "macos")]
     {
         let title = if count == 0 {
@@ -592,6 +659,42 @@ mod tests {
             assert_eq!(ink_for(Some(Theme::Light)), [0, 0, 0]);
             assert_eq!(ink_for(None), ink_for_theme(None));
         }
+    }
+
+    #[test]
+    fn state_words_follow_the_locale() {
+        for (state, en, zh) in [
+            ("needs-you", "needs you", "需要你"),
+            ("error", "error", "出错"),
+            ("working", "working", "运行中"),
+            ("done", "done", "已完成"),
+            ("waiting", "waiting", "等待中"),
+        ] {
+            assert_eq!(state_word("en", state), en);
+            assert_eq!(state_word("zh-CN", state), zh);
+        }
+        // An unknown state (a newer frontend) reads as "waiting" either way.
+        assert_eq!(state_word("en", "something-new"), "waiting");
+        assert_eq!(state_word("zh-CN", "something-new"), "等待中");
+    }
+
+    #[test]
+    fn tooltip_is_translated_and_keeps_the_count() {
+        // Idle: the brand alone, in both languages.
+        assert_eq!(tooltip_text("en", 0), "CommandWave");
+        assert_eq!(tooltip_text("zh-CN", 0), "CommandWave");
+
+        let en = tooltip_text("en", 3);
+        let zh = tooltip_text("zh-CN", 3);
+        assert!(en.contains('3') && en.contains("need you"), "{en}");
+        assert!(zh.contains('3') && zh.contains("个智能体"), "{zh}");
+        assert_ne!(en, zh);
+        // The placeholder is the caller's job; it must never reach the user.
+        assert!(!en.contains("{count}") && !zh.contains("{count}"));
+        // ...and the count really is dynamic, not part of the sentence.
+        assert!(tooltip_text("en", 7).contains('7'));
+        // An unshipped locale falls back to English, not to the key.
+        assert_eq!(tooltip_text("fr", 3), en);
     }
 
     #[test]

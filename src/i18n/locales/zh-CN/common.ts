@@ -1,0 +1,20 @@
+/** Region: `common` — 多个界面共用的词。键名与英文包一一对应。 */
+export const common = {
+  close: "关闭",
+  cancel: "取消",
+  delete: "删除",
+  remove: "移除",
+  add: "添加",
+  save: "保存",
+  reset: "重置",
+  edit: "编辑",
+  copy: "复制",
+  apply: "应用",
+  retry: "重试",
+  browse: "浏览…",
+  none: "无",
+  unknown: "未知",
+  enabled: "已启用",
+  disabled: "已禁用",
+  loading: "加载中…",
+} as const;

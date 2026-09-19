@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAppStore } from "../store/appStore";
 import { AppearanceSection } from "./AppearanceSection";
@@ -11,14 +12,14 @@ import { UpdatesSection } from "./UpdatesSection";
 import { SecretsSection } from "./SecretsSection";
 
 const TABS = [
-  { id: "terminal", label: "Terminal" },
-  { id: "appearance", label: "Appearance" },
-  { id: "keyboard", label: "Keyboard" },
-  { id: "session", label: "Session" },
-  { id: "automation", label: "Automation" },
-  { id: "integrations", label: "Integrations" },
-  { id: "updates", label: "Updates" },
-  { id: "secrets", label: "Secrets" },
+  { id: "terminal", labelKey: "settings.tabs.terminal" },
+  { id: "appearance", labelKey: "settings.tabs.appearance" },
+  { id: "keyboard", labelKey: "settings.tabs.keyboard" },
+  { id: "session", labelKey: "settings.tabs.session" },
+  { id: "automation", labelKey: "settings.tabs.automation" },
+  { id: "integrations", labelKey: "settings.tabs.integrations" },
+  { id: "updates", labelKey: "settings.tabs.updates" },
+  { id: "secrets", labelKey: "settings.tabs.secrets" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -28,6 +29,7 @@ type TabId = (typeof TABS)[number]["id"];
  * Changes apply immediately and persist.
  */
 export function SettingsDialog() {
+  const { t } = useTranslation();
   const close = useAppStore((s) => s.closeSettings);
   const [tab, setTab] = useState<TabId>("terminal");
 
@@ -36,26 +38,26 @@ export function SettingsDialog() {
       <div
         className="settings-dialog"
         role="dialog"
-        aria-label="Settings"
+        aria-label={t("settings.title")}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="settings-header">
-          <h2>Settings</h2>
-          <button className="settings-close" aria-label="Close settings" onClick={close}>
+          <h2>{t("settings.title")}</h2>
+          <button className="settings-close" aria-label={t("settings.closeAria")} onClick={close}>
             ×
           </button>
         </header>
 
         <div className="settings-tabs" role="tablist">
-          {TABS.map((t) => (
+          {TABS.map((item) => (
             <button
-              key={t.id}
+              key={item.id}
               role="tab"
-              aria-selected={tab === t.id}
-              className={`settings-tab${tab === t.id ? " active" : ""}`}
-              onClick={() => setTab(t.id)}
+              aria-selected={tab === item.id}
+              className={`settings-tab${tab === item.id ? " active" : ""}`}
+              onClick={() => setTab(item.id)}
             >
-              {t.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </div>

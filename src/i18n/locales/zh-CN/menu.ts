@@ -1,0 +1,110 @@
+/**
+ * Region: `menu` — 标题栏菜单与 macOS 原生菜单标签、快捷键动作名。
+ *
+ * 键名与英文包一一对应；用词与 Rust 侧原生菜单保持一致，两边必须同词。
+ */
+export const menu = {
+  /** 菜单栏分组名。 */
+  groups: {
+    shell: "Shell",
+    edit: "编辑",
+    view: "显示",
+    window: "窗口",
+    help: "帮助",
+  },
+  /** Shell 菜单的条目。 */
+  shell: {
+    newTab: "新建标签页",
+    closePane: "关闭窗格",
+    closeTab: "关闭标签页",
+    splitRight: "向右分屏",
+    splitDown: "向下分屏",
+    prevPane: "上一个窗格",
+    nextPane: "下一个窗格",
+    paneLeft: "选择左边的窗格",
+    paneRight: "选择右边的窗格",
+    paneUp: "选择上方的窗格",
+    paneDown: "选择下方的窗格",
+    maximizePane: "最大化窗格",
+    detachPane: "把窗格移到新窗口",
+    broadcast: "广播输入到所有窗格",
+    tmuxAttach: "接入 tmux 会话…",
+  },
+  /** 编辑菜单的条目。 */
+  edit: {
+    undo: "撤销",
+    redo: "重做",
+    cut: "剪切",
+    copy: "复制",
+    paste: "粘贴",
+    copyLastOutput: "复制上一条输出",
+    selectAll: "全选",
+    clearBuffer: "清空缓冲",
+  },
+  /** 显示菜单的条目。 */
+  view: {
+    toggleVerticalTabs: "切换标签页方向",
+    biggerText: "放大文字",
+    smallerText: "缩小文字",
+    resetTextSize: "恢复默认字号",
+    copyMode: "复制模式",
+    expose: "窗格总览",
+    renameTab: "重命名标签页…",
+    toggleTabLock: "锁定/解锁标签页",
+    search: "搜索…",
+    searchAgain: "查找下一个",
+    recentCommands: "最近的命令…",
+    semanticHistory: "带输出的历史搜索…",
+    instantReplay: "即时回放…",
+    prevPrompt: "上一个提示符",
+    nextPrompt: "下一个提示符",
+  },
+  /** 窗口菜单的条目（窗口按钮也用这几个词）。 */
+  window: {
+    minimize: "最小化",
+    maximize: "最大化",
+    restore: "还原",
+  },
+  /** 帮助菜单的条目。 */
+  help: {
+    checkForUpdates: "检查更新…",
+    about: "关于 CommandWave",
+  },
+  /** 设置里的键盘页签列出的动作名。 */
+  actions: {
+    newTab: "新建标签页",
+    closePane: "关闭窗格",
+    closeTab: "关闭标签页",
+    splitRight: "向右分屏",
+    splitDown: "向下分屏",
+    prevPane: "上一个窗格",
+    nextPane: "下一个窗格",
+    paneLeft: "选择左边的窗格",
+    paneRight: "选择右边的窗格",
+    paneUp: "选择上方的窗格",
+    paneDown: "选择下方的窗格",
+    maximizePane: "最大化窗格",
+    broadcastInput: "广播输入",
+    exposePanes: "窗格总览",
+    renameTab: "重命名标签页…",
+    toggleTabLock: "锁定/解锁标签页",
+    recentCommands: "最近的命令…",
+    semanticHistory: "带输出的历史搜索…",
+    instantReplay: "即时回放…",
+    tmuxAttach: "接入 tmux 会话…",
+    prevTab: "上一个标签页",
+    nextTab: "下一个标签页",
+    toggleVerticalTabs: "切换标签页方向",
+    search: "搜索",
+    settings: "设置",
+    prevPrompt: "上一个提示符",
+    nextPrompt: "下一个提示符",
+    copyLastOutput: "复制上一条输出",
+    clearBuffer: "清空缓冲",
+    copyMode: "复制模式",
+    searchNext: "查找下一个",
+    biggerText: "放大文字",
+    smallerText: "缩小文字",
+    resetTextSize: "恢复默认字号",
+  },
+} as const;

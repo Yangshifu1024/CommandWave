@@ -193,6 +193,9 @@ pub struct Settings {
     pub editor_command: Option<String>,
     /// actionId -> accelerator overrides; missing entries use menu defaults.
     pub keybindings: std::collections::HashMap<String, String>,
+    /// UI language: "system" (follow the operating system), "en" or "zh-CN".
+    /// Missing/unknown values mean "system".
+    pub language: Option<String>,
 }
 
 impl Default for Settings {
@@ -233,6 +236,7 @@ impl Default for Settings {
             session: None,
             editor_command: None,
             keybindings: std::collections::HashMap::new(),
+            language: None,
         }
     }
 }
@@ -556,5 +560,32 @@ mod tests {
         let mut value: serde_json::Value =
             serde_json::from_str(r#"{"notifications":{"events":{"finished":false}}}"#).unwrap();
         assert!(!migrate_notifications(&mut value));
+    }
+
+    #[test]
+    fn language_defaults_to_following_the_system() {
+        // Settings files written before the language field existed have no key.
+        let back: Settings = serde_json::from_str(r#"{"shell":"fish"}"#).unwrap();
+        assert_eq!(back.language, None);
+    }
+
+    #[test]
+    fn language_roundtrips_as_a_camel_case_key() {
+        let settings = Settings {
+            language: Some("zh-CN".to_string()),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&settings).unwrap();
+        assert!(json.contains("\"language\":\"zh-CN\""));
+        let back: Settings = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.language.as_deref(), Some("zh-CN"));
+    }
+
+    #[test]
+    fn unknown_language_values_still_parse() {
+        // A newer build may write a language this build knows nothing about;
+        // it must not fail the whole settings load.
+        let back: Settings = serde_json::from_str(r#"{"language":"ja"}"#).unwrap();
+        assert_eq!(back.language.as_deref(), Some("ja"));
     }
 }

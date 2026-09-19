@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { SearchAddon } from "@xterm/addon-search";
 
 import { useAppStore } from "../store/appStore";
 import { terminalManager } from "../terminal/manager";
 
+/** Key names are not translated, so the shortcut hints stay in the code. */
+const PREVIOUS_MATCH_SHORTCUT = "Shift+Enter";
+const NEXT_MATCH_SHORTCUT = "Enter";
+const CLOSE_SHORTCUT = "Esc";
+
 /** Floating find bar for the active pane (Cmd/Ctrl+F). */
 export function SearchBar() {
+  const { t } = useTranslation();
   const searchOpen = useAppStore((s) => s.searchOpen);
   const closeSearch = useAppStore((s) => s.closeSearch);
   const tabs = useAppStore((s) => s.tabs);
@@ -74,7 +81,7 @@ export function SearchBar() {
       <input
         ref={inputRef}
         type="text"
-        placeholder="Find"
+        placeholder={t("dialogs.search.placeholder")}
         value={query}
         spellCheck={false}
         onChange={(e) => setQuery(e.target.value)}
@@ -89,7 +96,7 @@ export function SearchBar() {
       />
       <button
         className={`search-toggle${caseSensitive ? " on" : ""}`}
-        title="Match case"
+        title={t("dialogs.search.matchCase")}
         aria-pressed={caseSensitive}
         onClick={() => setCaseSensitive((v) => !v)}
       >
@@ -97,7 +104,7 @@ export function SearchBar() {
       </button>
       <button
         className={`search-toggle${regex ? " on" : ""}`}
-        title="Regular expression"
+        title={t("dialogs.search.regex")}
         aria-pressed={regex}
         onClick={() => setRegex((v) => !v)}
       >
@@ -105,16 +112,31 @@ export function SearchBar() {
       </button>
       {resultCount && resultCount.count > 0 && (
         <span className="search-count">
-          {resultCount.index + 1}/{resultCount.count}
+          {t("dialogs.search.resultCount", {
+            index: resultCount.index + 1,
+            count: resultCount.count,
+          })}
         </span>
       )}
-      <button title="Previous match (Shift+Enter)" aria-label="Previous match" onClick={() => find("previous")}>
+      <button
+        title={t("dialogs.search.previousMatchShortcut", { shortcut: PREVIOUS_MATCH_SHORTCUT })}
+        aria-label={t("dialogs.search.previousMatch")}
+        onClick={() => find("previous")}
+      >
         ↑
       </button>
-      <button title="Next match (Enter)" aria-label="Next match" onClick={() => find("next")}>
+      <button
+        title={t("dialogs.search.nextMatchShortcut", { shortcut: NEXT_MATCH_SHORTCUT })}
+        aria-label={t("dialogs.search.nextMatch")}
+        onClick={() => find("next")}
+      >
         ↓
       </button>
-      <button title="Close (Esc)" aria-label="Close search" onClick={closeSearch}>
+      <button
+        title={t("dialogs.search.closeShortcut", { shortcut: CLOSE_SHORTCUT })}
+        aria-label={t("dialogs.search.close")}
+        onClick={closeSearch}
+      >
         ×
       </button>
     </div>

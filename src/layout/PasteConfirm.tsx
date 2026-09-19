@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { useAppStore } from "../store/appStore";
 import { terminalManager } from "../terminal/manager";
 import { pastePreview } from "../terminal/pasteGuard";
@@ -7,6 +9,7 @@ import { pastePreview } from "../terminal/pasteGuard";
  * Nothing is written to the PTY until the user accepts.
  */
 export function PasteConfirm() {
+  const { t } = useTranslation();
   const confirm = useAppStore((s) => s.pasteConfirm);
   if (!confirm) return null;
   // Either way the dialog unmounts: hand the keyboard back to the terminal so
@@ -25,22 +28,18 @@ export function PasteConfirm() {
         className="dialog modal-sm"
         role="alertdialog"
         aria-modal="true"
-        aria-label="Confirm paste"
+        aria-label={t("dialogs.paste.label")}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <h2>Paste multiple lines?</h2>
-        <p className="dialog-text">
-          The clipboard contains more than one line (or a very large /
-          potentially destructive command). Pasting it will run the lines
-          immediately.
-        </p>
+        <h2>{t("dialogs.paste.title")}</h2>
+        <p className="dialog-text">{t("dialogs.paste.description")}</p>
         <pre className="paste-preview">{pastePreview(confirm.text)}</pre>
         <div className="dialog-actions">
           <button type="button" onClick={cancel}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="button" className="primary" autoFocus onClick={accept}>
-            Paste
+            {t("dialogs.paste.accept")}
           </button>
         </div>
       </div>

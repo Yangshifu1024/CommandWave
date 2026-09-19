@@ -94,6 +94,8 @@ interface AppStore {
   tabBarPosition: "top" | "left";
   sidebarWidth: number;
   settingsOpen: boolean;
+  /** The About dialog (Help menu / native macOS app menu). */
+  aboutOpen: boolean;
   searchOpen: boolean;
   /** Current search-bar query, shared so ⌘G can repeat it globally. */
   searchQuery: string;
@@ -126,6 +128,8 @@ interface AppStore {
   setSidebarWidth: (width: number) => void;
   openSettings: () => void;
   closeSettings: () => void;
+  openAbout: () => void;
+  closeAbout: () => void;
   openSearch: () => void;
   closeSearch: () => void;
   setSearchQuery: (query: string) => void;
@@ -173,6 +177,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   tabBarPosition: "top",
   sidebarWidth: 180,
   settingsOpen: false,
+  aboutOpen: false,
   searchOpen: false,
   searchQuery: "",
   contextMenu: null,
@@ -270,6 +275,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
+  openAbout: () => set({ aboutOpen: true }),
+  closeAbout: () => set({ aboutOpen: false }),
   openSearch: () => set({ searchOpen: true }),
   closeSearch: () => set({ searchOpen: false }),
   setSearchQuery: (query) => set({ searchQuery: query }),

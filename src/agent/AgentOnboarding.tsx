@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 
 import { useSettingsStore } from "../store/settingsStore";
@@ -13,6 +14,7 @@ const PROMPTED_KEY = "commandwave.agentOnboarding";
  * Nothing is written without an explicit checkbox + confirm.
  */
 export function AgentOnboarding() {
+  const { t } = useTranslation();
   const [agents, setAgents] = useState<AgentInfo[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -60,22 +62,17 @@ export function AgentOnboarding() {
       <div
         className="settings-dialog agent-onboarding"
         role="dialog"
-        aria-label="Enable agent notifications"
+        aria-label={t("dialogs.onboarding.label")}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <header className="settings-header">
-          <h2>Enable agent notifications?</h2>
-          <button className="settings-close" aria-label="Close" onClick={dismiss}>
+          <h2>{t("dialogs.onboarding.title")}</h2>
+          <button className="settings-close" aria-label={t("common.close")} onClick={dismiss}>
             ×
           </button>
         </header>
         <div className="settings-body">
-          <p className="settings-hint">
-            CommandWave found coding agents on this machine. It can install a
-            small hook into each so the app knows precisely when one needs you,
-            finishes a turn, or errors. Your configs are backed up first and can
-            be restored any time from Settings ▸ Integrations.
-          </p>
+          <p className="settings-hint">{t("dialogs.onboarding.description")}</p>
           <div className="agent-list">
             {agents.map((agent) => (
               <label key={agent.id} className="check-row">
@@ -98,10 +95,10 @@ export function AgentOnboarding() {
           </div>
           <div className="field-row">
             <button className="settings-button" disabled={busy} onClick={() => void confirm()}>
-              {busy ? "Installing…" : "Install selected"}
+              {busy ? t("dialogs.onboarding.installing") : t("dialogs.onboarding.installSelected")}
             </button>
             <button className="settings-button" disabled={busy} onClick={dismiss}>
-              Not now
+              {t("dialogs.onboarding.notNow")}
             </button>
           </div>
         </div>

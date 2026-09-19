@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useTranslation } from "react-i18next";
 
 import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
@@ -14,6 +15,7 @@ import {
   writeClipboardText,
 } from "../terminal/clipboard";
 import { enterCopyModeForActivePane, exitCopyMode } from "../terminal/copyModeController";
+import type { menu } from "../i18n/locales/en/menu";
 
 export const isMac = /Mac/.test(navigator.platform);
 
@@ -109,6 +111,9 @@ export function dispatchMenuAction(action: string): void {
       break;
     case "check-for-updates":
       requestUpdateCheck();
+      break;
+    case "about":
+      s.openAbout();
       break;
     case "cycle-tab-prev":
       s.cycleTab(-1);
@@ -254,96 +259,115 @@ export function dispatchMenuAction(action: string): void {
   }
 }
 
+/** Menu words live in the locale packs; only keys are stored here. */
+type MenuGroupKey = `menu.groups.${keyof typeof menu.groups}`;
+
+type MenuLabelKey =
+  | MenuGroupKey
+  | `menu.shell.${keyof typeof menu.shell}`
+  | `menu.edit.${keyof typeof menu.edit}`
+  | `menu.view.${keyof typeof menu.view}`
+  | `menu.window.${keyof typeof menu.window}`
+  | `menu.help.${keyof typeof menu.help}`
+  | "common.close";
+
+/** `t` narrowed to the keys this file uses. */
+type Translate = (key: MenuLabelKey) => string;
+
 interface MenuEntry {
-  label?: string;
+  labelKey?: MenuLabelKey;
   action?: string;
   sep?: boolean;
 }
 
-/** Menu structure (labels + action ids); shortcut strings come from the
- * keybindings map at render time. */
-const MENUS: { label: string; items: MenuEntry[] }[] = [
+/** Menu structure (label keys + action ids); the words come from the locale
+ * packs and the shortcut strings from the keybindings map, both at render time
+ * (the language may change while the app is running). */
+const MENUS: { labelKey: MenuGroupKey; items: MenuEntry[] }[] = [
   {
-    label: "Shell",
+    labelKey: "menu.groups.shell",
     items: [
-      { label: "New Tab", action: "new-tab" },
+      { labelKey: "menu.shell.newTab", action: "new-tab" },
       { sep: true },
-      { label: "Close Pane", action: "close-pane" },
-      { label: "Close Tab", action: "close-tab" },
+      { labelKey: "menu.shell.closePane", action: "close-pane" },
+      { labelKey: "menu.shell.closeTab", action: "close-tab" },
       { sep: true },
-      { label: "Split Pane Right", action: "split-right" },
-      { label: "Split Pane Down", action: "split-down" },
+      { labelKey: "menu.shell.splitRight", action: "split-right" },
+      { labelKey: "menu.shell.splitDown", action: "split-down" },
       { sep: true },
-      { label: "Previous Pane", action: "prev-pane" },
-      { label: "Next Pane", action: "next-pane" },
+      { labelKey: "menu.shell.prevPane", action: "prev-pane" },
+      { labelKey: "menu.shell.nextPane", action: "next-pane" },
       { sep: true },
-      { label: "Select Pane Left", action: "pane-left" },
-      { label: "Select Pane Right", action: "pane-right" },
-      { label: "Select Pane Up", action: "pane-up" },
-      { label: "Select Pane Down", action: "pane-down" },
-      { label: "Maximize Pane", action: "toggle-maximize-pane" },
-      { label: "Move Pane to New Window", action: "detach-pane" },
+      { labelKey: "menu.shell.paneLeft", action: "pane-left" },
+      { labelKey: "menu.shell.paneRight", action: "pane-right" },
+      { labelKey: "menu.shell.paneUp", action: "pane-up" },
+      { labelKey: "menu.shell.paneDown", action: "pane-down" },
+      { labelKey: "menu.shell.maximizePane", action: "toggle-maximize-pane" },
+      { labelKey: "menu.shell.detachPane", action: "detach-pane" },
       { sep: true },
-      { label: "Broadcast Input to All Panes", action: "toggle-broadcast" },
+      { labelKey: "menu.shell.broadcast", action: "toggle-broadcast" },
       { sep: true },
-      { label: "Attach tmux Session…", action: "tmux-attach" },
+      { labelKey: "menu.shell.tmuxAttach", action: "tmux-attach" },
     ],
   },
   {
-    label: "Edit",
+    labelKey: "menu.groups.edit",
     items: [
-      { label: "Undo", action: "edit-undo" },
-      { label: "Redo", action: "edit-redo" },
+      { labelKey: "menu.edit.undo", action: "edit-undo" },
+      { labelKey: "menu.edit.redo", action: "edit-redo" },
       { sep: true },
-      { label: "Cut", action: "edit-cut" },
-      { label: "Copy", action: "edit-copy" },
-      { label: "Paste", action: "edit-paste" },
-      { label: "Copy Last Output", action: "copy-last-output" },
+      { labelKey: "menu.edit.cut", action: "edit-cut" },
+      { labelKey: "menu.edit.copy", action: "edit-copy" },
+      { labelKey: "menu.edit.paste", action: "edit-paste" },
+      { labelKey: "menu.edit.copyLastOutput", action: "copy-last-output" },
       { sep: true },
-      { label: "Select All", action: "edit-select-all" },
-      { label: "Clear Buffer", action: "clear-buffer" },
+      { labelKey: "menu.edit.selectAll", action: "edit-select-all" },
+      { labelKey: "menu.edit.clearBuffer", action: "clear-buffer" },
     ],
   },
   {
-    label: "View",
+    labelKey: "menu.groups.view",
     items: [
-      { label: "Toggle Vertical Tabs", action: "toggle-vertical-tabs" },
+      { labelKey: "menu.view.toggleVerticalTabs", action: "toggle-vertical-tabs" },
       { sep: true },
-      { label: "Bigger Text", action: "zoom-in" },
-      { label: "Smaller Text", action: "zoom-out" },
-      { label: "Reset Text Size", action: "zoom-reset" },
+      { labelKey: "menu.view.biggerText", action: "zoom-in" },
+      { labelKey: "menu.view.smallerText", action: "zoom-out" },
+      { labelKey: "menu.view.resetTextSize", action: "zoom-reset" },
       { sep: true },
-      { label: "Copy Mode", action: "copy-mode" },
-      { label: "Exposé All Panes", action: "toggle-expose" },
+      { labelKey: "menu.view.copyMode", action: "copy-mode" },
+      { labelKey: "menu.view.expose", action: "toggle-expose" },
       { sep: true },
-      { label: "Rename Tab…", action: "rename-tab" },
-      { label: "Lock / Unlock Tab", action: "toggle-tab-lock" },
-      { label: "Search…", action: "open-search" },
-      { label: "Search Next Match", action: "search-again" },
-      { label: "Recent Commands…", action: "recent-commands" },
-      { label: "Semantic History Search…", action: "semantic-history" },
-      { label: "Instant Replay…", action: "instant-replay" },
+      { labelKey: "menu.view.renameTab", action: "rename-tab" },
+      { labelKey: "menu.view.toggleTabLock", action: "toggle-tab-lock" },
+      { labelKey: "menu.view.search", action: "open-search" },
+      { labelKey: "menu.view.searchAgain", action: "search-again" },
+      { labelKey: "menu.view.recentCommands", action: "recent-commands" },
+      { labelKey: "menu.view.semanticHistory", action: "semantic-history" },
+      { labelKey: "menu.view.instantReplay", action: "instant-replay" },
       { sep: true },
-      { label: "Previous Prompt", action: "prev-mark" },
-      { label: "Next Prompt", action: "next-mark" },
+      { labelKey: "menu.view.prevPrompt", action: "prev-mark" },
+      { labelKey: "menu.view.nextPrompt", action: "next-mark" },
     ],
   },
   {
-    label: "Window",
+    labelKey: "menu.groups.window",
     items: [
-      { label: "Minimize", action: "window-minimize" },
-      { label: "Maximize", action: "window-toggle-maximize" },
+      { labelKey: "menu.window.minimize", action: "window-minimize" },
+      { labelKey: "menu.window.maximize", action: "window-toggle-maximize" },
     ],
   },
   {
-    label: "Help",
-    items: [{ label: "Check for Updates…", action: "check-for-updates" }],
+    labelKey: "menu.groups.help",
+    items: [
+      { labelKey: "menu.help.checkForUpdates", action: "check-for-updates" },
+      { labelKey: "menu.help.about", action: "about" },
+    ],
   },
 ];
 
-function entryLabel(entry: MenuEntry, isMaximized: boolean): string {
-  if (entry.action === "window-toggle-maximize" && isMaximized) return "Restore";
-  return entry.label ?? "";
+function entryLabel(entry: MenuEntry, isMaximized: boolean, t: Translate): string {
+  if (entry.action === "window-toggle-maximize" && isMaximized) return t("menu.window.restore");
+  return entry.labelKey ? t(entry.labelKey) : "";
 }
 
 /**
@@ -352,6 +376,7 @@ function entryLabel(entry: MenuEntry, isMaximized: boolean): string {
  * leaves room for the system traffic lights (menu lives in the system bar).
  */
 export function TitleBar() {
+  const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
@@ -407,19 +432,21 @@ export function TitleBar() {
         <div className="titlebar-traffic-space" data-tauri-drag-region />
       ) : (
         <div className="titlebar-menus" role="menubar">
-          {MENUS.map((menu) => (
-            <div key={menu.label} className="titlebar-menu">
+          {MENUS.map((group) => (
+            <div key={group.labelKey} className="titlebar-menu">
               <button
                 type="button"
-                className={`titlebar-menu-label${openMenu === menu.label ? " open" : ""}`}
-                onClick={() => setOpenMenu(openMenu === menu.label ? null : menu.label)}
-                onMouseEnter={() => openMenu && setOpenMenu(menu.label)}
+                className={`titlebar-menu-label${openMenu === group.labelKey ? " open" : ""}`}
+                onClick={() =>
+                  setOpenMenu(openMenu === group.labelKey ? null : group.labelKey)
+                }
+                onMouseEnter={() => openMenu && setOpenMenu(group.labelKey)}
               >
-                {menu.label}
+                {t(group.labelKey)}
               </button>
-              {openMenu === menu.label && (
+              {openMenu === group.labelKey && (
                 <div className="titlebar-dropdown" role="menu">
-                  {menu.items.map((entry, i) =>
+                  {group.items.map((entry, i) =>
                     entry.sep ? (
                       <div key={i} className="titlebar-menu-sep" />
                     ) : (
@@ -434,7 +461,7 @@ export function TitleBar() {
                         }}
                       >
                         <span className="titlebar-menu-item-label">
-                          {entryLabel(entry, isMaximized)}
+                          {entryLabel(entry, isMaximized, t)}
                         </span>
                         {entry.action && shortcutFor(entry.action) && (
                           <span className="titlebar-menu-item-key">
@@ -456,8 +483,8 @@ export function TitleBar() {
           <button
             type="button"
             className="titlebar-btn"
-            aria-label="Minimize"
-            title="Minimize"
+            aria-label={t("menu.window.minimize")}
+            title={t("menu.window.minimize")}
             onClick={() => dispatchMenuAction("window-minimize")}
           >
             <svg viewBox="0 0 10 10">
@@ -467,8 +494,8 @@ export function TitleBar() {
           <button
             type="button"
             className="titlebar-btn"
-            aria-label={isMaximized ? "Restore" : "Maximize"}
-            title={isMaximized ? "Restore" : "Maximize"}
+            aria-label={t(isMaximized ? "menu.window.restore" : "menu.window.maximize")}
+            title={t(isMaximized ? "menu.window.restore" : "menu.window.maximize")}
             onClick={() => dispatchMenuAction("window-toggle-maximize")}
           >
             {isMaximized ? (
@@ -485,8 +512,8 @@ export function TitleBar() {
           <button
             type="button"
             className="titlebar-btn titlebar-close"
-            aria-label="Close"
-            title="Close"
+            aria-label={t("common.close")}
+            title={t("common.close")}
             onClick={() => mainWindow()?.close().catch((err) => console.error("close failed", err))}
           >
             <svg viewBox="0 0 10 10">

@@ -6,6 +6,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 
+import i18n from "../i18n";
 import { containsPane } from "../layout/paneTree";
 import { useAppStore } from "../store/appStore";
 import { useSettingsStore } from "../store/settingsStore";
@@ -70,10 +71,10 @@ function notificationText(paneId: string, state: AgentState): { title: string; b
   const where = context?.cwd ?? tab?.title ?? "CommandWave";
   const title =
     state === "needs-you"
-      ? `${pane.label} needs you`
+      ? i18n.t("terminal.notify.agentNeedsYou", { title: pane.label })
       : state === "error"
-        ? `${pane.label} errored`
-        : `${pane.label} finished`;
+        ? i18n.t("terminal.notify.agentErrored", { title: pane.label })
+        : i18n.t("terminal.notify.agentFinished", { title: pane.label });
   const tail = pane.tail.trim().split("\n").filter(Boolean).pop() ?? "";
   const body = [where, tail].filter(Boolean).join("\n");
   return { title, body };

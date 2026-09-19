@@ -8,6 +8,7 @@
 
 import { useEffect } from "react";
 import type { JSX } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useUpdater } from "./UpdateProvider";
 import "./UpdateDialog.css";
@@ -35,6 +36,7 @@ export function UpdateDialog({
   onConfirmSessions,
   onCancelSessions,
 }: UpdateDialogProps = {}): JSX.Element | null {
+  const { t } = useTranslation();
   const { currentVersion, state, update, progress, error, install, restart, dismiss, skip } =
     useUpdater();
 
@@ -70,34 +72,33 @@ export function UpdateDialog({
         className="dialog update-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="Software update"
+        aria-label={t("updates.dialog.ariaLabel")}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {ready ? (
           <>
-            <h2>Update installed</h2>
+            <h2>{t("updates.dialog.installed.title")}</h2>
             <p className="dialog-text">
-              CommandWave {update.version} has been installed. Restart to start using it.
+              {t("updates.dialog.installed.body", { version: update.version })}
             </p>
             <div className="dialog-actions">
               <button type="button" onClick={dismiss}>
-                Later
+                {t("updates.actions.later")}
               </button>
               <button type="button" className="primary" autoFocus onClick={() => void restart()}>
-                Restart Now
+                {t("updates.actions.restartNow")}
               </button>
             </div>
           </>
         ) : confirming ? (
           <>
-            <h2>Update to {update.version}?</h2>
+            <h2>{t("updates.dialog.confirm.title", { version: update.version })}</h2>
             <p className="dialog-text">
-              Updating will close {confirmSessions} running session
-              {confirmSessions === 1 ? "" : "s"}. Continue?
+              {t("updates.dialog.confirm.body", { count: confirmSessions })}
             </p>
             <div className="dialog-actions">
               <button type="button" onClick={onCancelSessions}>
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -105,25 +106,29 @@ export function UpdateDialog({
                 autoFocus
                 onClick={onConfirmSessions}
               >
-                Continue
+                {t("updates.actions.continue")}
               </button>
             </div>
           </>
         ) : (
           <>
-            <h2>CommandWave {update.version} is available</h2>
+            <h2>{t("updates.dialog.available.title", { version: update.version })}</h2>
             <p className="dialog-text">
-              You are running {currentVersion}
-              {released ? ` · released ${released}` : ""}
+              {released
+                ? t("updates.dialog.available.runningWithDate", {
+                    version: currentVersion,
+                    date: released,
+                  })
+                : t("updates.dialog.available.running", { version: currentVersion })}
             </p>
-            <pre className="paste-preview update-notes">{notes ?? "No release notes were provided."}</pre>
+            <pre className="paste-preview update-notes">{notes ?? t("updates.dialog.noNotes")}</pre>
 
             {downloading && (
               <div className="update-progress">
                 <div
                   className="update-progress-track"
                   role="progressbar"
-                  aria-label="Download progress"
+                  aria-label={t("updates.dialog.progressAria")}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={percent ?? undefined}
@@ -134,7 +139,9 @@ export function UpdateDialog({
                   />
                 </div>
                 <span className="update-progress-label">
-                  {percent === null ? "Downloading…" : `${percent}%`}
+                  {percent === null
+                    ? t("updates.dialog.downloading")
+                    : t("updates.dialog.percent", { percent })}
                 </span>
               </div>
             )}
@@ -143,10 +150,10 @@ export function UpdateDialog({
 
             <div className="dialog-actions">
               <button type="button" disabled={downloading} onClick={skip}>
-                Skip This Version
+                {t("updates.actions.skipVersion")}
               </button>
               <button type="button" disabled={downloading} onClick={dismiss}>
-                Later
+                {t("updates.actions.later")}
               </button>
               <button
                 type="button"
@@ -155,7 +162,9 @@ export function UpdateDialog({
                 disabled={downloading}
                 onClick={() => void install()}
               >
-                {downloading ? "Downloading…" : "Download and Install"}
+                {downloading
+                  ? t("updates.dialog.downloading")
+                  : t("updates.actions.downloadAndInstall")}
               </button>
             </div>
           </>

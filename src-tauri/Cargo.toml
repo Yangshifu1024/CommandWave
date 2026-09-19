@@ -3,6 +3,7 @@ name = "commandwave"
 version = "0.4.0"
 description = "A cross-platform terminal emulator inspired by iTerm2"
 authors = ["CommandWave Contributors"]
+license = "MIT"
 edition = "2021"
 
 [lib]
@@ -23,6 +24,9 @@ anyhow = "1"
 toml_edit = "0.25"
 tauri-plugin-notifications = "=0.5.0-rc.13"
 tauri-plugin-updater = "2"
+# Reads the operating-system UI language so the native menu bar and the tray
+# can be built in the right language before the webview loads.
+sys-locale = "0.3"
 
 [profile.release]
 codegen-units = 1

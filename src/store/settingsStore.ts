@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { isTauri } from "../terminal/ipc";
 import { migrateThemeName, themes } from "../terminal/themes";
 import { defaultKeybindings } from "../hooks/keybindings";
+import { applyLocale, normalizeLanguageSetting, type LanguageSetting } from "../i18n";
 
 export interface UiSettings {
   tabBarPosition: "top" | "left";
@@ -129,6 +130,8 @@ export interface Settings {
   editorCommand: string | null;
   /** actionId -> Tauri accelerator ("" = no binding). */
   keybindings: Record<string, string>;
+  /** UI language: "system" (follow the OS), "en" or "zh-CN". */
+  language: LanguageSetting;
 }
 
 export const defaultSettings: Settings = {
@@ -185,6 +188,7 @@ export const defaultSettings: Settings = {
   session: null,
   editorCommand: null,
   keybindings: defaultKeybindings,
+  language: "system",
 };
 
 export const appearanceDefaults = {
@@ -248,6 +252,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         triggers: loaded.triggers ?? defaultSettings.triggers,
         autoAnswers: loaded.autoAnswers ?? defaultSettings.autoAnswers,
         keybindings: { ...defaultSettings.keybindings, ...loaded.keybindings },
+        // An unknown or missing value means "follow the system".
+        language: normalizeLanguageSetting(loaded.language),
       };
       // Themes dropped in the licensing audit: rewrite the stored name once
       // (Nord -> Nordfox; anything else unknown -> the default) so a returning
@@ -259,17 +265,23 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         invoke("settings_save", { newSettings: settings }).catch(() => {});
       }
       set({ settings, loaded: true });
+      // The stored language may differ from the system one shown at first paint.
+      void applyLocale(settings.language);
     } catch {
       set({ loaded: true });
     }
   },
 
   update: (mutate) => {
+    const previousLanguage = get().settings.language;
     const next = structuredClone(get().settings);
     mutate(next);
     set({ settings: next });
     if (isTauri) {
       invoke("settings_save", { newSettings: next }).catch(() => {});
+    }
+    if (next.language !== previousLanguage) {
+      void applyLocale(next.language);
     }
   },
 
