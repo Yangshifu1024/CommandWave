@@ -49,7 +49,8 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
-| 自定义配色编辑器 | ✅ | 21 个颜色槽逐项覆盖；✅ 导入 iTerm2 .itermcolors（XML plist 解析器带测试） |
+| 自定义配色编辑器 | ✅ | 21 个颜色槽逐项覆盖；✅ 导入 iTerm2 .itermcolors（XML plist 解析器带测试；修复了真实 iTerm2 导出因色块内 `Alpha Component`/`Color Space` 键而整份失效或大面积静默丢色的 bug） |
+| 内置配色方案 | ✅ | 42 款（26 暗 + 16 亮），设置页按暗/亮分档；每款登记上游项目与许可证（`THIRD-PARTY-NOTICES.md`），`themes.test.ts` 守住命名唯一/颜色格式/极性/对比度/许可白名单；4 款旧主题因许可证问题下线（Nord→Nordfox 别名迁移，无同族则回退默认） |
 | 光标样式与闪烁配置 | ✅ | block/bar/underline + blink/steady |
 | 字体进阶设置 | ⚠️ | 行高、字间距已实现；连字 (ligatures) 需 xterm.js 渲染器支持（WebGL 不支持，Node-only addon），暂缺 |
 | 透明度与模糊 | ⚠️ | 背景图 + 图片透明度（无需 OS 透明，Windows 验证）；桌面级透明默认关闭——Windows DWM 在透明 WebView2 窗口右缘产生 2-3px 白线（实测复现/修复对照），需在 tauri.conf 开 transparent 后可用，纯透明设置在不透明窗口下自动降级为不透明（防止白底） |
@@ -89,7 +90,7 @@ CommandWave 在该领域达到「日常可完全替代 iTerm2」的水平。
 | ⌘点击文件路径 | ✅ | 识别路径（含 :line:col），用 settings.editorCommand（如 `code {file}`）打开 |
 | tmux 控制模式 | ⚠️ | Shell 菜单 "Attach tmux Session…"（`tmux -CC new -A`）：解析 %output/%layout-change/%window-add|close/%window-renamed/%session-changed/%pane-mode-changed/%exit，tmux 布局树映射为 CommandWave 分屏（tmux-%N pane），输入经 send-keys 双向同步、尺寸经 resize-pane 同步，关标签即 kill-window。协议解析/布局解析/输入映射全部带单元测试。未做：tmux copy-mode/-pane 专用 UI、%begin 命令输出展示、滚动历史回传 |
 | Python API / 脚本化 | ⚠️ | 本地脚本 API：127.0.0.1 HTTP JSON（GET /panes、POST /write、POST /new-tab、GET /health），端口+token 写入 api.json 供 Python/curl 发现；非 iTerm2 式 in-process Python API |
-| CPU / 内存指示 | ✅ | 侧栏底部 CPU/RAM 百分比（sysinfo，3s 轮询） |
+| CPU / 内存指示 | ⬜ | 已移除（原生读数对终端用户价值低；连带删除 `system_stats` 命令与 `sysinfo` 依赖） |
 | SSH 配置文件集成 | ⬜ | 已随 profile 概念移除（原为导入 ~/.ssh/config 生成 SSH profiles） |
 | 密码 / API Key 管理器 | ⚠️ | 基础版：AES-GCM + PBKDF2(250k) 客户端加密 vault（Rust 仅存密文），主密码不落盘；触发器/自动回复 send-text 支持 {secret:name} 引用（引用解析带测试）；未做浏览器集成/自动填充 |
 | 进度条 escape 序列 | ✅ | OSC 9;4 → Windows 任务栏进度条 + macOS Dock 徽标数字 |

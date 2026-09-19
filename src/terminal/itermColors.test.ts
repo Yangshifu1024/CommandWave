@@ -45,6 +45,117 @@ const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?>
 </dict>
 </plist>`;
 
+const REAL_EXPORT = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Ansi 0 Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.3529</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.2784</real>
+		<key>Red Component</key>
+		<real>0.2706</real>
+	</dict>
+	<key>Bold Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.5</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.5</real>
+		<key>Red Component</key>
+		<real>0.5</real>
+	</dict>
+	<key>Background Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.1804</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.1176</real>
+		<key>Red Component</key>
+		<real>0.1176</real>
+	</dict>
+	<key>Cursor Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.8627</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.8784</real>
+		<key>Red Component</key>
+		<real>0.9608</real>
+	</dict>
+	<key>Cursor Text Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.1804</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.1176</real>
+		<key>Red Component</key>
+		<real>0.1176</real>
+	</dict>
+	<key>Foreground Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.9569</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.8392</real>
+		<key>Red Component</key>
+		<real>0.8039</real>
+	</dict>
+	<key>Selected Text Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.5</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.5</real>
+		<key>Red Component</key>
+		<real>0.5</real>
+	</dict>
+	<key>Selection Color</key>
+	<dict>
+		<key>Alpha Component</key>
+		<real>1</real>
+		<key>Blue Component</key>
+		<real>0.8627</real>
+		<key>Color Space</key>
+		<string>sRGB</string>
+		<key>Green Component</key>
+		<real>0.8784</real>
+		<key>Red Component</key>
+		<real>0.9608</real>
+	</dict>
+</dict>
+</plist>`;
+
 describe("parseItermColors", () => {
   it("parses colors from a real plist", () => {
     const out = parseItermColors(SAMPLE);
@@ -53,6 +164,20 @@ describe("parseItermColors", () => {
     expect(out!.foreground).toBe("#e8eaed");
     expect(out!.black).toBe("#272a31");
     expect(out!.red).toBe("#e06c75");
+  });
+
+  it("parses a real iTerm2 export, extra keys and all", () => {
+    // iTerm2 writes Alpha Component / Color Space into every color dict and
+    // carries color keys we do not map (Bold Color, Selected Text Color).
+    // Those used to end the color being collected and the whole file failed.
+    const out = parseItermColors(REAL_EXPORT);
+    expect(out).not.toBeNull();
+    expect(out!.black).toBe("#45475a");
+    expect(out!.background).toBe("#1e1e2e");
+    expect(out!.foreground).toBe("#cdd6f4");
+    expect(out!.cursor).toBe("#f5e0dc");
+    expect(out!.cursorAccent).toBe("#1e1e2e");
+    expect(out!.selectionBackground).toBe("#f5e0dc");
   });
 
   it("returns null for non-plist content", () => {

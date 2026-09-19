@@ -40,7 +40,6 @@ pub fn run() {
             commands::rebuild_menu,
             commands::open_with_editor,
             commands::set_progress,
-            commands::system_stats,
             commands::set_window_blur,
             commands::window_is_transparent,
             commands::agent_registry,

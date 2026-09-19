@@ -1,19 +1,31 @@
+import { useState } from "react";
+
 import {
   appearanceDefaults,
   useSettingsStore,
   type Settings,
 } from "../store/settingsStore";
-import { themes, getTheme, COLOR_KEYS } from "../terminal/themes";
+import { themesByPolarity, getTheme, isDarkTheme, COLOR_KEYS } from "../terminal/themes";
 import { parseItermColors } from "../terminal/itermColors";
 import { clampFloat, clampInt } from "./clamp";
 
 /**
- * Settings tab for appearance: theme, font, cursor metrics, background and
- * per-slot custom colors. Changes apply immediately and persist.
+ * Settings tab for appearance: theme (picked from the dark/light groups), font,
+ * cursor metrics, background and per-slot custom colors. Changes apply
+ * immediately and persist.
  */
 export function AppearanceSection() {
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
+  const themeName = settings.themeName ?? appearanceDefaults.themeName;
+
+  // Dark/light groups. The group follows the theme in use when the section
+  // mounts — the settings dialog unmounts it on tab switches, so reopening
+  // Appearance always lands on the polarity you actually run.
+  const [polarity, setPolarity] = useState<"dark" | "light">(() =>
+    isDarkTheme(themeName) ? "dark" : "light",
+  );
+  const shown = themesByPolarity(polarity === "dark");
 
   const set = (patch: Partial<Settings>) => {
     update((draft) => {
@@ -24,27 +36,47 @@ export function AppearanceSection() {
   return (
     <section className="settings-section">
       <h3>Theme</h3>
-      <div className="theme-grid">
-        {themes.map((t) => {
-          const active = (settings.themeName ?? appearanceDefaults.themeName) === t.name;
-          return (
+      <div className="field-row">
+        <div className="segmented" role="tablist" aria-label="Theme group">
+          {(["dark", "light"] as const).map((group) => (
             <button
-              key={t.name}
-              className={`theme-swatch${active ? " active" : ""}`}
-              onClick={() => set({ themeName: t.name })}
-              title={t.name}
+              key={group}
+              role="tab"
+              aria-selected={polarity === group}
+              className={polarity === group ? "active" : ""}
+              onClick={() => setPolarity(group)}
             >
-              <span className="theme-preview" style={{ background: t.theme.background }}>
-                <i style={{ background: t.theme.green }} />
-                <i style={{ background: t.theme.yellow }} />
-                <i style={{ background: t.theme.blue }} />
-                <i style={{ background: t.theme.magenta }} />
-              </span>
-              <span className="theme-name">{t.name}</span>
+              {group === "dark" ? "Dark" : "Light"} (
+              {themesByPolarity(group === "dark").length})
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
+      {shown.length === 0 ? (
+        <p className="field-label">No themes in this group.</p>
+      ) : (
+        <div className="theme-grid">
+          {shown.map((t) => {
+            const active = themeName === t.name;
+            return (
+              <button
+                key={t.name}
+                className={`theme-swatch${active ? " active" : ""}`}
+                onClick={() => set({ themeName: t.name })}
+                title={`${t.name} — ${t.credit.source} (${t.credit.license})`}
+              >
+                <span className="theme-preview" style={{ background: t.theme.background }}>
+                  <i style={{ background: t.theme.green }} />
+                  <i style={{ background: t.theme.yellow }} />
+                  <i style={{ background: t.theme.blue }} />
+                  <i style={{ background: t.theme.magenta }} />
+                </span>
+                <span className="theme-name">{t.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="field-row">
         <label className="field">
@@ -185,7 +217,7 @@ export function AppearanceSection() {
 
       <CustomColorsEditor
         overrides={settings.customColors}
-        themeName={settings.themeName ?? appearanceDefaults.themeName}
+        themeName={themeName}
         onChange={(customColors) => set({ customColors })}
       />
     </section>

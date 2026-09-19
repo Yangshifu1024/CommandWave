@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 
 import { isTauri } from "../terminal/ipc";
+import { migrateThemeName, themes } from "../terminal/themes";
 import { defaultKeybindings } from "../hooks/keybindings";
 
 export interface UiSettings {
@@ -190,7 +191,10 @@ export const appearanceDefaults = {
   fontFamily:
     '"SF Mono", Menlo, Monaco, "Cascadia Code", Consolas, "Liberation Mono", monospace',
   fontSize: 13,
-  themeName: "CommandWave Dark",
+  // Derived from the table, not a lookalike literal: `getTheme`, `isDarkTheme`
+  // and `migrateThemeName` all fall back to `themes[0]`, so the default has to
+  // follow the table when its first entry changes.
+  themeName: themes[0].name,
 };
 
 export const scrollbackLines = 10000;
@@ -217,37 +221,44 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     }
     try {
       const loaded = await invoke<Partial<Settings>>("settings_load");
-      set({
-        settings: {
-          ...defaultSettings,
-          ...loaded,
-          ui: { ...defaultSettings.ui, ...loaded.ui },
-          notifications: {
-            ...defaultSettings.notifications,
-            ...loaded.notifications,
-            events: {
-              ...defaultSettings.notifications.events,
-              ...loaded.notifications?.events,
-            },
-            integrations: {
-              ...defaultSettings.notifications.integrations,
-              ...loaded.notifications?.integrations,
-            },
+      const settings: Settings = {
+        ...defaultSettings,
+        ...loaded,
+        ui: { ...defaultSettings.ui, ...loaded.ui },
+        notifications: {
+          ...defaultSettings.notifications,
+          ...loaded.notifications,
+          events: {
+            ...defaultSettings.notifications.events,
+            ...loaded.notifications?.events,
           },
-          autoLog: { ...defaultSettings.autoLog, ...loaded.autoLog },
-          updates: {
-            ...defaultSettings.updates,
-            ...loaded.updates,
-            skippedVersions:
-              loaded.updates?.skippedVersions ??
-              defaultSettings.updates.skippedVersions,
+          integrations: {
+            ...defaultSettings.notifications.integrations,
+            ...loaded.notifications?.integrations,
           },
-          triggers: loaded.triggers ?? defaultSettings.triggers,
-          autoAnswers: loaded.autoAnswers ?? defaultSettings.autoAnswers,
-          keybindings: { ...defaultSettings.keybindings, ...loaded.keybindings },
         },
-        loaded: true,
-      });
+        autoLog: { ...defaultSettings.autoLog, ...loaded.autoLog },
+        updates: {
+          ...defaultSettings.updates,
+          ...loaded.updates,
+          skippedVersions:
+            loaded.updates?.skippedVersions ??
+            defaultSettings.updates.skippedVersions,
+        },
+        triggers: loaded.triggers ?? defaultSettings.triggers,
+        autoAnswers: loaded.autoAnswers ?? defaultSettings.autoAnswers,
+        keybindings: { ...defaultSettings.keybindings, ...loaded.keybindings },
+      };
+      // Themes dropped in the licensing audit: rewrite the stored name once
+      // (Nord -> Nordfox; anything else unknown -> the default) so a returning
+      // user never silently keeps a theme that no longer exists. The mapping
+      // lives next to the theme table; provenance is in THIRD-PARTY-NOTICES.md.
+      const migratedTheme = migrateThemeName(settings.themeName);
+      if (migratedTheme) {
+        settings.themeName = migratedTheme;
+        invoke("settings_save", { newSettings: settings }).catch(() => {});
+      }
+      set({ settings, loaded: true });
     } catch {
       set({ loaded: true });
     }

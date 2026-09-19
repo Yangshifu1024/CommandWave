@@ -34,6 +34,8 @@ const KEY_MAP: Record<string, keyof ColorOverrides> = {
 interface FlatEntry {
   key: string;
   value: string;
+  /** The key is followed by a nested <dict>: a color name, not a component. */
+  dict: boolean;
 }
 
 /** Extract flat <key> → value pairs in document order. Color names are
@@ -44,11 +46,11 @@ function extractEntries(xml: string): FlatEntry[] {
   const values = /<key>(.*?)<\/key>\s*<(?:real|integer|string)>(.*?)</g;
   let m: RegExpExecArray | null;
   while ((m = values.exec(xml))) {
-    tokens.push({ pos: m.index, entry: { key: m[1], value: m[2] } });
+    tokens.push({ pos: m.index, entry: { key: m[1], value: m[2], dict: false } });
   }
   const names = /<key>(.*?)<\/key>\s*<dict>/g;
   while ((m = names.exec(xml))) {
-    tokens.push({ pos: m.index, entry: { key: m[1], value: "" } });
+    tokens.push({ pos: m.index, entry: { key: m[1], value: "", dict: true } });
   }
   tokens.sort((a, b) => a.pos - b.pos);
   return tokens.map((t) => t.entry);
@@ -64,6 +66,14 @@ function toHex(rgb: [number, number, number]): string {
  * component dicts under color-name keys; after flattening, a color name is
  * followed by its Red/Green/Blue Component entries. Returns null when no
  * color could be extracted.
+ *
+ * Real iTerm2 exports put more than the components inside each color dict
+ * (`Alpha Component`, `Color Space`) and carry color keys we do not map
+ * (`Bold Color`, `Cursor Guide Color`, `Selected Text Color`), so only a
+ * nested-dict key ends the color being collected; stray scalars are ignored.
+ * Files whose color dicts start with one of those keys used to parse to null
+ * (or, when the first key was a component, to a silently gutted two-color
+ * result).
  */
 export function parseItermColors(xml: string): ColorOverrides | null {
   if (!xml.includes("<dict>")) return null;
@@ -82,14 +92,18 @@ export function parseItermColors(xml: string): ColorOverrides | null {
     rgb = null;
   };
 
-  for (const { key, value } of entries) {
+  for (const { key, value, dict } of entries) {
     const comp = /^(Red|Green|Blue) Component$/.exec(key);
-    if (comp) {
+    if (comp && !dict) {
       const idx = comp[1] === "Red" ? 0 : comp[1] === "Green" ? 1 : 2;
       rgb ??= [0, 0, 0];
       rgb[idx] = Number.parseFloat(value);
       continue;
     }
+    // Only a color dict ends the color we are collecting — an unmapped one
+    // (e.g. Bold Color) still delimits it, its components must not leak into
+    // the previous color.
+    if (!dict) continue;
     flush();
     if (KEY_MAP[key]) currentName = key;
   }
