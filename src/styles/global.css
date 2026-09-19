@@ -1365,16 +1365,7 @@ body {
 
 .autocomplete button:hover { background: var(--bg-raised); }
 
-/* ---------- Phase 6: sys stats & presets ---------- */
-
-.sys-stats {
-  font-size: 10px;
-  color: var(--fg-dim);
-  padding: 2px 4px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
+/* ---------- Phase 6: presets ---------- */
 
 .preset-grid {
   display: flex;

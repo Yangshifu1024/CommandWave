@@ -1,31 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useAppStore } from "../store/appStore";
-import { isTauri, systemStats, type SystemStats } from "../terminal/ipc";
 import { collectPaneIds } from "./paneTree";
 import { tabAttentionState, useAgentStore } from "../agent/statusStore";
-
-/** Poll CPU/RAM for the sidebar status line. */
-function useSystemStats(): SystemStats | null {
-  const [stats, setStats] = useState<SystemStats | null>(null);
-  useEffect(() => {
-    if (!isTauri) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      const s = await systemStats();
-      if (!cancelled) {
-        setStats(s);
-        timer = setTimeout(poll, 3000);
-      }
-    };
-    void poll();
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, []);
-  return stats;
-}
 
 interface TabStripProps {
   side: "top" | "left";
@@ -169,7 +145,6 @@ export function TabStrip({ side }: TabStripProps) {
         </button>
       </div>
       <div className="tabstrip-actions">
-        {vertical && <SystemStatsView />}
         <button
           className="tab-icon-btn"
           aria-label="Toggle vertical tabs"
@@ -194,17 +169,6 @@ export function TabStrip({ side }: TabStripProps) {
         </button>
       </div>
       {vertical && <div className="tabstrip-resizer" onMouseDown={startResize} />}
-    </div>
-  );
-}
-
-function SystemStatsView() {
-  const stats = useSystemStats();
-  if (!stats) return null;
-  const mem = stats.totalMemMb > 0 ? Math.round((stats.usedMemMb / stats.totalMemMb) * 100) : 0;
-  return (
-    <div className="sys-stats" title="CPU / memory usage">
-      CPU {Math.round(stats.cpuPercent)}% · RAM {mem}%
     </div>
   );
 }

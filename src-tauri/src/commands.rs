@@ -308,32 +308,6 @@ pub fn set_window_blur(app: AppHandle, enabled: bool) -> Result<(), String> {
     window.set_effects(effects).map_err(|e| e.to_string())
 }
 
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SystemStats {
-    pub cpu_percent: f32,
-    pub used_mem_mb: f64,
-    pub total_mem_mb: f64,
-}
-
-/// CPU/RAM readout for the tab-strip status line. The first call after
-/// startup reports 0% CPU (sysinfo needs two refresh cycles).
-#[tauri::command]
-pub fn system_stats() -> SystemStats {
-    use std::sync::Mutex;
-    use sysinfo::System;
-    static SYS: Mutex<Option<System>> = Mutex::new(None);
-    let mut guard = SYS.lock().unwrap();
-    let sys = guard.get_or_insert_with(System::new);
-    sys.refresh_cpu_usage();
-    sys.refresh_memory();
-    SystemStats {
-        cpu_percent: sys.global_cpu_usage(),
-        used_mem_mb: sys.used_memory() as f64 / 1024.0 / 1024.0,
-        total_mem_mb: sys.total_memory() as f64 / 1024.0 / 1024.0,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     /// Collect every Rust source file under `dir`, recursively.

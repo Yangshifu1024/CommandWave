@@ -186,22 +186,6 @@ export function setProgress(value: number | null): void {
   invoke("set_progress", { value }).catch(() => {});
 }
 
-export interface SystemStats {
-  cpuPercent: number;
-  usedMemMb: number;
-  totalMemMb: number;
-}
-
-/** CPU / RAM readout (tab-strip status). */
-export async function systemStats(): Promise<SystemStats | null> {
-  if (!isTauri) return null;
-  try {
-    return await invoke<SystemStats>("system_stats");
-  } catch {
-    return null;
-  }
-}
-
 /** Whether the window was created with OS transparency (tauri.conf). */
 export async function windowIsTransparent(): Promise<boolean> {
   if (!isTauri) return false;

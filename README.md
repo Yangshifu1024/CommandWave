@@ -16,11 +16,13 @@ Rust + xterm.js. Runs on **macOS, Windows, and Linux**.
   the tab bar
 - **Split panes** — side-by-side or stacked, arbitrarily nested, draggable
   dividers, per-pane focus highlight
-- **Themes & appearance** — 16 built-in color schemes (8 dark + 8 light:
-  Dracula, Catppuccin Latte, Solarized, Nord, Gruvbox, Ayu, …), live
-  font/size/theme switching with UI chrome that adapts to light themes,
-  persisted settings, and light/dark reporting (DECSET 2031 + `CSI ? 996/997`)
-  so a running TUI (opencode, neovim, …) repaints the moment you flip themes
+- **Themes & appearance** — 42 built-in color schemes (26 dark + 16 light:
+  Dracula, Catppuccin, Solarized, Tokyo Night, Rosé Pine, Gruvbox, …) picked
+  from **dark and light tabs**, live font/size/theme switching with UI chrome
+  that adapts to light themes, persisted settings, and light/dark reporting
+  (DECSET 2031 + `CSI ? 996/997`) so a running TUI (opencode, neovim, …)
+  repaints the moment you flip themes. Every scheme records its upstream
+  project and license — see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)
 - **In-terminal search** — <kbd>Cmd/Ctrl+F</kbd> with case sensitivity and
   regex modes, match highlights + overview ruler markers
 - **Prompt marks (OSC 133)** — jump between shell prompts with
@@ -234,3 +236,8 @@ Worth knowing:
 - The theme is a persisted choice (`CommandWave Dark` by default), not an
   automatic "follow the system appearance" switch. Programs ask the terminal
   for its polarity, so pick a light theme to make light themes stick.
+- Some schemes that used to ship here were dropped in a licensing audit (their
+  upstream license was not permissive, or could not be established), and some
+  well-known ones were never accepted for the same reason. The dropped names
+  and where an existing choice lands instead, and the rejected candidates, are
+  all listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
