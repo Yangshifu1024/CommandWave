@@ -1,6 +1,6 @@
 [package]
 name = "commandwave"
-version = "0.4.0"
+version = "0.4.1"
 description = "A cross-platform terminal emulator inspired by iTerm2"
 authors = ["CommandWave Contributors"]
 license = "MIT"

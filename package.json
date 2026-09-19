@@ -1,7 +1,7 @@
 {
   "name": "commandwave",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A cross-platform terminal emulator inspired by iTerm2",
   "license": "MIT",
   "type": "module",
