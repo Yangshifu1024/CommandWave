@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   KEYBINDING_ACTIONS,
@@ -13,6 +14,7 @@ import { useSettingsStore } from "../store/settingsStore";
  * combo; Escape cancels, Backspace unbinds. Conflicts are flagged inline.
  */
 export function KeyboardSection() {
+  const { t } = useTranslation();
   const keybindings = useSettingsStore((s) => s.settings.keybindings);
   const setKeybinding = useSettingsStore((s) => s.setKeybinding);
   const resetKeybindings = useSettingsStore((s) => s.resetKeybindings);
@@ -52,15 +54,13 @@ export function KeyboardSection() {
 
   return (
     <section className="settings-section">
-      <h3>Keyboard</h3>
-      <p className="kb-hint">
-        Click a shortcut, then press a new combo. Backspace unbinds, Escape
-        cancels.
-      </p>
+      <h3>{t("settings.keyboard.title")}</h3>
+      <p className="kb-hint">{t("settings.keyboard.hint")}</p>
       <div className="kb-list">
-        {KEYBINDING_ACTIONS.map(({ action, label, default: defaultAcc }) => {
+        {KEYBINDING_ACTIONS.map(({ action, labelKey, default: defaultAcc }) => {
           const bound = keybindings[action] ?? "";
           const conflictWith = conflicts.get(bound);
+          const label = t(labelKey);
           return (
             <div key={action} className="kb-row">
               <span className="kb-label">{label}</span>
@@ -71,14 +71,16 @@ export function KeyboardSection() {
                 }`}
                 onClick={() => recordRef.current(recording === action ? null : action)}
               >
-                {recording === action ? "Type a shortcut…" : acceleratorToDisplay(bound)}
+                {recording === action
+                  ? t("settings.keyboard.recording")
+                  : acceleratorToDisplay(bound)}
               </button>
               {bound !== defaultAcc && (
                 <button
                   type="button"
                   className="kb-reset"
-                  title="Restore default"
-                  aria-label={`Reset ${label} shortcut`}
+                  title={t("settings.keyboard.restoreDefault")}
+                  aria-label={t("settings.keyboard.resetAria", { label })}
                   onClick={() => setKeybinding(action, defaultAcc)}
                 >
                   ↺
@@ -90,7 +92,7 @@ export function KeyboardSection() {
       </div>
       {conflictNote && <p className="field-error">{conflictNote}</p>}
       <button type="button" className="settings-secondary-btn" onClick={resetKeybindings}>
-        Reset All to Defaults
+        {t("settings.keyboard.resetAll")}
       </button>
     </section>
   );

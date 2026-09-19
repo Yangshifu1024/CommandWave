@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
 use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 
+use crate::i18n;
+use crate::menu::MenuState;
 use crate::pty::{self, PtyCreateOptions, PtyCreated};
 use crate::settings::{self, Settings};
 use crate::state::PtyManager;
@@ -76,12 +80,42 @@ pub fn show_main_window(app: AppHandle) -> Result<(), String> {
 }
 
 /// Rebuild the native menu with customized accelerators.
+///
+/// The keybindings are remembered on the way, because the menu is rebuilt for
+/// other reasons too (a language switch) and those rebuilds need the user's
+/// accelerators rather than the built-in defaults.
 #[tauri::command]
 pub fn rebuild_menu(
     app: AppHandle,
-    keybindings: std::collections::HashMap<String, String>,
+    keybindings: HashMap<String, String>,
+    state: State<MenuState>,
 ) -> Result<(), String> {
-    crate::menu::setup(&app, &keybindings).map_err(|e| e.to_string())
+    state.set_keybindings(keybindings.clone());
+    let locale = state.locale();
+    crate::menu::setup(&app, &keybindings, &locale).map_err(|e| e.to_string())
+}
+
+/// Switch the language of the surfaces the operating system draws: the macOS
+/// menu bar, and the tray menu and tooltip.
+///
+/// The frontend pushes the *resolved* locale ("en" | "zh-CN") whenever the
+/// language setting changes, so it does not go through `sys-locale` here — but
+/// an unknown value is still treated as "follow the system" rather than being
+/// rendered literally. Nothing is persisted: the settings file is written by
+/// the frontend, which owns the setting.
+#[tauri::command]
+pub fn set_ui_locale(
+    app: AppHandle,
+    locale: String,
+    state: State<MenuState>,
+) -> Result<(), String> {
+    let locale = i18n::resolve_locale(Some(&locale));
+    state.set_locale(locale);
+    // The accelerators from the last `rebuild_menu`: a language switch must not
+    // reset the user's keybindings to the built-in defaults.
+    let keybindings = state.keybindings();
+    crate::menu::setup(&app, &keybindings, locale).map_err(|e| e.to_string())?;
+    crate::tray::set_locale(&app, locale).map_err(|e| e.to_string())
 }
 
 /// Hand an existing PTY session's output to a new window (pane detach).

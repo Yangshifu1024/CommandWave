@@ -1,4 +1,10 @@
+import { useTranslation } from "react-i18next";
+
 import { useSettingsStore, type Trigger } from "../store/settingsStore";
+import {
+  PASSWORD_TRIGGER_DEFAULT_TITLE,
+  PASSWORD_TRIGGER_ID,
+} from "../terminal/triggers";
 
 /**
  * Settings section for Triggers (regex over printed lines → highlight /
@@ -7,7 +13,16 @@ import { useSettingsStore, type Trigger } from "../store/settingsStore";
 
 const TRIGGER_ACTIONS: Trigger["action"][] = ["highlight", "notify", "sound", "send-text"];
 
+/** Translation key of each action's option label in the trigger row. */
+const TRIGGER_ACTION_KEYS = {
+  highlight: "settings.automation.actionHighlight",
+  notify: "settings.automation.actionNotify",
+  sound: "settings.automation.actionSound",
+  "send-text": "settings.automation.actionSendText",
+} as const satisfies Record<Trigger["action"], string>;
+
 export function AutomationSection() {
+  const { t } = useTranslation();
   const triggers = useSettingsStore((s) => s.settings.triggers);
   const answers = useSettingsStore((s) => s.settings.autoAnswers);
   const autoLog = useSettingsStore((s) => s.settings.autoLog);
@@ -35,67 +50,80 @@ export function AutomationSection() {
 
   return (
     <section className="settings-section">
-      <h3>Triggers</h3>
-      <p className="section-hint">
-        Regular expressions over printed lines. On a match: highlight the
-        line, send an OS notification, play a sound, or send text to the
-        session.
-      </p>
-      {triggers.map((t) => (
-        <div key={t.id} className="trigger-row">
+      <h3>{t("settings.automation.triggers")}</h3>
+      <p className="section-hint">{t("settings.automation.triggersHint")}</p>
+      {triggers.map((trigger) => (
+        <div key={trigger.id} className="trigger-row">
           <input
             type="checkbox"
-            title="Enabled"
-            checked={t.enabled}
-            onChange={(e) => mutateTrigger(t.id, (x) => (x.enabled = e.target.checked))}
+            title={t("common.enabled")}
+            checked={trigger.enabled}
+            onChange={(e) =>
+              mutateTrigger(trigger.id, (x) => (x.enabled = e.target.checked))
+            }
           />
           <input
             className="trigger-regex"
             type="text"
-            placeholder="regex"
-            value={t.regex}
+            placeholder={t("settings.automation.regexPlaceholder")}
+            value={trigger.regex}
             spellCheck={false}
-            onChange={(e) => mutateTrigger(t.id, (x) => (x.regex = e.target.value))}
+            onChange={(e) =>
+              mutateTrigger(trigger.id, (x) => (x.regex = e.target.value))
+            }
           />
           <select
-            value={t.action}
+            value={trigger.action}
             onChange={(e) =>
-              mutateTrigger(t.id, (x) => (x.action = e.target.value as Trigger["action"]))
+              mutateTrigger(trigger.id, (x) => (x.action = e.target.value as Trigger["action"]))
             }
           >
             {TRIGGER_ACTIONS.map((a) => (
               <option key={a} value={a}>
-                {a}
+                {t(TRIGGER_ACTION_KEYS[a])}
               </option>
             ))}
           </select>
-          {t.action !== "sound" && (
+          {trigger.action !== "sound" && (
             <input
               className="trigger-param"
               type="text"
               placeholder={
-                t.action === "highlight" ? "color (css)" : t.action === "notify" ? "message" : "text to send"
+                trigger.action === "highlight"
+                  ? t("settings.automation.paramColor")
+                  : trigger.action === "notify"
+                    ? t("settings.automation.paramMessage")
+                    : t("settings.automation.paramSendText")
               }
-              value={t.param ?? ""}
+              value={
+                trigger.id === PASSWORD_TRIGGER_ID &&
+                trigger.param === PASSWORD_TRIGGER_DEFAULT_TITLE
+                  ? t("terminal.notify.passwordPromptDefault")
+                  : (trigger.param ?? "")
+              }
               spellCheck={false}
-              onChange={(e) => mutateTrigger(t.id, (x) => (x.param = e.target.value || null))}
+              onChange={(e) =>
+                mutateTrigger(trigger.id, (x) => (x.param = e.target.value || null))
+              }
             />
           )}
-          <label className="trigger-case" title="Case sensitive">
+          <label className="trigger-case" title={t("settings.automation.caseSensitive")}>
             <input
               type="checkbox"
-              checked={t.caseSensitive}
-              onChange={(e) => mutateTrigger(t.id, (x) => (x.caseSensitive = e.target.checked))}
+              checked={trigger.caseSensitive}
+              onChange={(e) =>
+                mutateTrigger(trigger.id, (x) => (x.caseSensitive = e.target.checked))
+              }
             />
             Aa
           </label>
           <button
             type="button"
             className="settings-mini-btn"
-            aria-label="Delete trigger"
+            aria-label={t("settings.automation.deleteTriggerAria")}
             onClick={() =>
               update((draft) => {
-                draft.triggers = draft.triggers.filter((x) => x.id !== t.id);
+                draft.triggers = draft.triggers.filter((x) => x.id !== trigger.id);
               })
             }
           >
@@ -105,19 +133,17 @@ export function AutomationSection() {
       ))}
       <div className="field-row">
         <button type="button" className="settings-add-btn" onClick={addTrigger}>
-          + Add Trigger
+          {t("settings.automation.addTrigger")}
         </button>
       </div>
 
-      <h3>Auto Answers</h3>
-      <p className="section-hint">
-        Instantly reply to matching prompts (e.g. “Are you sure? [y/N]” → y).
-      </p>
+      <h3>{t("settings.automation.autoAnswers")}</h3>
+      <p className="section-hint">{t("settings.automation.autoAnswersHint")}</p>
       {answers.map((a, i) => (
         <div key={i} className="trigger-row">
           <input
             type="checkbox"
-            title="Enabled"
+            title={t("common.enabled")}
             checked={a.enabled}
             onChange={(e) =>
               update((draft) => {
@@ -128,7 +154,7 @@ export function AutomationSection() {
           <input
             className="trigger-regex"
             type="text"
-            placeholder="prompt regex"
+            placeholder={t("settings.automation.promptRegexPlaceholder")}
             value={a.pattern}
             spellCheck={false}
             onChange={(e) =>
@@ -140,7 +166,7 @@ export function AutomationSection() {
           <input
             className="trigger-param"
             type="text"
-            placeholder="reply"
+            placeholder={t("settings.automation.replyPlaceholder")}
             value={a.reply}
             spellCheck={false}
             onChange={(e) =>
@@ -152,7 +178,7 @@ export function AutomationSection() {
           <button
             type="button"
             className="settings-mini-btn"
-            aria-label="Delete auto answer"
+            aria-label={t("settings.automation.deleteAutoAnswerAria")}
             onClick={() =>
               update((draft) => {
                 draft.autoAnswers.splice(i, 1);
@@ -173,11 +199,11 @@ export function AutomationSection() {
             })
           }
         >
-          + Add Auto Answer
+          {t("settings.automation.addAutoAnswer")}
         </button>
       </div>
 
-      <h3>Session Log</h3>
+      <h3>{t("settings.automation.sessionLog")}</h3>
       <label className="check-row">
         <input
           type="checkbox"
@@ -188,16 +214,16 @@ export function AutomationSection() {
             })
           }
         />
-        <span>Automatically log all output of new sessions to file</span>
+        <span>{t("settings.automation.autoLog")}</span>
       </label>
       {autoLog.enabled && (
         <div className="field-row">
           <label className="field">
-            <span>Log directory (empty = app log dir)</span>
+            <span>{t("settings.automation.logDirectory")}</span>
             <input
               type="text"
               value={autoLog.directory ?? ""}
-              placeholder="default"
+              placeholder={t("settings.automation.logDirectoryPlaceholder")}
               spellCheck={false}
               onChange={(e) =>
                 update((draft) => {

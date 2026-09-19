@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import { dispatchMenuAction } from "./TitleBar";
 import { useAppStore } from "../store/appStore";
@@ -15,6 +16,7 @@ interface MenuItemDef {
  * through dispatchMenuAction so they behave identically to menu-bar items.
  */
 export function ContextMenu() {
+  const { t } = useTranslation();
   const menu = useAppStore((s) => s.contextMenu);
   const close = useAppStore((s) => s.closeContextMenu);
   const ref = useRef<HTMLDivElement>(null);
@@ -52,31 +54,33 @@ export function ContextMenu() {
 
   if (!menu) return null;
 
+  // Labels are resolved on every render so the open menu follows a language
+  // switch immediately.
   const items: MenuItemDef[] = menu.tabId
     ? [
-        { label: "New Tab", action: "new-tab" },
+        { label: t("dialogs.contextMenu.newTab"), action: "new-tab" },
         { sep: true },
-        { label: "Rename Tab…", action: "rename-tab" },
-        { label: "Lock / Unlock Tab", action: "toggle-tab-lock" },
+        { label: t("dialogs.contextMenu.renameTab"), action: "rename-tab" },
+        { label: t("dialogs.contextMenu.toggleTabLock"), action: "toggle-tab-lock" },
         { sep: true },
-        { label: "Close Tab", action: "close-tab" },
+        { label: t("dialogs.contextMenu.closeTab"), action: "close-tab" },
       ]
     : [
-        { label: "Copy", action: "edit-copy", disabled: !menu.hasSelection },
-        { label: "Copy Last Output", action: "copy-last-output" },
-        { label: "Paste", action: "edit-paste" },
-        { label: "Select All", action: "edit-select-all" },
+        { label: t("common.copy"), action: "edit-copy", disabled: !menu.hasSelection },
+        { label: t("dialogs.contextMenu.copyLastOutput"), action: "copy-last-output" },
+        { label: t("dialogs.contextMenu.paste"), action: "edit-paste" },
+        { label: t("dialogs.contextMenu.selectAll"), action: "edit-select-all" },
         { sep: true },
-        { label: "Search…", action: "open-search" },
-        { label: "Clear Buffer", action: "clear-buffer" },
+        { label: t("dialogs.contextMenu.search"), action: "open-search" },
+        { label: t("dialogs.contextMenu.clearBuffer"), action: "clear-buffer" },
         { sep: true },
-        { label: "Split Pane Right", action: "split-right" },
-        { label: "Split Pane Down", action: "split-down" },
+        { label: t("dialogs.contextMenu.splitRight"), action: "split-right" },
+        { label: t("dialogs.contextMenu.splitDown"), action: "split-down" },
         { sep: true },
-        { label: "Maximize Pane", action: "toggle-maximize-pane" },
-        { label: "Move Pane to New Window", action: "detach-pane" },
+        { label: t("dialogs.contextMenu.maximizePane"), action: "toggle-maximize-pane" },
+        { label: t("dialogs.contextMenu.detachPane"), action: "detach-pane" },
         { sep: true },
-        { label: "Close Pane", action: "close-pane" },
+        { label: t("dialogs.contextMenu.closePane"), action: "close-pane" },
       ];
 
   return (

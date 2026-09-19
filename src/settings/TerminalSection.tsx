@@ -1,24 +1,27 @@
+import { useTranslation } from "react-i18next";
+
 import { useSettingsStore, type Settings } from "../store/settingsStore";
 import { scrollbackLines } from "../store/settingsStore";
 import { requestAttention, sendNotification } from "../notifications/backend";
 import { clampInt } from "./clamp";
-
-/** Verify permission + toast style from the settings dialog. */
-async function sendTestNotification(): Promise<void> {
-  await sendNotification({
-    title: "CommandWave",
-    body: "Test notification — agent alerts are working.",
-  });
-  void requestAttention();
-}
 
 /**
  * Settings tab for the shell/session: shell command, working directory,
  * scrollback, badge, environment and notifications.
  */
 export function TerminalSection() {
+  const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
+
+  /** Verify permission + toast style from the settings dialog. */
+  const sendTestNotification = async (): Promise<void> => {
+    await sendNotification({
+      title: "CommandWave",
+      body: t("settings.terminal.testNotificationBody"),
+    });
+    void requestAttention();
+  };
 
   const set = (patch: Partial<Settings>) => {
     update((draft) => {
@@ -29,13 +32,13 @@ export function TerminalSection() {
   return (
     <>
       <section className="settings-section">
-        <h3>Shell</h3>
+        <h3>{t("settings.terminal.shell")}</h3>
         <div className="field-row">
           <label className="field">
-            <span>Shell command</span>
+            <span>{t("settings.terminal.shellCommand")}</span>
             <input
               type="text"
-              placeholder="system default"
+              placeholder={t("settings.terminal.shellCommandPlaceholder")}
               value={settings.shell ?? ""}
               onChange={(e) => set({ shell: e.target.value || null })}
               spellCheck={false}
@@ -44,10 +47,10 @@ export function TerminalSection() {
         </div>
         <div className="field-row">
           <label className="field">
-            <span>Working directory</span>
+            <span>{t("settings.terminal.workingDirectory")}</span>
             <input
               type="text"
-              placeholder="home"
+              placeholder={t("settings.terminal.workingDirectoryPlaceholder")}
               value={settings.cwd ?? ""}
               onChange={(e) => set({ cwd: e.target.value || null })}
               spellCheck={false}
@@ -57,10 +60,10 @@ export function TerminalSection() {
       </section>
 
       <section className="settings-section">
-        <h3>Buffer</h3>
+        <h3>{t("settings.terminal.buffer")}</h3>
         <div className="field-row">
           <label className="field field-narrow">
-            <span>Scrollback (lines)</span>
+            <span>{t("settings.terminal.scrollback")}</span>
             <input
               type="number"
               min={100}
@@ -78,10 +81,10 @@ export function TerminalSection() {
             />
           </label>
           <label className="field">
-            <span>Badge ({"{cwd}"} / {"{duration}"} placeholders)</span>
+            <span>{t("settings.terminal.badge")}</span>
             <input
               type="text"
-              placeholder="e.g. {cwd}"
+              placeholder={t("settings.terminal.badgePlaceholder")}
               value={settings.badge ?? ""}
               spellCheck={false}
               onChange={(e) => set({ badge: e.target.value || null })}
@@ -91,14 +94,14 @@ export function TerminalSection() {
       </section>
 
       <section className="settings-section">
-        <h3>Environment</h3>
+        <h3>{t("settings.terminal.environment")}</h3>
         <label className="field">
-          <span>Extra variables (one KEY=VALUE per line)</span>
+          <span>{t("settings.terminal.envVariables")}</span>
           <textarea
             rows={2}
             className="env-textarea"
             spellCheck={false}
-            placeholder="EDITOR=vim"
+            placeholder={t("settings.terminal.envPlaceholder")}
             value={(settings.env ?? []).join("\n")}
             onChange={(e) =>
               set({
@@ -112,7 +115,7 @@ export function TerminalSection() {
       </section>
 
       <section className="settings-section">
-        <h3>Notifications</h3>
+        <h3>{t("settings.terminal.notifications")}</h3>
         <label className="check-row">
           <input
             type="checkbox"
@@ -123,9 +126,7 @@ export function TerminalSection() {
               })
             }
           />
-          <span>
-            Finished — a command or agent turn completed while you were away
-          </span>
+          <span>{t("settings.terminal.notifyFinished")}</span>
         </label>
         <label className="check-row">
           <input
@@ -137,7 +138,7 @@ export function TerminalSection() {
               })
             }
           />
-          <span>Needs confirmation — an agent is waiting for your answer</span>
+          <span>{t("settings.terminal.notifyNeedsConfirmation")}</span>
         </label>
         <label className="check-row">
           <input
@@ -149,7 +150,7 @@ export function TerminalSection() {
               })
             }
           />
-          <span>Error — an agent or command failed</span>
+          <span>{t("settings.terminal.notifyError")}</span>
         </label>
         <label className="check-row">
           <input
@@ -161,7 +162,7 @@ export function TerminalSection() {
               })
             }
           />
-          <span>Flash the taskbar / Dock when an agent needs you</span>
+          <span>{t("settings.terminal.notifyTaskbarAttention")}</span>
         </label>
         <label className="check-row">
           <input
@@ -173,13 +174,11 @@ export function TerminalSection() {
               })
             }
           />
-          <span>
-            Detect agent state from window titles (Claude, Gemini, Codex…)
-          </span>
+          <span>{t("settings.terminal.notifyTitleDetection")}</span>
         </label>
         <div className="field-row">
           <label className="field field-narrow">
-            <span>Idle threshold (seconds)</span>
+            <span>{t("settings.terminal.idleThreshold")}</span>
             <input
               type="number"
               min={1}
@@ -200,7 +199,7 @@ export function TerminalSection() {
               void sendTestNotification();
             }}
           >
-            Send test notification
+            {t("settings.terminal.sendTestNotification")}
           </button>
         </div>
       </section>

@@ -1,11 +1,30 @@
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
+
 import { useAppStore } from "../store/appStore";
 import { collectPaneIds } from "./paneTree";
 import { tabAttentionState, useAgentStore } from "../agent/statusStore";
+import type { AgentState } from "../agent/signals";
 
 interface TabStripProps {
   side: "top" | "left";
 }
+
+/**
+ * Shortcut hints stay outside the language packs: key symbols are not
+ * translated, so only the surrounding sentence lives in the pack.
+ */
+const VERTICAL_TABS_SHORTCUT = "⌘⇧B / Ctrl+⇧B";
+const SETTINGS_SHORTCUT = "⌘, / Ctrl+,";
+
+/** The agent states are internal identifiers; each gets a translated word. */
+const AGENT_STATE_KEY = {
+  working: "dialogs.tabStrip.agentState.working",
+  "needs-you": "dialogs.tabStrip.agentState.needsYou",
+  error: "dialogs.tabStrip.agentState.error",
+  done: "dialogs.tabStrip.agentState.done",
+  idle: "dialogs.tabStrip.agentState.idle",
+} as const satisfies Record<AgentState, string>;
 
 /**
  * Tab bar in either orientation. `side="top"` renders the familiar horizontal
@@ -13,6 +32,7 @@ interface TabStripProps {
  * tabs) whose width is draggable.
  */
 export function TabStrip({ side }: TabStripProps) {
+  const { t } = useTranslation();
   const tabs = useAppStore((s) => s.tabs);
   const activeTabId = useAppStore((s) => s.activeTabId);
   const sidebarWidth = useAppStore((s) => s.sidebarWidth);
@@ -110,21 +130,23 @@ export function TabStrip({ side }: TabStripProps) {
               <span className="tab-title">
                 {(() => {
                   const attention = attentionByTab.get(tab.id);
-                  return attention ? (
-                    <span
-                      className={`tab-dot tab-dot-${attention}`}
-                      title={`Agent ${attention}`}
-                      aria-label={`Agent ${attention}`}
-                    />
-                  ) : null;
+                  if (!attention) return null;
+                  const label = t("dialogs.tabStrip.agentStatus", {
+                    status: t(AGENT_STATE_KEY[attention]),
+                  });
+                  return <span className={`tab-dot tab-dot-${attention}`} title={label} aria-label={label} />;
                 })()}
-                {tab.locked && <span className="tab-lock" title="Locked">🔒</span>}
+                {tab.locked && (
+                  <span className="tab-lock" title={t("dialogs.tabStrip.locked")}>
+                    🔒
+                  </span>
+                )}
                 {tab.customTitle ?? tab.title}
               </span>
             )}
             <button
               className="tab-close"
-              aria-label="Close tab"
+              aria-label={t("dialogs.tabStrip.closeTab")}
               hidden={tab.locked}
               onClick={(e) => {
                 e.stopPropagation();
@@ -137,8 +159,8 @@ export function TabStrip({ side }: TabStripProps) {
         ))}
         <button
           className="tab-new"
-          aria-label="New tab"
-          title="New tab"
+          aria-label={t("dialogs.tabStrip.newTab")}
+          title={t("dialogs.tabStrip.newTab")}
           onClick={() => newTab()}
         >
           +
@@ -147,8 +169,10 @@ export function TabStrip({ side }: TabStripProps) {
       <div className="tabstrip-actions">
         <button
           className="tab-icon-btn"
-          aria-label="Toggle vertical tabs"
-          title="Toggle vertical tabs (⌘⇧B / Ctrl+⇧B)"
+          aria-label={t("dialogs.tabStrip.toggleVertical")}
+          title={t("dialogs.tabStrip.toggleVerticalShortcut", {
+            shortcut: VERTICAL_TABS_SHORTCUT,
+          })}
           onClick={toggleTabBar}
         >
           <svg viewBox="0 0 24 24" className="tab-icon">
@@ -158,8 +182,8 @@ export function TabStrip({ side }: TabStripProps) {
         </button>
         <button
           className="tab-icon-btn"
-          aria-label="Settings"
-          title="Settings (⌘, / Ctrl+,)"
+          aria-label={t("dialogs.tabStrip.settings")}
+          title={t("dialogs.tabStrip.settingsShortcut", { shortcut: SETTINGS_SHORTCUT })}
           onClick={openSettings}
         >
           <svg viewBox="0 0 24 24" className="tab-icon">

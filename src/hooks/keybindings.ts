@@ -4,50 +4,61 @@
  * webview shortcut handler and the native macOS menu.
  */
 
+import type { menu } from "../i18n/locales/en/menu";
+
 const isMacPlatform =
   typeof navigator !== "undefined" &&
   /Mac/i.test(navigator.platform ?? navigator.userAgent ?? "");
 
-/** All customizable actions with their default accelerators and labels. */
+/**
+ * Translation key of an action name, taken from the `en` pack so a renamed or
+ * misspelled key fails the type check instead of showing a raw key.
+ */
+export type KeybindingLabelKey = `menu.actions.${keyof typeof menu.actions}`;
+
+/**
+ * All customizable actions with their default accelerators and the translation
+ * key of their display name (resolved with `t(labelKey)` where it is shown).
+ */
 export const KEYBINDING_ACTIONS: {
   action: string;
-  label: string;
+  labelKey: KeybindingLabelKey;
   default: string;
 }[] = [
-  { action: "new-tab", label: "New Tab", default: "CmdOrCtrl+T" },
-  { action: "close-pane", label: "Close Pane", default: "CmdOrCtrl+W" },
-  { action: "close-tab", label: "Close Tab", default: "Shift+CmdOrCtrl+W" },
-  { action: "split-right", label: "Split Pane Right", default: "CmdOrCtrl+D" },
-  { action: "split-down", label: "Split Pane Down", default: "Shift+CmdOrCtrl+D" },
-  { action: "prev-pane", label: "Previous Pane", default: "CmdOrCtrl+[" },
-  { action: "next-pane", label: "Next Pane", default: "CmdOrCtrl+]" },
-  { action: "pane-left", label: "Select Pane Left", default: "CmdOrCtrl+Alt+Left" },
-  { action: "pane-right", label: "Select Pane Right", default: "CmdOrCtrl+Alt+Right" },
-  { action: "pane-up", label: "Select Pane Up", default: "CmdOrCtrl+Alt+Up" },
-  { action: "pane-down", label: "Select Pane Down", default: "CmdOrCtrl+Alt+Down" },
-  { action: "toggle-maximize-pane", label: "Maximize Pane", default: "Shift+CmdOrCtrl+Enter" },
-  { action: "toggle-broadcast", label: "Broadcast Input", default: "" },
-  { action: "toggle-expose", label: "Exposé All Panes", default: "Shift+CmdOrCtrl+E" },
-  { action: "rename-tab", label: "Rename Tab", default: "CmdOrCtrl+I" },
-  { action: "toggle-tab-lock", label: "Lock / Unlock Tab", default: "" },
-  { action: "recent-commands", label: "Recent Commands", default: "CmdOrCtrl+;" },
-  { action: "semantic-history", label: "Semantic History Search", default: "CmdOrCtrl+Alt+;" },
-  { action: "instant-replay", label: "Instant Replay", default: "CmdOrCtrl+Alt+B" },
-  { action: "tmux-attach", label: "Attach tmux Session", default: "" },
-  { action: "cycle-tab-prev", label: "Previous Tab", default: "Shift+CmdOrCtrl+[" },
-  { action: "cycle-tab-next", label: "Next Tab", default: "Shift+CmdOrCtrl+]" },
-  { action: "toggle-vertical-tabs", label: "Toggle Vertical Tabs", default: "Shift+CmdOrCtrl+B" },
-  { action: "open-search", label: "Search", default: "CmdOrCtrl+F" },
-  { action: "open-settings", label: "Settings", default: "CmdOrCtrl+," },
-  { action: "prev-mark", label: "Previous Prompt", default: "CmdOrCtrl+Up" },
-  { action: "next-mark", label: "Next Prompt", default: "CmdOrCtrl+Down" },
-  { action: "copy-last-output", label: "Copy Last Output", default: "" },
-  { action: "clear-buffer", label: "Clear Buffer", default: "" },
-  { action: "copy-mode", label: "Copy Mode", default: "Shift+CmdOrCtrl+C" },
-  { action: "search-again", label: "Search Next Match", default: "CmdOrCtrl+G" },
-  { action: "zoom-in", label: "Bigger Text", default: "CmdOrCtrl+=" },
-  { action: "zoom-out", label: "Smaller Text", default: "CmdOrCtrl+-" },
-  { action: "zoom-reset", label: "Reset Text Size", default: "CmdOrCtrl+0" },
+  { action: "new-tab", labelKey: "menu.actions.newTab", default: "CmdOrCtrl+T" },
+  { action: "close-pane", labelKey: "menu.actions.closePane", default: "CmdOrCtrl+W" },
+  { action: "close-tab", labelKey: "menu.actions.closeTab", default: "Shift+CmdOrCtrl+W" },
+  { action: "split-right", labelKey: "menu.actions.splitRight", default: "CmdOrCtrl+D" },
+  { action: "split-down", labelKey: "menu.actions.splitDown", default: "Shift+CmdOrCtrl+D" },
+  { action: "prev-pane", labelKey: "menu.actions.prevPane", default: "CmdOrCtrl+[" },
+  { action: "next-pane", labelKey: "menu.actions.nextPane", default: "CmdOrCtrl+]" },
+  { action: "pane-left", labelKey: "menu.actions.paneLeft", default: "CmdOrCtrl+Alt+Left" },
+  { action: "pane-right", labelKey: "menu.actions.paneRight", default: "CmdOrCtrl+Alt+Right" },
+  { action: "pane-up", labelKey: "menu.actions.paneUp", default: "CmdOrCtrl+Alt+Up" },
+  { action: "pane-down", labelKey: "menu.actions.paneDown", default: "CmdOrCtrl+Alt+Down" },
+  { action: "toggle-maximize-pane", labelKey: "menu.actions.maximizePane", default: "Shift+CmdOrCtrl+Enter" },
+  { action: "toggle-broadcast", labelKey: "menu.actions.broadcastInput", default: "" },
+  { action: "toggle-expose", labelKey: "menu.actions.exposePanes", default: "Shift+CmdOrCtrl+E" },
+  { action: "rename-tab", labelKey: "menu.actions.renameTab", default: "CmdOrCtrl+I" },
+  { action: "toggle-tab-lock", labelKey: "menu.actions.toggleTabLock", default: "" },
+  { action: "recent-commands", labelKey: "menu.actions.recentCommands", default: "CmdOrCtrl+;" },
+  { action: "semantic-history", labelKey: "menu.actions.semanticHistory", default: "CmdOrCtrl+Alt+;" },
+  { action: "instant-replay", labelKey: "menu.actions.instantReplay", default: "CmdOrCtrl+Alt+B" },
+  { action: "tmux-attach", labelKey: "menu.actions.tmuxAttach", default: "" },
+  { action: "cycle-tab-prev", labelKey: "menu.actions.prevTab", default: "Shift+CmdOrCtrl+[" },
+  { action: "cycle-tab-next", labelKey: "menu.actions.nextTab", default: "Shift+CmdOrCtrl+]" },
+  { action: "toggle-vertical-tabs", labelKey: "menu.actions.toggleVerticalTabs", default: "Shift+CmdOrCtrl+B" },
+  { action: "open-search", labelKey: "menu.actions.search", default: "CmdOrCtrl+F" },
+  { action: "open-settings", labelKey: "menu.actions.settings", default: "CmdOrCtrl+," },
+  { action: "prev-mark", labelKey: "menu.actions.prevPrompt", default: "CmdOrCtrl+Up" },
+  { action: "next-mark", labelKey: "menu.actions.nextPrompt", default: "CmdOrCtrl+Down" },
+  { action: "copy-last-output", labelKey: "menu.actions.copyLastOutput", default: "" },
+  { action: "clear-buffer", labelKey: "menu.actions.clearBuffer", default: "" },
+  { action: "copy-mode", labelKey: "menu.actions.copyMode", default: "Shift+CmdOrCtrl+C" },
+  { action: "search-again", labelKey: "menu.actions.searchNext", default: "CmdOrCtrl+G" },
+  { action: "zoom-in", labelKey: "menu.actions.biggerText", default: "CmdOrCtrl+=" },
+  { action: "zoom-out", labelKey: "menu.actions.smallerText", default: "CmdOrCtrl+-" },
+  { action: "zoom-reset", labelKey: "menu.actions.resetTextSize", default: "CmdOrCtrl+0" },
 ];
 
 export const defaultKeybindings: Record<string, string> = Object.fromEntries(

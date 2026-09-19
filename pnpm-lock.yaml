@@ -139,15 +139,21 @@ importers:
       '@xterm/xterm':
         specifier: ^6.0.0
         version: 6.0.0
+      i18next:
+        specifier: ^26.4.2
+        version: 26.4.2(typescript@7.0.2)
       react:
         specifier: ^19.3.0
         version: 19.3.0
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
+      react-i18next:
+        specifier: ^17.0.14
+        version: 17.0.14(i18next@26.4.2(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
       zustand:
         specifier: ^5.0.15
-        version: 5.0.15(@types/react@19.3.0)(react@19.3.0)
+        version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.11.4
@@ -172,6 +178,10 @@ importers:
         version: 5.0.0(vite@8.3.0)
 
 packages:
+
+  '@babel/runtime@7.29.7':
+    resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
+    engines: {node: '>=6.9.0'}
 
   '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.13':
     resolution: {integrity: sha512-F+zQGsJuElZSyKi1RBSaOI5WydoNeJb4/KfrsyOT4SQMM2E/SNEhiknVmyiyGUYIAQKuMjmk++n4Jj82H9aQtQ==}
@@ -597,6 +607,17 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
+  html-parse-stringify@4.0.1:
+    resolution: {integrity: sha512-0zHsZJrK7S3K2aucXWL6ycoYJ/iNtIcFHC/nYQgFklPtrv5LpJctIiSCroWZWeuoXvuyFdzp6KzjJQ+OT5MfFw==}
+
+  i18next@26.4.2:
+    resolution: {integrity: sha512-RX+R0VLg13IbvRuJSxnqykUFS9vQZTl8wYpWPCIUDWVrSGjsQywB5Y+pjzrkboxGAuYfJZVH1InFTdgBdxq6ug==}
+    peerDependencies:
+      typescript: ^5 || ^6 || ^7
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   lightningcss-android-arm64@1.33.0:
     resolution: {integrity: sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==}
     engines: {node: '>= 12.0.0'}
@@ -699,6 +720,22 @@ packages:
     peerDependencies:
       react: ^19.3.0
 
+  react-i18next@17.0.14:
+    resolution: {integrity: sha512-ZpMBfJL3BiXPuYHj5QMY1GwvKJNhE1vCxOJQ8BoMBdHP5XONTfi/Qss1nuRlnFdIl72PKo2jPmw+fxuLjRFgaQ==}
+    peerDependencies:
+      i18next: '>= 26.2.0'
+      react: '>= 16.8.0'
+      react-dom: '*'
+      react-native: '*'
+      typescript: ^5 || ^6 || ^7
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
+      typescript:
+        optional: true
+
   react@19.3.0:
     resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
     engines: {node: '>=0.10.0'}
@@ -740,6 +777,11 @@ packages:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
     hasBin: true
+
+  use-sync-external-store@1.7.0:
+    resolution: {integrity: sha512-6L+EeigHMQhdaIPNIFUKwfWJSwWFQ8gJbJ2DLOs5sDIegTwR9fRxvnM3uciHKjIZhFz+KAv2emhWMRvDmMcY8A==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   vite@8.3.0:
     resolution: {integrity: sha512-lhZBVvEHefgE+HQZC9O7EBJgCU/nVzFNl7vkS4RE0APtWLP02/8QVIkQtzBxPquh7lq5/78NHipTj7ODQ6XuyQ==}
@@ -849,6 +891,8 @@ packages:
         optional: true
 
 snapshots:
+
+  '@babel/runtime@7.29.7': {}
 
   '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.13':
     dependencies:
@@ -1099,6 +1143,12 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
+  html-parse-stringify@4.0.1: {}
+
+  i18next@26.4.2(typescript@7.0.2):
+    optionalDependencies:
+      typescript: 7.0.2
+
   lightningcss-android-arm64@1.33.0:
     optional: true
 
@@ -1171,6 +1221,17 @@ snapshots:
       react: 19.3.0
       scheduler: 0.28.0
 
+  react-i18next@17.0.14(i18next@26.4.2(typescript@7.0.2))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2):
+    dependencies:
+      '@babel/runtime': 7.29.7
+      html-parse-stringify: 4.0.1
+      i18next: 26.4.2(typescript@7.0.2)
+      react: 19.3.0
+      use-sync-external-store: 1.7.0(react@19.3.0)
+    optionalDependencies:
+      react-dom: 19.3.0(react@19.3.0)
+      typescript: 7.0.2
+
   react@19.3.0: {}
 
   rolldown@1.2.7:
@@ -1236,6 +1297,10 @@ snapshots:
       '@typescript/typescript-win32-arm64': 7.0.2
       '@typescript/typescript-win32-x64': 7.0.2
 
+  use-sync-external-store@1.7.0(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+
   vite@8.3.0:
     dependencies:
       lightningcss: 1.33.0
@@ -1270,7 +1335,8 @@ snapshots:
       siginfo: 2.0.0
       stackback: 0.0.2
 
-  zustand@5.0.15(@types/react@19.3.0)(react@19.3.0):
+  zustand@5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0)):
     optionalDependencies:
       '@types/react': 19.3.0
       react: 19.3.0
+      use-sync-external-store: 1.7.0(react@19.3.0)

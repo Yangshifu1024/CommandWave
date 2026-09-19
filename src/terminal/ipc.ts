@@ -1,5 +1,6 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
+import i18n from "../i18n";
 import { normalizeChunk } from "./manager";
 
 export const isTauri =
@@ -152,6 +153,16 @@ export async function rebuildNativeMenu(
 }
 
 /**
+ * The language the shell chrome uses. The backend cannot read the settings file
+ * before the webview loads, so the resolved locale is pushed explicitly; the
+ * backend rebuilds the macOS menu bar and the tray menu with it.
+ */
+export async function setUiLocale(locale: string): Promise<void> {
+  if (!isTauri) return;
+  await invoke("set_ui_locale", { locale });
+}
+
+/**
  * OS notification for a finished command. Routed through the shared
  * notification backend so permission handling and the plugin live in one
  * place. No-op outside Tauri or when the system denies permission.
@@ -162,8 +173,11 @@ export async function notifyCommandFinished(
 ): Promise<void> {
   const { sendNotification: send } = await import("../notifications/backend");
   await send({
+    // Read the language at send time (the user may have switched it since load).
     title:
-      exitCode === 0 ? "Command finished" : `Command failed (exit ${exitCode})`,
+      exitCode === 0
+        ? i18n.t("terminal.notify.commandFinished")
+        : i18n.t("terminal.notify.commandFailed", { exitCode }),
     body: context,
   });
 }

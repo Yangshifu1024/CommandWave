@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Terminal } from "@xterm/xterm";
 import type { ILink } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -14,7 +15,7 @@ import {
 import { useAppStore } from "../store/appStore";
 import { parseOscCwd } from "./paneTitle";
 import { normalizeRect, pixelToCell, rectText } from "./rectSelect";
-import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
+import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi, triggerNotifyTitle } from "./triggers";
 import { completionSuffix, extractInput, filterSuggestions } from "./autocomplete";
 import { formatDuration, lastDurationMs, subscribeCommands, suggestCommands } from "./commandHistory";
 import { resolveBackdrop } from "./backdrop";
@@ -60,6 +61,7 @@ import {
   pasteTextIntoPane,
   writeClipboardText,
 } from "./clipboard";
+import i18n from "../i18n";
 
 /** Primary-modifier platform: Cmd/Ctrl+C/V map to copy/paste on mac/others. */
 const isMacPlatform =
@@ -109,6 +111,7 @@ interface TerminalPaneProps {
  * mounting/unmounting tracks the pane's lifetime, not tab visibility.
  */
 export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const entryRef = useRef<ReturnType<typeof terminalManager.create> | null>(null);
@@ -460,7 +463,13 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
             // decoration API unavailable
           }
         } else if (action === "notify") {
-          void sendNotification(param || "Trigger fired", line.slice(0, 120));
+          // Trigger texts are read with the language active at fire time; the
+          // interactive closure below lives for the whole pane lifetime.
+          const title = triggerNotifyTitle(hit.def, {
+            fired: i18n.t("terminal.notify.triggerFired"),
+            passwordPrompt: i18n.t("terminal.notify.passwordPromptDefault"),
+          });
+          void sendNotification(title, line.slice(0, 120));
         } else if (action === "sound") {
           playBeep();
         } else if (action === "send-text" && entry.ptyId !== null) {
@@ -515,7 +524,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
         );
         const el = document.createElement("img");
         el.src = canvas.toDataURL();
-        el.title = "sixel image";
+        el.title = i18n.t("terminal.image.sixelTitle");
         el.addEventListener("click", () => el.remove());
         imgTray.appendChild(el);
         while (imgTray.children.length > 3) imgTray.firstElementChild?.remove();
@@ -802,7 +811,9 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
             entry.doFit(); // size may have changed while the shell was starting
           })
           .catch((err) => {
-            term.write(`\r\n\x1b[31mFailed to start shell: ${err}\x1b[0m\r\n`);
+            term.write(
+              `\r\n\x1b[31m${i18n.t("terminal.shell.startFailed", { error: String(err) })}\x1b[0m\r\n`,
+            );
           });
       };
       spawnWithRetry();
@@ -830,7 +841,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
       if (ptyId !== entry.ptyId) return;
       exited = true;
       term.write(
-        `\r\n\x1b[2m[Process completed (exit code ${exitCode})]\x1b[0m\r\n`,
+        `\r\n\x1b[2m${i18n.t("terminal.shell.processCompleted", { exitCode })}\x1b[0m\r\n`,
       );
     }).then((u) => {
       unlistenExit = u;
@@ -861,7 +872,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
     <div ref={containerRef} className="terminal-pane">
       {inCopyMode && (
         <div className="copy-mode-banner" role="status">
-          COPY MODE · hjkl/↑↓ move · ⌃/⌥f/b page · v select · y copy · q quit
+          {t("terminal.copyMode.banner")}
         </div>
       )}
       {backdrop.imageUrl && (
@@ -876,7 +887,7 @@ export function TerminalPane({ paneId, cwd, tmuxPaneId }: TerminalPaneProps) {
       {badgeText && <div className="pane-badge">{badgeText}</div>}
       {broadcasting && (
         <div className="broadcast-banner" role="status">
-          BROADCAST INPUT — keystrokes go to every pane (toggle to disable)
+          {t("terminal.broadcast.banner")}
         </div>
       )}
     </div>

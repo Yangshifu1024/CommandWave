@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   appearanceDefaults,
@@ -7,14 +8,16 @@ import {
 } from "../store/settingsStore";
 import { themesByPolarity, getTheme, isDarkTheme, COLOR_KEYS } from "../terminal/themes";
 import { parseItermColors } from "../terminal/itermColors";
+import type { LanguageSetting } from "../i18n";
 import { clampFloat, clampInt } from "./clamp";
 
 /**
- * Settings tab for appearance: theme (picked from the dark/light groups), font,
- * cursor metrics, background and per-slot custom colors. Changes apply
- * immediately and persist.
+ * Settings tab for appearance: UI language, theme (picked from the dark/light
+ * groups), font, cursor metrics, background and per-slot custom colors.
+ * Changes apply immediately and persist.
  */
 export function AppearanceSection() {
+  const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
   const update = useSettingsStore((s) => s.update);
   const themeName = settings.themeName ?? appearanceDefaults.themeName;
@@ -35,9 +38,26 @@ export function AppearanceSection() {
 
   return (
     <section className="settings-section">
-      <h3>Theme</h3>
+      <h3>{t("settings.appearance.language.title")}</h3>
+      <p className="section-hint">{t("settings.appearance.language.description")}</p>
       <div className="field-row">
-        <div className="segmented" role="tablist" aria-label="Theme group">
+        <select
+          aria-label={t("settings.appearance.language.title")}
+          value={settings.language}
+          onChange={(e) => set({ language: e.target.value as LanguageSetting })}
+        >
+          <option value="system">{t("settings.appearance.language.system")}</option>
+          <option value="zh-CN">{t("settings.appearance.language.zhCN")}</option>
+          <option value="en">{t("settings.appearance.language.en")}</option>
+        </select>
+      </div>
+      {settings.language === "system" && (
+        <p className="section-hint">{t("settings.appearance.language.systemHint")}</p>
+      )}
+
+      <h3>{t("settings.appearance.theme.title")}</h3>
+      <div className="field-row">
+        <div className="segmented" role="tablist" aria-label={t("settings.appearance.theme.groupAria")}>
           {(["dark", "light"] as const).map((group) => (
             <button
               key={group}
@@ -46,14 +66,19 @@ export function AppearanceSection() {
               className={polarity === group ? "active" : ""}
               onClick={() => setPolarity(group)}
             >
-              {group === "dark" ? "Dark" : "Light"} (
-              {themesByPolarity(group === "dark").length})
+              {group === "dark"
+                ? t("settings.appearance.theme.dark", {
+                    count: themesByPolarity(true).length,
+                  })
+                : t("settings.appearance.theme.light", {
+                    count: themesByPolarity(false).length,
+                  })}
             </button>
           ))}
         </div>
       </div>
       {shown.length === 0 ? (
-        <p className="field-label">No themes in this group.</p>
+        <p className="field-label">{t("settings.appearance.theme.empty")}</p>
       ) : (
         <div className="theme-grid">
           {shown.map((t) => {
@@ -80,7 +105,7 @@ export function AppearanceSection() {
 
       <div className="field-row">
         <label className="field">
-          <span>Font</span>
+          <span>{t("settings.appearance.font")}</span>
           <input
             type="text"
             value={settings.fontFamily ?? appearanceDefaults.fontFamily}
@@ -89,7 +114,7 @@ export function AppearanceSection() {
           />
         </label>
         <label className="field field-narrow">
-          <span>Size</span>
+          <span>{t("settings.appearance.fontSize")}</span>
           <input
             type="number"
             min={8}
@@ -101,7 +126,7 @@ export function AppearanceSection() {
       </div>
 
       <div className="field-row">
-        <span className="field-label">Tab bar</span>
+        <span className="field-label">{t("settings.appearance.tabBar")}</span>
         <div className="segmented">
           {(["top", "left"] as const).map((pos) => (
             <button
@@ -113,7 +138,9 @@ export function AppearanceSection() {
                 })
               }
             >
-              {pos === "top" ? "Horizontal" : "Vertical"}
+              {pos === "top"
+                ? t("settings.appearance.tabBarHorizontal")
+                : t("settings.appearance.tabBarVertical")}
             </button>
           ))}
         </div>
@@ -121,28 +148,28 @@ export function AppearanceSection() {
 
       <div className="field-row">
         <label className="field field-narrow">
-          <span>Cursor</span>
+          <span>{t("settings.appearance.cursor")}</span>
           <select
             value={settings.cursorStyle ?? "block"}
             onChange={(e) => set({ cursorStyle: e.target.value as Settings["cursorStyle"] })}
           >
-            <option value="block">Block</option>
-            <option value="bar">Bar</option>
-            <option value="underline">Underline</option>
+            <option value="block">{t("settings.appearance.cursorBlock")}</option>
+            <option value="bar">{t("settings.appearance.cursorBar")}</option>
+            <option value="underline">{t("settings.appearance.cursorUnderline")}</option>
           </select>
         </label>
         <label className="field field-narrow">
-          <span>Cursor blink</span>
+          <span>{t("settings.appearance.cursorBlink")}</span>
           <select
             value={String(settings.cursorBlink ?? true)}
             onChange={(e) => set({ cursorBlink: e.target.value === "true" })}
           >
-            <option value="true">Blink</option>
-            <option value="false">Steady</option>
+            <option value="true">{t("settings.appearance.cursorBlinkOn")}</option>
+            <option value="false">{t("settings.appearance.cursorBlinkOff")}</option>
           </select>
         </label>
         <label className="field field-narrow">
-          <span>Line height</span>
+          <span>{t("settings.appearance.lineHeight")}</span>
           <input
             type="number"
             min={1}
@@ -153,7 +180,7 @@ export function AppearanceSection() {
           />
         </label>
         <label className="field field-narrow">
-          <span>Letter spacing</span>
+          <span>{t("settings.appearance.letterSpacing")}</span>
           <input
             type="number"
             min={0}
@@ -165,10 +192,10 @@ export function AppearanceSection() {
         </label>
       </div>
 
-      <h3>Background</h3>
+      <h3>{t("settings.appearance.background.title")}</h3>
       <div className="field-row">
         <label className="field field-narrow">
-          <span>Opacity</span>
+          <span>{t("settings.appearance.background.opacity")}</span>
           <input
             type="number"
             min={0.1}
@@ -184,7 +211,7 @@ export function AppearanceSection() {
           />
         </label>
         <label className="field field-narrow">
-          <span>Image opacity</span>
+          <span>{t("settings.appearance.background.imageOpacity")}</span>
           <input
             type="number"
             min={0.05}
@@ -204,10 +231,10 @@ export function AppearanceSection() {
       </div>
       <div className="field-row">
         <label className="field">
-          <span>Background image (URL or absolute path; empty = none)</span>
+          <span>{t("settings.appearance.background.image")}</span>
           <input
             type="text"
-            placeholder="/path/to/wallpaper.png"
+            placeholder={t("settings.appearance.background.imagePlaceholder")}
             value={settings.backgroundImage ?? ""}
             spellCheck={false}
             onChange={(e) => set({ backgroundImage: e.target.value.trim() || null })}
@@ -237,6 +264,7 @@ function CustomColorsEditor({
   themeName: string;
   onChange: (next: Record<string, string> | null) => void;
 }) {
+  const { t } = useTranslation();
   const base = getTheme(themeName);
   const setSlot = (key: string, value: string) => {
     const next = { ...(overrides ?? {}) };
@@ -255,9 +283,9 @@ function CustomColorsEditor({
   return (
     <div>
       <div className="field-row">
-        <span className="field-label">Custom colors</span>
+        <span className="field-label">{t("settings.appearance.customColors.title")}</span>
         <label className="settings-add-btn import-label">
-          Import .itermcolors…
+          {t("settings.appearance.customColors.import")}
           <input
             type="file"
             accept=".itermcolors,.plist,text/xml,application/xml"
@@ -271,7 +299,7 @@ function CustomColorsEditor({
         </label>
         {overrides && (
           <button className="settings-mini-btn" onClick={() => onChange(null)}>
-            Reset colors
+            {t("settings.appearance.customColors.reset")}
           </button>
         )}
       </div>

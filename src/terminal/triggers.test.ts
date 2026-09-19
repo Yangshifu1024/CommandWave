@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi } from "./triggers";
+import { compileTriggers, feedLines, matchAutoAnswer, matchTriggers, stripAnsi, triggerNotifyTitle } from "./triggers";
 import type { AutoAnswer, Trigger } from "../store/settingsStore";
 
 function trigger(patch: Partial<Trigger> = {}): Trigger {
@@ -74,6 +74,37 @@ describe("matchAutoAnswer", () => {
   it("ignores non-matching and invalid patterns", () => {
     expect(matchAutoAnswer("proceed", answers)).toBeNull();
     expect(matchAutoAnswer("x", [{ pattern: "(", reply: "y", enabled: true }])).toBeNull();
+  });
+});
+
+describe("triggerNotifyTitle", () => {
+  const texts = { fired: "Trigger fired", passwordPrompt: "Password prompt detected" };
+
+  it("keeps a message the user typed", () => {
+    expect(triggerNotifyTitle({ id: "t1", param: "Build failed" }, texts)).toBe("Build failed");
+  });
+
+  it("falls back to the generic title when the message is empty", () => {
+    expect(triggerNotifyTitle({ id: "t1", param: "" }, texts)).toBe("Trigger fired");
+    expect(triggerNotifyTitle({ id: "t1" }, texts)).toBe("Trigger fired");
+  });
+
+  it("translates the built-in password trigger's default message", () => {
+    expect(
+      triggerNotifyTitle({ id: "trigger-password", param: "Password prompt detected" }, texts),
+    ).toBe("Password prompt detected");
+    expect(
+      triggerNotifyTitle(
+        { id: "trigger-password", param: "Password prompt detected" },
+        { fired: "f", passwordPrompt: "检测到密码提示" },
+      ),
+    ).toBe("检测到密码提示");
+  });
+
+  it("keeps an edited password-trigger message as typed", () => {
+    expect(
+      triggerNotifyTitle({ id: "trigger-password", param: "密码？" }, texts),
+    ).toBe("密码？");
   });
 });
 

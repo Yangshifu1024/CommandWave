@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAppStore } from "../store/appStore";
 import { ptyWrite } from "../terminal/ipc";
@@ -16,6 +17,7 @@ import {
  * re-runs the selected command in the active pane.
  */
 export function RecentCommands({ semantic }: { semantic: boolean }) {
+  const { t } = useTranslation();
   const open = useAppStore((s) => s.historyOpen);
   const [filter, setFilter] = useState("");
   const [includeOutput, setIncludeOutput] = useState(semantic);
@@ -55,14 +57,18 @@ export function RecentCommands({ semantic }: { semantic: boolean }) {
       <div
         className="dialog history-dialog"
         role="dialog"
-        aria-label="Recent commands"
+        aria-label={t("dialogs.recentCommands.label")}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <input
           ref={inputRef}
           type="text"
           className="history-input"
-          placeholder={includeOutput ? "Search commands and their output…" : "Search commands…"}
+          placeholder={
+            includeOutput
+              ? t("dialogs.recentCommands.searchWithOutput")
+              : t("dialogs.recentCommands.search")
+          }
           value={filter}
           spellCheck={false}
           onChange={(e) => setFilter(e.target.value)}
@@ -85,11 +91,11 @@ export function RecentCommands({ semantic }: { semantic: boolean }) {
             checked={includeOutput}
             onChange={(e) => setIncludeOutput(e.target.checked)}
           />
-          include command output (semantic search)
+          {t("dialogs.recentCommands.includeOutput")}
         </label>
         <div className="history-list">
           {results.length === 0 && (
-            <div className="history-empty">No matching commands yet.</div>
+            <div className="history-empty">{t("dialogs.recentCommands.empty")}</div>
           )}
           {results.slice(0, 100).map((rec, i) => (
             <button
@@ -108,7 +114,7 @@ export function RecentCommands({ semantic }: { semantic: boolean }) {
           ))}
         </div>
         <div className="history-hint">
-          ↑↓ select · Enter run · Esc close · {allCommands().length} recorded
+          {t("dialogs.recentCommands.hint", { count: allCommands().length })}
         </div>
       </div>
     </div>
