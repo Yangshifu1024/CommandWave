@@ -15,7 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@choochmeque/tauri-plugin-notifications-api": "0.5.0-rc.13",
+    "@choochmeque/tauri-plugin-notifications-api": "0.5.0-rc.14",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.3",
     "@tauri-apps/plugin-opener": "^2.5.5",
