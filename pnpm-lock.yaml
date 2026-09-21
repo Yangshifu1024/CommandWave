@@ -110,8 +110,8 @@ importers:
   .:
     dependencies:
       '@choochmeque/tauri-plugin-notifications-api':
-        specifier: 0.5.0-rc.13
-        version: 0.5.0-rc.13
+        specifier: 0.5.0-rc.14
+        version: 0.5.0-rc.14
       '@tauri-apps/api':
         specifier: ^2.11.1
         version: 2.11.1
@@ -183,8 +183,8 @@ packages:
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
 
-  '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.13':
-    resolution: {integrity: sha512-F+zQGsJuElZSyKi1RBSaOI5WydoNeJb4/KfrsyOT4SQMM2E/SNEhiknVmyiyGUYIAQKuMjmk++n4Jj82H9aQtQ==}
+  '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.14':
+    resolution: {integrity: sha512-kst+PhQ+vawT9rs6oRJoQZ5A/ljtIEN/A0/j/z1joCOPFRCR6X5l7LBRg3ChaZEk7FPk0TT+v7Z3FX1N2Wm+6g==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -894,7 +894,7 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
-  '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.13':
+  '@choochmeque/tauri-plugin-notifications-api@0.5.0-rc.14':
     dependencies:
       '@tauri-apps/api': 2.11.1
 
