@@ -22,7 +22,7 @@ serde_json = "1"
 portable-pty = "0.9"
 anyhow = "1"
 toml_edit = "0.25"
-tauri-plugin-notifications = "=0.5.0-rc.13"
+tauri-plugin-notifications = "=0.5.0-rc.14"
 tauri-plugin-updater = "2"
 # Reads the operating-system UI language so the native menu bar and the tray
 # can be built in the right language before the webview loads.
